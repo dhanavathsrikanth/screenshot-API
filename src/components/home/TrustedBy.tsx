@@ -1,4 +1,6 @@
-function TrustedBy() {
+"use client";
+
+export function TrustedBy() {
   return (
     <section className="py-12 border-b border-[var(--border)] bg-zinc-50/50 dark:bg-zinc-950/50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -16,5 +18,3 @@ function TrustedBy() {
     </section>
   );
 }
-
-export { TrustedBy };

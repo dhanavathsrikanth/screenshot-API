@@ -41,37 +41,53 @@ export function Playground() {
   }
 
   return (
-    <section className="border-b border-[var(--border)] py-16">
+    <section className="border-b border-[var(--border)] py-20 lg:py-24">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl font-bold text-center mb-8">
-          Try it now — no signup required
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-4 mb-8">
-          <div className="flex gap-3 mb-4">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl font-bold sm:text-3xl">Try it now — no signup required</h2>
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+            Enter any URL and see the result instantly. All 9 formats supported.
+          </p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* URL Input */}
+          <div className="flex gap-3">
+            <label htmlFor="url" className="sr-only">
+              Website URL
+            </label>
             <input
+              id="url"
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com"
-              className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500"
               required
+              autoComplete="url"
             />
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
             >
               {loading ? "Rendering..." : "Render"}
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+          {/* Options */}
+          <fieldset className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <legend className="sr-only">Render options</legend>
+            
             <div>
-              <label className="block text-zinc-500 mb-1">Format</label>
+              <label htmlFor="format" className="block text-zinc-500 mb-1 text-sm">
+                Format
+              </label>
               <select
+                id="format"
                 value={format}
                 onChange={(e) => setFormat(e.target.value as typeof format)}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 <option value="png">PNG</option>
                 <option value="jpeg">JPEG</option>
@@ -80,33 +96,37 @@ export function Playground() {
                 <option value="html">HTML</option>
               </select>
             </div>
+            
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={fullPage}
                 onChange={(e) => setFullPage(e.target.checked)}
-                className="rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
               />
-              <span className="text-zinc-500">Full page</span>
+              <span className="text-sm text-zinc-500">Full page</span>
             </label>
+            
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={darkMode}
                 onChange={(e) => setDarkMode(e.target.checked)}
-                className="rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
               />
-              <span className="text-zinc-500">Dark mode</span>
+              <span className="text-sm text-zinc-500">Dark mode</span>
             </label>
+            
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={blockAds}
                 onChange={(e) => setBlockAds(e.target.checked)}
-                className="rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
               />
-              <span className="text-zinc-500">Block ads</span>
+              <span className="text-sm text-zinc-500">Block ads</span>
             </label>
+            
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -114,17 +134,19 @@ export function Playground() {
                 disabled
                 className="rounded border-[var(--border)] text-indigo-600"
               />
-              <span className="text-zinc-500">Auto-block</span>
+              <span className="text-sm text-zinc-500">Auto-block</span>
             </label>
-          </div>
+          </fieldset>
         </form>
 
+        {/* Error */}
         {error && (
-          <div className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-4 mb-6">
+          <div className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-4" role="alert">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
+        {/* Result */}
         {result && format !== "html" && (
           <div className="rounded-lg border border-[var(--border)] overflow-hidden">
             <div className="bg-zinc-50 dark:bg-zinc-900 px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
