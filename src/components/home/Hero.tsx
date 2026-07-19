@@ -2,9 +2,10 @@
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-[var(--border)] bg-gradient-to-b from-indigo-50/50 via-transparent to-transparent dark:from-indigo-950/20 dark:via-transparent">
-      <div className="mx-auto max-w-7xl px-4 py-28 sm:px-6 lg:px-8 lg:py-36">
+    <section className="relative overflow-hidden border-b border-[var(--border)] bg-gradient-to-b from-indigo-50/50 via-transparent to-transparent dark:from-indigo-950/20 dark:via-transparent pt-28 lg:pt-36 pb-20 lg:pb-32">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-4xl mx-auto">
+          {/* Badge */}
           <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50/80 dark:bg-indigo-950/30 px-4 py-1.5 text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-6">
             <span className="relative flex h-2 w-2" aria-hidden="true">
               <span className="absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75 animate-ping motion-reduce:animate-none" />
@@ -12,15 +13,21 @@ export function Hero() {
             </span>
             <span>New: HTML extraction, PDF generation, 9 output formats</span>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+          
+          {/* Headline */}
+          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl leading-tight">
             The Screenshot API
             <br />
             <span className="gradient-text">for Developers</span>
           </h1>
+          
+          {/* Subheadline */}
           <p className="mt-8 text-lg leading-8 text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
             Render website screenshots in one simple API call. Block cookie banners, ads,
             and chat widgets. Full-page, high-resolution, dark mode, and more.
           </p>
+          
+          {/* CTAs */}
           <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="https://api.screentool.dev/take?url=https://example.com"
@@ -35,6 +42,8 @@ export function Hero() {
               Read the Docs
             </a>
           </div>
+          
+          {/* Trust indicators */}
           <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-sm text-zinc-500">
             <span className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true" />
@@ -54,6 +63,8 @@ export function Hero() {
             </span>
           </div>
         </div>
+        
+        {/* Live Preview */}
         <div className="mt-16 relative">
           <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black/50 to-transparent z-10 pointer-events-none h-32 bottom-0 top-auto" />
           <div className="rounded-xl border border-[var(--border)] overflow-hidden shadow-2xl bg-[var(--background)]">
