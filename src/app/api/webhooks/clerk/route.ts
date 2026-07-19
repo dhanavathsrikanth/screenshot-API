@@ -1,32 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Webhook } from "svix";
 import { createServiceClient } from "@/lib/supabase/server";
 
 const supabase = createServiceClient();
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.text();
-    const headers = {
-      "svix-id": request.headers.get("svix-id") ?? "",
-      "svix-signature": request.headers.get("svix-signature") ?? "",
-      "svix-timestamp": request.headers.get("svix-timestamp") ?? "",
-    };
+  const body = await request.text();
 
-    const signingSecret = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
-    if (signingSecret) {
-      const { verifyWebhook } = await import("@clerk/nextjs/webhooks");
-      const evt = await verifyWebhook(request);
-      await handleEvent(evt.type, evt.data);
-    } else {
-      const payload = JSON.parse(body);
-      await handleEvent(payload.type, payload.data);
-    }
-
-    return NextResponse.json({ received: true }, { status: 200 });
-  } catch (error) {
-    console.error("[Clerk Webhook]", error);
-    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+  const signingSecret = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
+  if (!signingSecret) {
+    console.error("[Clerk Webhook] CLERK_WEBHOOK_SIGNING_SECRET not set");
+    return NextResponse.json({ error: "Signing secret not configured" }, { status: 500 });
   }
+
+  const wh = new Webhook(signingSecret);
+
+  let evt: { type: string; data: Record<string, unknown> };
+  try {
+    evt = wh.verify(body, {
+      "svix-id": request.headers.get("svix-id") ?? "",
+      "svix-timestamp": request.headers.get("svix-timestamp") ?? "",
+      "svix-signature": request.headers.get("svix-signature") ?? "",
+    }) as { type: string; data: Record<string, unknown> };
+  } catch (err) {
+    console.error("[Clerk Webhook] Signature verification failed:", err);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  try {
+    await handleEvent(evt.type, evt.data);
+  } catch (err) {
+    console.error("[Clerk Webhook] Event handling failed:", err);
+    return NextResponse.json({ error: "Event processing failed" }, { status: 500 });
+  }
+
+  return NextResponse.json({ received: true }, { status: 200 });
 }
 
 async function handleEvent(type: string, data: Record<string, unknown>) {
@@ -58,6 +66,7 @@ async function handleEvent(type: string, data: Record<string, unknown>) {
 
     if (error) {
       console.error("[Clerk Webhook] Failed to upsert user:", error.message);
+      throw error;
     }
   }
 }
