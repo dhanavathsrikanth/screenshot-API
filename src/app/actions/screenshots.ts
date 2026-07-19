@@ -6,7 +6,7 @@ export async function saveScreenshot(params: {
   userId: string;
   apiKeyId?: string;
   sourceUrl?: string;
-  storageUrl: string;
+  storageUrl: string | null;
   format: string;
   width: number;
   height: number;

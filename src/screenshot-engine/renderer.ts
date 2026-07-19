@@ -9,22 +9,37 @@ const MAX_PAGES = 5;
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
+function isServerless(): boolean {
+  return !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+}
+
 async function getBrowser(): Promise<Browser> {
   if (!browser) {
-    browser = await puppeteer.launch({
-      headless: true,
-      executablePath: process.env.CHROME_PATH || undefined,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--disable-gpu",
-        "--disable-extensions",
-        "--disable-background-networking",
-      ],
-    });
+    const args = [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--disable-gpu",
+      "--disable-extensions",
+      "--disable-background-networking",
+    ];
+
+    if (isServerless()) {
+      const chromium = (await import("@sparticuz/chromium")).default;
+      browser = await puppeteer.launch({
+        headless: true,
+        executablePath: await chromium.executablePath(),
+        args: chromium.args.concat(args),
+      });
+    } else {
+      browser = await puppeteer.launch({
+        headless: true,
+        executablePath: process.env.CHROME_PATH || undefined,
+        args,
+      });
+    }
   }
   return browser;
 }

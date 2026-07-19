@@ -8,7 +8,7 @@ export async function logScreenshotUsage(params: {
   endpoint: string;
   method: string;
   statusCode: number;
-  screenshotUrl?: string;
+  screenshotUrl?: string | null;
   cached: boolean;
   responseTimeMs: number;
 }) {

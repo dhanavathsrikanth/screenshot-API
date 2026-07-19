@@ -6,6 +6,11 @@ import { uploadToStorage } from "@/screenshot-engine/uploader";
 import { saveScreenshot } from "@/app/actions/screenshots";
 import { logScreenshotUsage } from "@/app/actions/usage";
 import { getFilename } from "@/lib/utils";
+import {
+  getUserPlan, checkQuota, checkRateLimit,
+  isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
+  isCloudStorageAllowed, type PlanId,
+} from "@/lib/plans";
 
 function uniqueKey(url: string, format: string): string {
   const ts = Date.now().toString(36);
@@ -28,11 +33,6 @@ export async function POST(request: NextRequest) {
 
     const { urls, concurrency, max_retries, ...renderOptions } = parsed.data;
 
-    const results = await bulkRender(urls, renderOptions, {
-      concurrency,
-      maxRetries: max_retries,
-    });
-
     const headerUserId = request.headers.get("x-user-id");
     const headerApiKeyId = request.headers.get("x-api-key-id");
     let userId = headerUserId;
@@ -46,39 +46,81 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Plan enforcement ─────────────────────────────────────────────
+    let plan: PlanId = "free";
+    if (userId) {
+      plan = await getUserPlan(userId);
+
+      const rateCheck = checkRateLimit(userId, plan);
+      if (!rateCheck.allowed) {
+        return NextResponse.json(
+          { error: "Rate limit exceeded. Try again later." },
+          { status: 429, headers: { "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)) } }
+        );
+      }
+
+      if (!isFormatAllowed(renderOptions.format, plan)) {
+        return NextResponse.json(
+          { error: `Format "${renderOptions.format}" requires a paid plan. Upgrade at /dashboard/settings` },
+          { status: 403 }
+        );
+      }
+
+      const quota = await checkQuota(userId);
+      if (!quota.allowed) {
+        return NextResponse.json(
+          { error: `Monthly screenshot limit reached (${quota.limit}/${quota.limit}). Upgrade at /dashboard/settings` },
+          { status: 429 }
+        );
+      }
+
+      if (!isAdBlockingAllowed(plan)) renderOptions.block_ads = false;
+      if (!isCookieBlockingAllowed(plan)) renderOptions.block_cookie_banners = false;
+    }
+
+    const cloudStorageAllowed = userId ? isCloudStorageAllowed(plan) : true;
+
+    const results = await bulkRender(urls, renderOptions, {
+      concurrency,
+      maxRetries: max_retries,
+    });
+
     if (userId) {
       for (const r of results) {
         if (r.success && r.renderResult) {
-          const key = uniqueKey(r.url, r.renderResult.format);
-          uploadToStorage(
-            r.renderResult.buffer,
-            key,
-            `image/${r.renderResult.format}`
-          )
-            .then((publicUrl) => {
-              saveScreenshot({
-                userId,
-                apiKeyId: apiKeyId ?? undefined,
-                storageUrl: publicUrl,
-                format: r.renderResult!.format,
-                width: r.renderResult!.width,
-                height: r.renderResult!.height,
-                fileSizeBytes: r.renderResult!.buffer.length,
-                cached: false,
-              }).catch(() => {});
+          let publicUrl: string | null = null;
+          if (cloudStorageAllowed) {
+            try {
+              const key = uniqueKey(r.url, r.renderResult.format);
+              publicUrl = await uploadToStorage(
+                r.renderResult.buffer,
+                key,
+                `image/${r.renderResult.format}`
+              );
+            } catch {}
+          }
 
-              logScreenshotUsage({
-                userId,
-                apiKeyId: apiKeyId ?? undefined,
-                endpoint: "/api/take/bulk",
-                method: "POST",
-                statusCode: 200,
-                screenshotUrl: publicUrl,
-                cached: false,
-                responseTimeMs: Math.round((Date.now() - startTime) / results.length),
-              }).catch(() => {});
-            })
-            .catch(() => {});
+          saveScreenshot({
+            userId,
+            apiKeyId: apiKeyId ?? undefined,
+            storageUrl: publicUrl,
+            format: r.renderResult!.format,
+            width: r.renderResult!.width,
+            height: r.renderResult!.height,
+            fileSizeBytes: r.renderResult!.buffer.length,
+            cached: false,
+          }).catch(() => {});
+
+          logScreenshotUsage({
+            userId,
+            apiKeyId: apiKeyId ?? undefined,
+            endpoint: "/api/take/bulk",
+            method: "POST",
+            statusCode: 200,
+            screenshotUrl: publicUrl,
+            cached: false,
+            responseTimeMs: Math.round((Date.now() - startTime) / results.length),
+          }).catch(() => {});
         }
       }
     }

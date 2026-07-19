@@ -7,6 +7,11 @@ import { getCacheKey, getFromCache, setInCache } from "@/screenshot-engine/cache
 import { getFilename } from "@/lib/utils";
 import { logScreenshotUsage } from "@/app/actions/usage";
 import { saveScreenshot } from "@/app/actions/screenshots";
+import {
+  getUserPlan, getPlanLimits, checkQuota, checkRateLimit,
+  isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
+  isCloudStorageAllowed, isPdfExportAllowed, type PlanId,
+} from "@/lib/plans";
 
 async function getAuthContext(request: NextRequest) {
   const headerUserId = request.headers.get("x-user-id");
@@ -37,11 +42,39 @@ function saveAndLog(
   buffer: Buffer,
   result: { format: string; width: number; height: number },
   options: { url?: string; method: string; cached: boolean },
-  startTime: number
+  startTime: number,
+  plan: PlanId,
+  cloudStorageAllowed: boolean
 ) {
   if (!userId) return;
 
   const key = uniqueKey(options.url ?? "screenshot", result.format);
+
+  if (!cloudStorageAllowed) {
+    saveScreenshot({
+      userId,
+      apiKeyId: apiKeyId ?? undefined,
+      sourceUrl: options.url,
+      storageUrl: null,
+      format: result.format,
+      width: result.width,
+      height: result.height,
+      fileSizeBytes: buffer.length,
+      cached: options.cached,
+    }).catch((e) => console.error("[saveScreenshot]", e.message));
+
+    logScreenshotUsage({
+      userId,
+      apiKeyId: apiKeyId ?? undefined,
+      endpoint: "/api/take",
+      method: options.method,
+      statusCode: 200,
+      screenshotUrl: null,
+      cached: options.cached,
+      responseTimeMs: Date.now() - startTime,
+    }).catch(() => {});
+    return;
+  }
 
   uploadToStorage(buffer, key, `image/${result.format}`)
     .then((publicUrl) => {
@@ -97,11 +130,52 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const { userId, apiKeyId } = await getAuthContext(request);
+
+    // ── Plan enforcement ─────────────────────────────────────────────
+    let plan: PlanId = "free";
+    if (userId) {
+      plan = await getUserPlan(userId);
+
+      // Rate limit
+      const rateCheck = checkRateLimit(userId, plan);
+      if (!rateCheck.allowed) {
+        return NextResponse.json(
+          { error: "Rate limit exceeded. Try again later." },
+          { status: 429, headers: { "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)) } }
+        );
+      }
+
+      // Format check
+      if (!isFormatAllowed(options.format, plan)) {
+        return NextResponse.json(
+          { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/settings` },
+          { status: 403 }
+        );
+      }
+
+      // Quota check
+      const quota = await checkQuota(userId);
+      if (!quota.allowed) {
+        return NextResponse.json(
+          { error: `Monthly screenshot limit reached (${quota.limit}/${quota.limit}). Upgrade at /dashboard/settings` },
+          { status: 429 }
+        );
+      }
+    }
+
+    // Feature gating: force block settings per plan
+    if (userId) {
+      if (!isAdBlockingAllowed(plan)) options.block_ads = false;
+      if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
+    }
+
+    const cloudStorageAllowed = userId ? isCloudStorageAllowed(plan) : true;
+
     const cacheKey = getCacheKey(rawParams);
     const cached = getFromCache(cacheKey);
 
     if (cached) {
-      const { userId, apiKeyId } = await getAuthContext(request);
       saveAndLog(
         userId ?? undefined,
         apiKeyId ?? undefined,
@@ -112,7 +186,9 @@ export async function GET(request: NextRequest) {
           height: cached.metadata.height as number,
         },
         { url: options.url, method: "GET", cached: true },
-        startTime
+        startTime,
+        plan,
+        cloudStorageAllowed
       );
       return new NextResponse(new Uint8Array(cached.buffer), {
         headers: {
@@ -133,14 +209,15 @@ export async function GET(request: NextRequest) {
 
     const ext = options.format === "jpeg" ? "jpg" : options.format;
 
-    const { userId, apiKeyId } = await getAuthContext(request);
     saveAndLog(
       userId ?? undefined,
       apiKeyId ?? undefined,
       result.buffer,
       { format: result.format, width: result.width, height: result.height },
       { url: options.url, method: "GET", cached: false },
-      startTime
+      startTime,
+      plan,
+      cloudStorageAllowed
     );
 
     return new NextResponse(new Uint8Array(result.buffer), {
@@ -181,18 +258,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { userId, apiKeyId } = await getAuthContext(request);
+
+    // ── Plan enforcement ─────────────────────────────────────────────
+    let plan: PlanId = "free";
+    if (userId) {
+      plan = await getUserPlan(userId);
+
+      const rateCheck = checkRateLimit(userId, plan);
+      if (!rateCheck.allowed) {
+        return NextResponse.json(
+          { error: "Rate limit exceeded. Try again later." },
+          { status: 429, headers: { "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)) } }
+        );
+      }
+
+      if (!isFormatAllowed(options.format, plan)) {
+        return NextResponse.json(
+          { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/settings` },
+          { status: 403 }
+        );
+      }
+
+      const quota = await checkQuota(userId);
+      if (!quota.allowed) {
+        return NextResponse.json(
+          { error: `Monthly screenshot limit reached (${quota.limit}/${quota.limit}). Upgrade at /dashboard/settings` },
+          { status: 429 }
+        );
+      }
+
+      if (!isAdBlockingAllowed(plan)) options.block_ads = false;
+      if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
+    }
+
+    const cloudStorageAllowed = userId ? isCloudStorageAllowed(plan) : true;
+
     const result = await render(options);
 
     let publicUrl: string | null = null;
-    try {
-      const key = uniqueKey(options.url ?? "screenshot", result.format);
-      publicUrl = await uploadToStorage(result.buffer, key, `image/${result.format}`);
-    } catch {
-      // Storage unavailable — still return the screenshot
+    if (cloudStorageAllowed) {
+      try {
+        const key = uniqueKey(options.url ?? "screenshot", result.format);
+        publicUrl = await uploadToStorage(result.buffer, key, `image/${result.format}`);
+      } catch {
+        // Storage unavailable
+      }
     }
 
-    const { userId, apiKeyId } = await getAuthContext(request);
-    if (userId && publicUrl) {
+    if (userId) {
       saveScreenshot({
         userId,
         apiKeyId: apiKeyId ?? undefined,

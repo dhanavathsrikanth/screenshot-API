@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { nanoid } from "nanoid";
 import { createHash, randomBytes } from "crypto";
+import { checkApiKeyLimit } from "@/lib/plans";
 
 const supabase = createServiceClient();
 
@@ -16,6 +17,11 @@ function hashApiKey(key: string): string {
 export async function generateApiKey(name: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+
+  const limitCheck = await checkApiKeyLimit(userId);
+  if (!limitCheck.allowed) {
+    throw new Error(`API key limit reached (${limitCheck.limit}). Upgrade your plan to create more keys.`);
+  }
 
   const rawKey = `st_${nanoid(48)}`;
   const prefix = rawKey.slice(0, 7);
