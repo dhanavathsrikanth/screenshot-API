@@ -6,9 +6,5 @@
     "src/app/api/take/bulk/route.ts": {
       "maxDuration": 60
     }
-  },
-  "outputFileTracingIncludes": {
-    "src/app/api/take/route.ts": ["./node_modules/@sparticuz/chromium/**"],
-    "src/app/api/take/bulk/route.ts": ["./node_modules/@sparticuz/chromium/**"]
   }
 }
