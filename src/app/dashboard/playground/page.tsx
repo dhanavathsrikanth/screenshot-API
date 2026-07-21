@@ -3,7 +3,13 @@ import { redirect } from "next/navigation";
 import { DashboardPlayground } from "@/components/dashboard/dashboard-playground";
 
 export default async function PlaygroundPage() {
-  const { userId } = await auth();
+  let userId: string | null = null;
+  try {
+    const authResult = await auth();
+    userId = authResult.userId;
+  } catch {
+    redirect("/");
+  }
   if (!userId) redirect("/");
 
   return (

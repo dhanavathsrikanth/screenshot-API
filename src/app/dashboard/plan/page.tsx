@@ -14,6 +14,14 @@ function ScreenshotIcon() {
   return (<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>);
 }
 
+function CreditIcon() {
+  return (<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>);
+}
+
+function UsedIcon() {
+  return (<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>);
+}
+
 export default async function PlanPage() {
   const { userId } = await auth();
   if (!userId) redirect("/");
@@ -28,7 +36,7 @@ export default async function PlanPage() {
     last_active_at: string | null; last_sign_in_at: string | null;
   } | null;
 
-  let stats: { plan: string; monthlyUsed: number; monthlyLimit: number; cacheHitRate: number; totalCalls: number };
+  let stats: { plan: string; monthlyUsed: number; monthlyLimit: number; creditBalance: number; creditsUsedThisCycle: number; creditsGrantedThisCycle: number; topUpBalance: number; overageEnabled: boolean; cacheHitRate: number; totalCalls: number };
   let profile: UserProfile;
   let costEst: any;
   let forecast: any;
@@ -45,7 +53,7 @@ export default async function PlanPage() {
       getAllPlanLimits(),
     ]);
   } catch {
-    stats = { plan: "free", monthlyUsed: 0, monthlyLimit: 100, cacheHitRate: 0, totalCalls: 0 };
+    stats = { plan: "free", monthlyUsed: 0, monthlyLimit: 100, creditBalance: 0, creditsUsedThisCycle: 0, creditsGrantedThisCycle: 0, topUpBalance: 0, overageEnabled: false, cacheHitRate: 0, totalCalls: 0 };
     profile = null;
     costEst = { plan: "free", monthlyPrice: 0, monthlyUsed: 0, monthlyLimit: 100, computeCost: 0, storageCost: 0, totalEstimatedCost: 0, storageGB: 0, costPerScreenshot: 0, recommendedPlan: null };
     forecast = { forecast: [], dailyAvg: 0, monthlyUsed: 0, monthlyLimit: 100, daysUntilLimit: null };
@@ -84,7 +92,7 @@ export default async function PlanPage() {
 
       <div>
         <h2 className="text-lg font-semibold mb-4">Current Plan</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <StatsCard
               label="Screenshots Used This Month"
@@ -97,6 +105,18 @@ export default async function PlanPage() {
               <UsageBar used={stats.monthlyUsed} limit={stats.monthlyLimit} />
             </div>
           </div>
+          <StatsCard
+            label="Credits Remaining"
+            value={stats.creditBalance.toLocaleString()}
+            sublabel={`${stats.creditsGrantedThisCycle.toLocaleString()} granted this cycle`}
+            icon={<CreditIcon />}
+          />
+          <StatsCard
+            label="Credits Used This Cycle"
+            value={stats.creditsUsedThisCycle.toLocaleString()}
+            sublabel={stats.topUpBalance > 0 ? `+${stats.topUpBalance.toLocaleString()} top-up balance` : undefined}
+            icon={<UsedIcon />}
+          />
           <div className="flex items-center">
             <span className="inline-flex items-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 px-4 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300">
               {planLabels[stats.plan] ?? stats.plan} Plan

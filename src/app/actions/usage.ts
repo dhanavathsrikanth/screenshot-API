@@ -37,7 +37,7 @@ export async function getUsageStats(userId: string) {
   const supabase = await createClient();
   const quotaResult = await supabase
     .from("user_quotas")
-    .select("plan, monthly_limit, monthly_used, quota_reset_at")
+    .select("plan, monthly_limit, monthly_used, quota_reset_at, credit_balance, credits_used_this_cycle, credits_granted_this_cycle, top_up_balance, overage_enabled")
     .eq("user_id", userId)
     .single();
 
@@ -56,6 +56,11 @@ export async function getUsageStats(userId: string) {
     plan: quotaResult.data?.plan ?? "free",
     monthlyUsed: quotaResult.data?.monthly_used ?? 0,
     monthlyLimit: quotaResult.data?.monthly_limit ?? 100,
+    creditBalance: quotaResult.data?.credit_balance ?? 0,
+    creditsUsedThisCycle: quotaResult.data?.credits_used_this_cycle ?? 0,
+    creditsGrantedThisCycle: quotaResult.data?.credits_granted_this_cycle ?? 0,
+    topUpBalance: quotaResult.data?.top_up_balance ?? 0,
+    overageEnabled: quotaResult.data?.overage_enabled ?? false,
     cacheHitRate,
     totalCalls,
   };
