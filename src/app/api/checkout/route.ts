@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import DodoPayments from "dodopayments";
-import { dodoConfig } from "@/lib/env";
+import { getDodoConfig } from "@/lib/env";
 
 type CheckoutBody = {
   product_id?: string;
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const quantity = Math.max(1, Number(body.quantity ?? 1));
+    const dodoConfig = getDodoConfig();
     const returnUrl =
       body.return_url ?? dodoConfig.returnUrlSuccess ?? "http://localhost:3000/dashboard/plan?upgraded=1";
 

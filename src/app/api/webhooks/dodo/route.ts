@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhooks } from "@dodopayments/nextjs";
 import DodoPayments from "dodopayments";
-import { dodoConfig } from "@/lib/env";
+import { getDodoConfig } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/server";
 
 type AnyRecord = Record<string, any>;
@@ -61,6 +61,7 @@ async function syncCreditBalanceFromDodo(payload: AnyRecord): Promise<void> {
 
   const supabase = createServiceClient();
 
+  const dodoConfig = getDodoConfig();
   const client = new DodoPayments({
     bearerToken: dodoConfig.apiKey,
     environment: dodoConfig.environment as "test_mode" | "live_mode",
@@ -128,7 +129,7 @@ async function downgradeToFree(payload: AnyRecord): Promise<void> {
 }
 
 export const POST = Webhooks({
-  webhookKey: dodoConfig.webhookSecret,
+  webhookKey: getDodoConfig().webhookSecret,
   onPayload: async (payload: AnyRecord) => {
     // Generic logging hook
     console.log("[Dodo Webhook]", payload?.type);

@@ -1,5 +1,5 @@
 import DodoPayments from "dodopayments";
-import { dodoConfig } from "@/lib/env";
+import { getDodoConfig } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/server";
 import { cacheGet, cacheSet, cacheInvalidate } from "@/lib/redis";
 
@@ -82,6 +82,7 @@ function envOrDefault(name: string, fallback: string): string {
 }
 
 async function sendUsageEvent(customerId: string, units: number, kind: "screenshot" | "pdf", metadata: Record<string, unknown> = {}) {
+  const dodoConfig = getDodoConfig();
   const client = new DodoPayments({
     bearerToken: dodoConfig.apiKey,
     environment: dodoConfig.environment as "test_mode" | "live_mode",
