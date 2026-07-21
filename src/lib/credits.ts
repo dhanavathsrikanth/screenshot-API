@@ -2,6 +2,7 @@ import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/server";
 import { cacheGet, cacheSet, cacheInvalidate } from "@/lib/redis";
+import { getPlanLimits, type PlanId } from "@/lib/plans";
 
 type CreditState = {
   user_id: string;
@@ -160,6 +161,27 @@ export async function ensureCredits(userId: string, params: {
   if (!state) {
     // Initialize a row on first use if missing
     return { allowed: false, mode: "blocked", reason: "no_quota_row" };
+  }
+
+  // Auto-initialize credits from plan limit if never granted
+  if (state.credit_balance === 0 && state.top_up_balance === 0) {
+    const plan = (state.plan || "free") as PlanId;
+    const limits = getPlanLimits(plan);
+    const initialCredits = limits.monthlyScreenshots;
+
+    const supabase = createServiceClient();
+    await supabase
+      .from("user_quotas")
+      .update({
+        credit_balance: initialCredits,
+        credits_granted_this_cycle: initialCredits,
+        credits_used_this_cycle: 0,
+      })
+      .eq("user_id", userId)
+      .eq("credits_granted_this_cycle", 0);
+
+    state.credit_balance = initialCredits;
+    await cacheInvalidate(creditsCacheKey(userId));
   }
 
   const { units, kind } = computeUnits(params);
