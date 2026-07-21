@@ -1,6 +1,6 @@
-import { createServiceClient } from "@/lib/supabase/server";
-
-const supabase = createServiceClient();
+import { Ratelimit } from "@upstash/ratelimit";
+import { redis } from "@/lib/redis";
+import { createClient } from "@/lib/supabase/server";
 
 // ─── Plan Definitions ─────────────────────────────────────────────────
 
@@ -60,17 +60,44 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   },
 };
 
-// ─── Get User Plan ────────────────────────────────────────────────────
+// ─── Upstash Rate Limiters (per-plan) ──────────────────────────────────
+
+function createRateLimiter(maxRequests: number): Ratelimit {
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(maxRequests, "60 s"),
+    analytics: true,
+    prefix: "rl:ratelimit",
+  });
+}
+
+const rateLimiters = new Map<PlanId, Ratelimit>();
+for (const [plan, limits] of Object.entries(PLAN_LIMITS)) {
+  rateLimiters.set(plan as PlanId, createRateLimiter(limits.rateLimitPerMinute));
+}
+
+// ─── Get User Plan (cached 60s) ───────────────────────────────────────
 
 export async function getUserPlan(userId: string): Promise<PlanId> {
-  const { data } = await supabase
-    .from("user_quotas")
-    .select("plan")
-    .eq("user_id", userId)
-    .single();
+  try {
+    const { cacheGet, cacheSet } = await import("@/lib/redis");
+    const cached = await cacheGet<PlanId>(`cache:userplan:${userId}`);
+    if (cached) return cached;
 
-  const plan = (data?.plan ?? "free") as PlanId;
-  return plan in PLAN_LIMITS ? plan : "free";
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("user_quotas")
+      .select("plan")
+      .eq("user_id", userId)
+      .single();
+
+    const plan = (data?.plan ?? "free") as PlanId;
+    const valid = plan in PLAN_LIMITS ? plan : "free";
+    await cacheSet(`cache:userplan:${userId}`, valid, 60);
+    return valid;
+  } catch {
+    return "free";
+  }
 }
 
 export function getPlanLimits(plan: PlanId): PlanLimits {
@@ -82,6 +109,7 @@ export function getPlanLimits(plan: PlanId): PlanLimits {
 export async function checkQuota(userId: string): Promise<{ allowed: boolean; used: number; limit: number; plan: PlanId }> {
   const plan = await getUserPlan(userId);
   const limits = getPlanLimits(plan);
+  const supabase = await createClient();
 
   const { data } = await supabase
     .from("user_quotas")
@@ -100,6 +128,7 @@ export async function checkQuota(userId: string): Promise<{ allowed: boolean; us
 export async function checkApiKeyLimit(userId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
   const plan = await getUserPlan(userId);
   const limits = getPlanLimits(plan);
+  const supabase = await createClient();
 
   const { count } = await supabase
     .from("api_keys")
@@ -110,29 +139,22 @@ export async function checkApiKeyLimit(userId: string): Promise<{ allowed: boole
   return { allowed: current < limits.apiKeys, current, limit: limits.apiKeys };
 }
 
-// ─── Rate Limiting (in-memory, per-user sliding window) ───────────────
+// ─── Rate Limiting (Upstash distributed sliding window) ───────────────
 
-const rateLimitStore = new Map<string, number[]>();
+export async function checkRateLimit(
+  userId: string,
+  plan: PlanId
+): Promise<{ allowed: boolean; retryAfterMs: number; limit: number; remaining: number; reset: number }> {
+  const limiter = rateLimiters.get(plan) ?? rateLimiters.get("free")!;
+  const result = await limiter.limit(userId);
 
-export function checkRateLimit(userId: string, plan: PlanId): { allowed: boolean; retryAfterMs: number } {
-  const limits = getPlanLimits(plan);
-  const now = Date.now();
-  const windowMs = 60_000;
-  const maxRequests = limits.rateLimitPerMinute;
-
-  const timestamps = rateLimitStore.get(userId) ?? [];
-  const recent = timestamps.filter((t) => now - t < windowMs);
-
-  if (recent.length >= maxRequests) {
-    const oldest = recent[0];
-    const retryAfterMs = windowMs - (now - oldest);
-    return { allowed: false, retryAfterMs };
-  }
-
-  recent.push(now);
-  rateLimitStore.set(userId, recent);
-
-  return { allowed: true, retryAfterMs: 0 };
+  return {
+    allowed: result.success,
+    retryAfterMs: result.success ? 0 : Math.max(0, result.reset - Date.now()),
+    limit: result.limit,
+    remaining: result.remaining,
+    reset: result.reset,
+  };
 }
 
 // ─── Format Validation ────────────────────────────────────────────────
@@ -158,4 +180,10 @@ export function isCloudStorageAllowed(plan: PlanId): boolean {
 
 export function isPdfExportAllowed(plan: PlanId): boolean {
   return getPlanLimits(plan).pdfExport;
+}
+
+// ─── Plan Comparison (for dashboard) ──────────────────────────────────
+
+export function getAllPlanLimits(): { id: PlanId; limits: PlanLimits }[] {
+  return Object.entries(PLAN_LIMITS).map(([id, limits]) => ({ id: id as PlanId, limits }));
 }

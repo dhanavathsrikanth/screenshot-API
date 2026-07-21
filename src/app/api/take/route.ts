@@ -7,11 +7,13 @@ import { getCacheKey, getFromCache, setInCache } from "@/screenshot-engine/cache
 import { getFilename } from "@/lib/utils";
 import { logScreenshotUsage } from "@/app/actions/usage";
 import { saveScreenshot } from "@/app/actions/screenshots";
+import { logRequest } from "@/lib/redis";
 import {
-  getUserPlan, getPlanLimits, checkQuota, checkRateLimit,
+  getUserPlan, getPlanLimits, checkRateLimit,
   isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
   isCloudStorageAllowed, isPdfExportAllowed, type PlanId,
 } from "@/lib/plans";
+import { ensureCredits } from "@/lib/credits";
 
 async function getAuthContext(request: NextRequest) {
   const headerUserId = request.headers.get("x-user-id");
@@ -134,15 +136,16 @@ export async function GET(request: NextRequest) {
 
     // ── Plan enforcement ─────────────────────────────────────────────
     let plan: PlanId = "free";
+    let rateLimitInfo: { allowed: boolean; retryAfterMs: number; limit: number; remaining: number; reset: number } | null = null;
     if (userId) {
       plan = await getUserPlan(userId);
 
       // Rate limit
-      const rateCheck = checkRateLimit(userId, plan);
-      if (!rateCheck.allowed) {
+      rateLimitInfo = await checkRateLimit(userId, plan);
+      if (!rateLimitInfo.allowed) {
         return NextResponse.json(
           { error: "Rate limit exceeded. Try again later." },
-          { status: 429, headers: { "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)) } }
+          { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
         );
       }
 
@@ -154,14 +157,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Quota check
-      const quota = await checkQuota(userId);
-      if (!quota.allowed) {
-        return NextResponse.json(
-          { error: `Monthly screenshot limit reached (${quota.limit}/${quota.limit}). Upgrade at /dashboard/settings` },
-          { status: 429 }
-        );
-      }
+      // Quota check replaced by credit engine (ensureCredits) before rendering
     }
 
     // Feature gating: force block settings per plan
@@ -173,7 +169,7 @@ export async function GET(request: NextRequest) {
     const cloudStorageAllowed = userId ? isCloudStorageAllowed(plan) : true;
 
     const cacheKey = getCacheKey(rawParams);
-    const cached = getFromCache(cacheKey);
+    const cached = await getFromCache(cacheKey);
 
     if (cached) {
       saveAndLog(
@@ -190,18 +186,49 @@ export async function GET(request: NextRequest) {
         plan,
         cloudStorageAllowed
       );
+      logRequest(userId ?? "anonymous", {
+        ts: new Date().toISOString(),
+        endpoint: "/api/take",
+        method: "GET",
+        status: 200,
+        ms: Date.now() - startTime,
+        cached: true,
+        url: options.url,
+      }).catch(() => {});
+
       return new NextResponse(new Uint8Array(cached.buffer), {
         headers: {
           "Content-Type": `image/${options.format === "jpeg" ? "jpeg" : options.format}`,
           "Content-Length": cached.buffer.length.toString(),
           "X-Cache": "HIT",
+          ...(rateLimitInfo ? {
+            "X-RateLimit-Limit": String(rateLimitInfo.limit),
+            "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
+            "X-RateLimit-Reset": String(rateLimitInfo.reset),
+          } : {}),
         },
       });
     }
 
+    // Deduct or meter credits before rendering (skip if unauthenticated)
+    if (userId) {
+      const ensure = await ensureCredits(userId, {
+        cached: false,
+        format: options.format,
+        pdfPages: options.pdfPages,
+        meterMetadata: { endpoint: "/api/take", method: "GET" },
+      });
+      if (!ensure.allowed) {
+        return NextResponse.json(
+          { error: "No credits remaining. Upgrade or buy credits." },
+          { status: 402 }
+        );
+      }
+    }
+
     const result = await render(options);
 
-    setInCache(cacheKey, result.buffer, {
+    await setInCache(cacheKey, result.buffer, {
       width: result.width,
       height: result.height,
       format: result.format,
@@ -220,6 +247,16 @@ export async function GET(request: NextRequest) {
       cloudStorageAllowed
     );
 
+    logRequest(userId ?? "anonymous", {
+      ts: new Date().toISOString(),
+      endpoint: "/api/take",
+      method: "GET",
+      status: 200,
+      ms: Date.now() - startTime,
+      cached: false,
+      url: options.url,
+    }).catch(() => {});
+
     return new NextResponse(new Uint8Array(result.buffer), {
       headers: {
         "Content-Type":
@@ -229,6 +266,11 @@ export async function GET(request: NextRequest) {
         "Content-Length": result.buffer.length.toString(),
         "Content-Disposition": `inline; filename="${getFilename(options.url ?? "screenshot", ext)}"`,
         "X-Cache": "MISS",
+        ...(rateLimitInfo ? {
+          "X-RateLimit-Limit": String(rateLimitInfo.limit),
+          "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
+          "X-RateLimit-Reset": String(rateLimitInfo.reset),
+        } : {}),
       },
     });
   } catch (error) {
@@ -262,14 +304,15 @@ export async function POST(request: NextRequest) {
 
     // ── Plan enforcement ─────────────────────────────────────────────
     let plan: PlanId = "free";
+    let rateLimitInfo: { allowed: boolean; retryAfterMs: number; limit: number; remaining: number; reset: number } | null = null;
     if (userId) {
       plan = await getUserPlan(userId);
 
-      const rateCheck = checkRateLimit(userId, plan);
-      if (!rateCheck.allowed) {
+      rateLimitInfo = await checkRateLimit(userId, plan);
+      if (!rateLimitInfo.allowed) {
         return NextResponse.json(
           { error: "Rate limit exceeded. Try again later." },
-          { status: 429, headers: { "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)) } }
+          { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
         );
       }
 
@@ -280,13 +323,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const quota = await checkQuota(userId);
-      if (!quota.allowed) {
-        return NextResponse.json(
-          { error: `Monthly screenshot limit reached (${quota.limit}/${quota.limit}). Upgrade at /dashboard/settings` },
-          { status: 429 }
-        );
-      }
+      // Quota check replaced by credit engine (ensureCredits) before rendering
 
       if (!isAdBlockingAllowed(plan)) options.block_ads = false;
       if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
@@ -294,7 +331,95 @@ export async function POST(request: NextRequest) {
 
     const cloudStorageAllowed = userId ? isCloudStorageAllowed(plan) : true;
 
+    // Check cache before rendering (POST handler)
+    const cacheKey = getCacheKey(options as unknown as Record<string, unknown>);
+    const cached = await getFromCache(cacheKey);
+
+    if (cached) {
+      // Return cached result with X-Cache: HIT header
+      const publicUrl: string | null = cloudStorageAllowed
+        ? (cached.metadata.storageUrl as string | null)
+        : null;
+
+      if (userId) {
+        saveScreenshot({
+          userId,
+          apiKeyId: apiKeyId ?? undefined,
+          sourceUrl: options.url,
+          storageUrl: publicUrl,
+          format: cached.metadata.format as string,
+          width: cached.metadata.width as number,
+          height: cached.metadata.height as number,
+          fileSizeBytes: cached.buffer.length,
+          cached: true,
+        }).catch((e) => console.error("[saveScreenshot]", e.message));
+
+        logScreenshotUsage({
+          userId,
+          apiKeyId: apiKeyId ?? undefined,
+          endpoint: "/api/take",
+          method: "POST",
+          statusCode: 200,
+          screenshotUrl: publicUrl,
+          cached: true,
+          responseTimeMs: Date.now() - startTime,
+        }).catch(() => {});
+      }
+
+      logRequest(userId ?? "anonymous", {
+        ts: new Date().toISOString(),
+        endpoint: "/api/take",
+        method: "POST",
+        status: 200,
+        ms: Date.now() - startTime,
+        cached: true,
+        url: options.url,
+      }).catch(() => {});
+
+      return NextResponse.json({
+        url: publicUrl,
+        format: cached.metadata.format,
+        width: cached.metadata.width,
+        height: cached.metadata.height,
+        size: cached.buffer.length,
+        cached: true,
+      }, {
+        headers: {
+          "X-Cache": "HIT",
+          ...(rateLimitInfo ? {
+            "X-RateLimit-Limit": String(rateLimitInfo.limit),
+            "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
+            "X-RateLimit-Reset": String(rateLimitInfo.reset),
+          } : {}),
+        },
+      });
+    }
+
+    // Deduct or meter credits before rendering (skip if unauthenticated)
+    if (userId) {
+      const ensure = await ensureCredits(userId, {
+        cached: false,
+        format: options.format,
+        pdfPages: options.pdfPages,
+        meterMetadata: { endpoint: "/api/take", method: "POST" },
+      });
+      if (!ensure.allowed) {
+        return NextResponse.json(
+          { error: "No credits remaining. Upgrade or buy credits." },
+          { status: 402 }
+        );
+      }
+    }
+
     const result = await render(options);
+
+    // Store in cache after rendering
+    await setInCache(cacheKey, result.buffer, {
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      storageUrl: null, // Will be populated if uploaded
+    });
 
     let publicUrl: string | null = null;
     if (cloudStorageAllowed) {
@@ -331,12 +456,31 @@ export async function POST(request: NextRequest) {
       }).catch((e) => console.error("[logScreenshotUsage]", e.message));
     }
 
+    logRequest(userId ?? "anonymous", {
+      ts: new Date().toISOString(),
+      endpoint: "/api/take",
+      method: "POST",
+      status: 200,
+      ms: Date.now() - startTime,
+      cached: false,
+      url: options.url,
+    }).catch(() => {});
+
     return NextResponse.json({
       url: publicUrl,
       format: result.format,
       width: result.width,
       height: result.height,
       size: result.buffer.length,
+    }, {
+      headers: {
+        "X-Cache": "MISS",
+        ...(rateLimitInfo ? {
+          "X-RateLimit-Limit": String(rateLimitInfo.limit),
+          "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
+          "X-RateLimit-Reset": String(rateLimitInfo.reset),
+        } : {}),
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

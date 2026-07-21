@@ -1,6 +1,5 @@
-import { createServiceClient } from "@/lib/supabase/server";
-
-const supabase = createServiceClient();
+import { createClient } from "@/lib/supabase/server";
+import { cacheGet, cacheSet } from "@/lib/redis";
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -45,6 +44,11 @@ function linearRegression(data: { x: number; y: number }[]): { slope: number; in
 // ─── Daily Usage with Moving Averages ───────────────────────────────────
 
 export async function getDailyUsage(userId: string, days = 30) {
+  const cacheKey = `cache:analytics:daily:${userId}:${days}`;
+  const cached = await cacheGet<any[]>(cacheKey);
+  if (cached) return cached;
+
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("api_key_logs")
     .select("created_at")
@@ -62,16 +66,20 @@ export async function getDailyUsage(userId: string, days = 30) {
   const counts = Object.values(buckets);
   const ma7 = movingAverage(counts, 7);
 
-  return dates.map((date, i) => ({
+  const result = dates.map((date, i) => ({
     date,
     count: counts[i],
     ma7: ma7[i],
   }));
+
+  cacheSet(cacheKey, result, 30).catch(() => {});
+  return result;
 }
 
 // ─── Period Comparisons (WoW, MoM) ─────────────────────────────────────
 
 export async function getPeriodComparisons(userId: string) {
+  const supabase = await createClient();
   const thisWeek = await supabase
     .from("api_key_logs").select("id", { count: "exact" })
     .eq("user_id", userId).gte("created_at", daysAgo(7));
@@ -106,6 +114,11 @@ export async function getPeriodComparisons(userId: string) {
 // ─── Latency Stats with Percentiles ────────────────────────────────────
 
 export async function getLatencyStats(userId: string, days = 30) {
+  const cacheKey = `cache:analytics:latency:${userId}:${days}`;
+  const cached = await cacheGet<any[]>(cacheKey);
+  if (cached) return cached;
+
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("api_key_logs")
     .select("response_time_ms, created_at")
@@ -123,7 +136,7 @@ export async function getLatencyStats(userId: string, days = 30) {
     if (byDay[day]) byDay[day].push(row.response_time_ms);
   }
 
-  return Object.entries(byDay).map(([date, times]) => {
+  const result = Object.entries(byDay).map(([date, times]) => {
     const sorted = [...times].sort((a, b) => a - b);
     return {
       date,
@@ -133,11 +146,19 @@ export async function getLatencyStats(userId: string, days = 30) {
       p99: percentile(sorted, 99),
     };
   });
+
+  cacheSet(cacheKey, result, 30).catch(() => {});
+  return result;
 }
 
 // ─── Peak Hours Heatmap ────────────────────────────────────────────────
 
 export async function getPeakHours(userId: string, days = 30) {
+  const cacheKey = `cache:analytics:peak:${userId}:${days}`;
+  const cached = await cacheGet<any[]>(cacheKey);
+  if (cached) return cached;
+
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("api_key_logs")
     .select("created_at")
@@ -166,12 +187,18 @@ export async function getPeakHours(userId: string, days = 30) {
       result.push({ day, hour: h, count: heatmap[day][h] });
     }
   }
+  cacheSet(cacheKey, result, 30).catch(() => {});
   return result;
 }
 
 // ─── Usage Forecasting ─────────────────────────────────────────────────
 
 export async function getUsageForecast(userId: string) {
+  const cacheKey = `cache:analytics:forecast:${userId}`;
+  const cached = await cacheGet<any>(cacheKey);
+  if (cached) return cached;
+
+  const supabase = await createClient();
   const { data } = await supabase
     .from("api_key_logs")
     .select("created_at")
@@ -220,12 +247,19 @@ export async function getUsageForecast(userId: string) {
     }
   }
 
-  return { forecast, daysUntilLimit, dailyAvg: Math.round(counts.reduce((a, b) => a + b, 0) / counts.length), ...limits };
+  const result = { forecast, daysUntilLimit, dailyAvg: Math.round(counts.reduce((a, b) => a + b, 0) / counts.length), ...limits };
+  cacheSet(cacheKey, result, 30).catch(() => {});
+  return result;
 }
 
 // ─── Cost Estimation ───────────────────────────────────────────────────
 
 export async function getCostEstimation(userId: string) {
+  const cacheKey = `cache:analytics:cost:${userId}`;
+  const cached = await cacheGet<any>(cacheKey);
+  if (cached) return cached;
+
+  const supabase = await createClient();
   const { data: quota } = await supabase
     .from("user_quotas")
     .select("plan, monthly_used, monthly_limit")
@@ -263,7 +297,7 @@ export async function getCostEstimation(userId: string) {
     (p) => p.monthly_limit >= monthlyUsed * 1.2
   );
 
-  return {
+  const result = {
     plan,
     monthlyPrice,
     monthlyUsed,
@@ -275,11 +309,14 @@ export async function getCostEstimation(userId: string) {
     costPerScreenshot: perScreenshotCost,
     recommendedPlan: recommended && recommended.plan !== plan ? recommended.plan : null,
   };
+  cacheSet(cacheKey, result, 30).catch(() => {});
+  return result;
 }
 
 // ─── Endpoint Breakdown ────────────────────────────────────────────────
 
 export async function getEndpointBreakdown(userId: string, days = 30) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("api_key_logs")
     .select("endpoint")
@@ -300,6 +337,7 @@ export async function getEndpointBreakdown(userId: string, days = 30) {
 // ─── Method Breakdown ──────────────────────────────────────────────────
 
 export async function getMethodBreakdown(userId: string, days = 30) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("api_key_logs")
     .select("method")
@@ -316,6 +354,7 @@ export async function getMethodBreakdown(userId: string, days = 30) {
 // ─── Format Distribution ───────────────────────────────────────────────
 
 export async function getFormatDistribution(userId: string, days = 30) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("screenshots")
     .select("format")
@@ -332,6 +371,7 @@ export async function getFormatDistribution(userId: string, days = 30) {
 // ─── Cache Trend ───────────────────────────────────────────────────────
 
 export async function getCacheTrend(userId: string, days = 30) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("api_key_logs")
     .select("cached, created_at")
@@ -361,6 +401,7 @@ export async function getCacheTrend(userId: string, days = 30) {
 // ─── Status Breakdown ──────────────────────────────────────────────────
 
 export async function getStatusBreakdown(userId: string, days = 30) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("api_key_logs")
     .select("status_code")
@@ -383,6 +424,7 @@ export async function getStatusBreakdown(userId: string, days = 30) {
 // ─── Key Usage Stats ───────────────────────────────────────────────────
 
 export async function getKeyUsageStats(userId: string, days = 30) {
+  const supabase = await createClient();
   const { data: keys } = await supabase
     .from("api_keys")
     .select("id, name, key_prefix, is_active, last_used_at, created_at")
@@ -446,6 +488,11 @@ export async function getKeyUsageStats(userId: string, days = 30) {
 // ─── Bandwidth Stats ───────────────────────────────────────────────────
 
 export async function getBandwidthStats(userId: string, days = 30) {
+  const cacheKey = `cache:analytics:bandwidth:${userId}:${days}`;
+  const cached = await cacheGet<any[]>(cacheKey);
+  if (cached) return cached;
+
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("screenshots")
     .select("file_size_bytes, created_at")
@@ -462,15 +509,19 @@ export async function getBandwidthStats(userId: string, days = 30) {
     byDay[day] += row.file_size_bytes ?? 0;
   }
 
-  return Object.entries(byDay).map(([date, bytes]) => ({
+  const result = Object.entries(byDay).map(([date, bytes]) => ({
     date,
     mb: Math.round((bytes / (1024 * 1024)) * 100) / 100,
   }));
+
+  cacheSet(cacheKey, result, 30).catch(() => {});
+  return result;
 }
 
 // ─── Usage Alerts ──────────────────────────────────────────────────────
 
 export async function getUsageAlerts(userId: string) {
+  const supabase = await createClient();
   const { data } = await supabase
     .from("usage_alerts")
     .select("id, alert_type, threshold_pct, triggered_at, acknowledged")
@@ -482,12 +533,14 @@ export async function getUsageAlerts(userId: string) {
 }
 
 export async function acknowledgeAlert(alertId: string) {
+  const supabase = await createClient();
   await supabase.from("usage_alerts").update({ acknowledged: true }).eq("id", alertId);
 }
 
 // ─── SLA Incidents ─────────────────────────────────────────────────────
 
 export async function getSLAStats(userId: string, days = 30) {
+  const supabase = await createClient();
   const since = daysAgo(days);
 
   const { data: allLogs } = await supabase

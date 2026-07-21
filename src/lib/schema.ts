@@ -63,6 +63,8 @@ export const ScreenshotOptionsSchema = z.object({
   thumbnail_height: z.coerce.number().int().min(1).optional(),
   thumbnail_fit: z.enum(["cover", "contain", "fill", "inside", "outside"]).default("inside"),
   wait_until: WaitUntilSchema,
+  // pdfPages is used for credit calculation - actual page count may differ after rendering
+  pdfPages: z.coerce.number().int().min(1).default(1),
 });
 
 export const BulkScreenshotSchema = z.object({

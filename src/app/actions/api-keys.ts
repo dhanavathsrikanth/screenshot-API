@@ -1,12 +1,10 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { nanoid } from "nanoid";
 import { createHash, randomBytes } from "crypto";
 import { checkApiKeyLimit } from "@/lib/plans";
-
-const supabase = createServiceClient();
 
 function hashApiKey(key: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -23,6 +21,7 @@ export async function generateApiKey(name: string) {
     throw new Error(`API key limit reached (${limitCheck.limit}). Upgrade your plan to create more keys.`);
   }
 
+  const supabase = await createClient();
   const rawKey = `st_${nanoid(48)}`;
   const prefix = rawKey.slice(0, 7);
   const keyHash = hashApiKey(rawKey);
@@ -46,6 +45,7 @@ export async function listApiKeys() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("api_keys")
     .select("id, name, key_prefix, is_active, last_used_at, created_at")
@@ -60,6 +60,7 @@ export async function revokeApiKey(keyId: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
+  const supabase = await createClient();
   const { error } = await supabase
     .from("api_keys")
     .delete()
@@ -73,6 +74,7 @@ export async function toggleApiKey(keyId: string, isActive: boolean) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
+  const supabase = await createClient();
   const { error } = await supabase
     .from("api_keys")
     .update({ is_active: isActive })

@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# IDE / temp
+.kiro/
+supabase/.temp/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

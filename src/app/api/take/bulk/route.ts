@@ -5,12 +5,14 @@ import { bulkRender } from "@/screenshot-engine/bulk";
 import { uploadToStorage } from "@/screenshot-engine/uploader";
 import { saveScreenshot } from "@/app/actions/screenshots";
 import { logScreenshotUsage } from "@/app/actions/usage";
+import { logRequest } from "@/lib/redis";
 import { getFilename } from "@/lib/utils";
 import {
-  getUserPlan, checkQuota, checkRateLimit,
+  getUserPlan, checkRateLimit,
   isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
   isCloudStorageAllowed, type PlanId,
 } from "@/lib/plans";
+import { ensureCredits } from "@/lib/credits";
 
 function uniqueKey(url: string, format: string): string {
   const ts = Date.now().toString(36);
@@ -48,14 +50,15 @@ export async function POST(request: NextRequest) {
 
     // ── Plan enforcement ─────────────────────────────────────────────
     let plan: PlanId = "free";
+    let rateLimitInfo: { allowed: boolean; retryAfterMs: number; limit: number; remaining: number; reset: number } | null = null;
     if (userId) {
       plan = await getUserPlan(userId);
 
-      const rateCheck = checkRateLimit(userId, plan);
-      if (!rateCheck.allowed) {
+      rateLimitInfo = await checkRateLimit(userId, plan);
+      if (!rateLimitInfo.allowed) {
         return NextResponse.json(
           { error: "Rate limit exceeded. Try again later." },
-          { status: 429, headers: { "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)) } }
+          { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
         );
       }
 
@@ -66,11 +69,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const quota = await checkQuota(userId);
-      if (!quota.allowed) {
+      // Credits check before rendering bulk (1 credit per URL)
+      const ensure = await ensureCredits(userId, {
+        cached: false,
+        format: renderOptions.format,
+        bulkCount: urls.length,
+        meterMetadata: { endpoint: "/api/take/bulk", method: "POST", requested: urls.length },
+      });
+      if (!ensure.allowed) {
         return NextResponse.json(
-          { error: `Monthly screenshot limit reached (${quota.limit}/${quota.limit}). Upgrade at /dashboard/settings` },
-          { status: 429 }
+          { error: "No credits remaining. Upgrade or buy credits." },
+          { status: 402 }
         );
       }
 
@@ -128,12 +137,28 @@ export async function POST(request: NextRequest) {
     const successful = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
 
+    logRequest(userId ?? "anonymous", {
+      ts: new Date().toISOString(),
+      endpoint: "/api/take/bulk",
+      method: "POST",
+      status: 200,
+      ms: Date.now() - startTime,
+      cached: false,
+      url: urls[0],
+    }).catch(() => {});
+
     return NextResponse.json({
       total: results.length,
       successful,
       failed,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       results: results.map(({ renderResult, ...rest }) => rest),
+    }, {
+      headers: rateLimitInfo ? {
+        "X-RateLimit-Limit": String(rateLimitInfo.limit),
+        "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
+        "X-RateLimit-Reset": String(rateLimitInfo.reset),
+      } : undefined,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

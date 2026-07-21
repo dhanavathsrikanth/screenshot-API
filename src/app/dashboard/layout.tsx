@@ -1,30 +1,28 @@
-"use client";
+import { auth } from "@clerk/nextjs/server";
+import { DashboardLayoutClient } from "./dashboard-client";
 
-import { useState } from "react";
-import {
-  DashboardSidebar,
-  MobileSidebarButton,
-  MobileSidebar,
-} from "@/components/dashboard/sidebar";
-
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { userId } = await auth();
 
-  return (
-    <div className="min-h-[calc(100vh-4rem)]">
-      <DashboardSidebar />
-      <MobileSidebarButton onClick={() => setMobileOpen(true)} />
-      <MobileSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
+  let plan = "free";
+  if (userId) {
+    try {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const { data } = await supabase
+        .from("user_quotas")
+        .select("plan")
+        .eq("user_id", userId)
+        .single();
+      plan = data?.plan ?? "free";
+    } catch {
+      // fallback to free
+    }
+  }
 
-      <div className="lg:pl-64">
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
+  return <DashboardLayoutClient plan={plan}>{children}</DashboardLayoutClient>;
 }

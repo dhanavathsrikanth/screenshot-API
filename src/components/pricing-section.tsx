@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Fragment } from "react";
 
 const plans = [
   {
@@ -293,8 +293,8 @@ export function PricingSection() {
               </thead>
               <tbody>
                 {featureGroups.map((group) => (
-                  <>
-                    <tr key={`group-${group.name}`}>
+                  <Fragment key={group.name}>
+                    <tr>
                       <td colSpan={5} className="pt-6 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
                         {group.name}
                       </td>
@@ -309,7 +309,7 @@ export function PricingSection() {
                         ))}
                       </tr>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

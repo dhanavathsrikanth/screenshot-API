@@ -1,6 +1,4 @@
-import { createServiceClient } from "@/lib/supabase/server";
-
-const supabase = createServiceClient();
+import { createClient } from "@/lib/supabase/server";
 
 export async function logScreenshotUsage(params: {
   userId: string;
@@ -12,6 +10,7 @@ export async function logScreenshotUsage(params: {
   cached: boolean;
   responseTimeMs: number;
 }) {
+  const supabase = await createClient();
   const { error: logError } = await supabase.from("api_key_logs").insert({
     user_id: params.userId,
     api_key_id: params.apiKeyId ?? null,
@@ -35,6 +34,7 @@ export async function logScreenshotUsage(params: {
 }
 
 export async function getUsageStats(userId: string) {
+  const supabase = await createClient();
   const quotaResult = await supabase
     .from("user_quotas")
     .select("plan, monthly_limit, monthly_used, quota_reset_at")
@@ -62,6 +62,7 @@ export async function getUsageStats(userId: string) {
 }
 
 export async function getScreenshotHistory(userId: string, limit = 20) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("screenshots")
     .select("id, url, storage_url, format, width, height, file_size_bytes, cached, created_at")
@@ -74,9 +75,18 @@ export async function getScreenshotHistory(userId: string, limit = 20) {
 }
 
 export async function getUserProfile(userId: string) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("users")
-    .select("id, email, first_name, last_name, image_url, created_at")
+    .select(`
+      id, email, first_name, last_name, image_url,
+      username, profile_image_url, has_image, locale,
+      primary_email_address_id, phone_numbers, external_accounts,
+      public_metadata, private_metadata,
+      password_enabled, two_factor_enabled, backup_code_enabled,
+      banned, locked, last_active_at, last_sign_in_at,
+      created_at, updated_at
+    `)
     .eq("id", userId)
     .single();
 
