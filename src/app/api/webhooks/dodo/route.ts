@@ -128,51 +128,50 @@ async function downgradeToFree(payload: AnyRecord): Promise<void> {
     .eq("user_id", userId);
 }
 
-export const POST = Webhooks({
-  webhookKey: getDodoConfig().webhookSecret,
-  onPayload: async (payload: AnyRecord) => {
-    // Generic logging hook
-    console.log("[Dodo Webhook]", payload?.type);
-  },
+let _handler: ReturnType<typeof Webhooks> | null = null;
 
-  // Payments
-  onPaymentSucceeded: async (payload: AnyRecord) => {
-    // Map Dodo customer to our user on first successful payment
-    await upsertCustomerMapping(payload);
-  },
+function getWebhookHandler() {
+  if (!_handler) {
+    _handler = Webhooks({
+      webhookKey: getDodoConfig().webhookSecret,
+      onPayload: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook]", payload?.type);
+      },
+      onPaymentSucceeded: async (payload: AnyRecord) => {
+        await upsertCustomerMapping(payload);
+      },
+      onSubscriptionActive: async (payload: AnyRecord) => {
+        await upsertCustomerMapping(payload);
+      },
+      onSubscriptionCancelled: async (payload: AnyRecord) => {
+        await downgradeToFree(payload);
+      },
+      onCreditAdded: async (payload: AnyRecord) => {
+        await syncCreditBalanceFromDodo(payload);
+      },
+      onCreditDeducted: async (payload: AnyRecord) => {
+        await syncCreditBalanceFromDodo(payload);
+      },
+      onCreditExpired: async (payload: AnyRecord) => {
+        await syncCreditBalanceFromDodo(payload);
+      },
+      onCreditRolledOver: async (payload: AnyRecord) => {
+        await syncCreditBalanceFromDodo(payload);
+      },
+      onCreditRolloverForfeited: async (payload: AnyRecord) => {
+        await syncCreditBalanceFromDodo(payload);
+      },
+      onCreditOverageCharged: async (payload: AnyRecord) => {
+        await syncCreditBalanceFromDodo(payload);
+      },
+      onCreditBalanceLow: async (payload: AnyRecord) => {
+        await recordLowBalanceAlert(payload);
+      },
+    });
+  }
+  return _handler;
+}
 
-  // Subscriptions
-  onSubscriptionActive: async (payload: AnyRecord) => {
-    await upsertCustomerMapping(payload);
-    // Optionally mark overage enabled for paid plans here if you map product->plan.
-    // Keeping plan changes out to avoid assumptions without product IDs.
-  },
-  onSubscriptionCancelled: async (payload: AnyRecord) => {
-    await downgradeToFree(payload);
-  },
-
-  // Credit lifecycle events
-  onCreditAdded: async (payload: AnyRecord) => {
-    await syncCreditBalanceFromDodo(payload);
-  },
-  onCreditDeducted: async (payload: AnyRecord) => {
-    await syncCreditBalanceFromDodo(payload);
-  },
-  onCreditExpired: async (payload: AnyRecord) => {
-    await syncCreditBalanceFromDodo(payload);
-  },
-  onCreditRolledOver: async (payload: AnyRecord) => {
-    await syncCreditBalanceFromDodo(payload);
-  },
-  onCreditRolloverForfeited: async (payload: AnyRecord) => {
-    await syncCreditBalanceFromDodo(payload);
-  },
-  onCreditOverageCharged: async (payload: AnyRecord) => {
-    // No balance change; you may want to persist overage totals per cycle.
-    // We still try to sync to ensure local view is consistent.
-    await syncCreditBalanceFromDodo(payload);
-  },
-  onCreditBalanceLow: async (payload: AnyRecord) => {
-    await recordLowBalanceAlert(payload);
-  },
-});
+export async function POST(request: NextRequest) {
+  return getWebhookHandler()(request);
+}
