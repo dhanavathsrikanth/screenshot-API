@@ -81,7 +81,7 @@ export function DashboardPlayground() {
             disabled={loading}
             className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap"
           >
-            {loading ? "Rendering..." : "Render"}
+            {loading ? "Capturing..." : "Take Screenshot"}
           </button>
         </div>
 
@@ -167,7 +167,7 @@ export function DashboardPlayground() {
 
       {!result && !error && !loading && (
         <div className="mt-4 rounded-xl border border-dashed border-[var(--border)] p-8 text-center">
-          <p className="text-sm text-zinc-500">Enter a URL and click Render to see the result here.</p>
+          <p className="text-sm text-zinc-500">Enter a URL and click Take Screenshot to see the result here.</p>
         </div>
       )}
     </div>
