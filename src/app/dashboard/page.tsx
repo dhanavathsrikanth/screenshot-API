@@ -16,7 +16,7 @@ type UserProfile = {
   banned: boolean | null; locked: boolean | null;
   last_active_at: string | null; last_sign_in_at: string | null;
 } | null;
-type Stats = { plan: string; monthlyUsed: number; monthlyLimit: number; cacheHitRate: number; totalCalls: number };
+type Stats = { plan: string; monthlyUsed: number; monthlyLimit: number; creditBalance: number; creditsUsedThisCycle: number; creditsGrantedThisCycle: number; topUpBalance: number; overageEnabled: boolean; cacheHitRate: number; totalCalls: number };
 
 const planLabels: Record<string, string> = { free: "Free", starter: "Starter", pro: "Pro", business: "Business" };
 const planPrices: Record<string, string> = { free: "$0", starter: "$9/mo", pro: "$49/mo", business: "$149/mo" };
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
       getUsageAlerts(userId),
     ]);
   } catch {
-    const empty = { plan: "free", monthlyUsed: 0, monthlyLimit: 100, cacheHitRate: 0, totalCalls: 0 };
+    const empty = { plan: "free", monthlyUsed: 0, monthlyLimit: 100, creditBalance: 0, creditsUsedThisCycle: 0, creditsGrantedThisCycle: 0, topUpBalance: 0, overageEnabled: false, cacheHitRate: 0, totalCalls: 0 };
     stats = empty; profile = null;
     periodComparison = { thisWeek: 0, lastWeek: 0, weekDelta: 0, thisMonth: 0, lastMonth: 0, monthDelta: 0 };
     alerts = [];
@@ -120,13 +120,16 @@ export default async function DashboardPage() {
       <UsageAlerts data={alerts} />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="sm:col-span-2 lg:col-span-1">
           <StatsCard label="Screenshots This Month" value={stats.monthlyUsed.toLocaleString()} sublabel={`${stats.monthlyLimit.toLocaleString()} monthly limit`} icon={
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
           } accent />
           <div className="px-6 pt-1"><UsageBar used={stats.monthlyUsed} limit={stats.monthlyLimit} /></div>
         </div>
+        <StatsCard label="Credits Remaining" value={stats.creditBalance.toLocaleString()} sublabel={`${stats.creditsGrantedThisCycle.toLocaleString()} granted this cycle`} icon={
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
+        } />
         <StatsCard label="Total API Calls" value={stats.totalCalls.toLocaleString()} sublabel="Last 30 days" icon={
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" /></svg>
         } />
