@@ -152,6 +152,19 @@ export default async function PlanPage() {
       </div>
 
       <div>
+        <h2 className="text-lg font-semibold mb-4">Billing</h2>
+        <a
+          href="/dashboard/billing"
+          className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 7.5h6M9 10.5h6M8.25 3.75h7.5A2.25 2.25 0 0 1 18 6v12.75l-3-1.5-3 1.5-3-1.5-3 1.5V6a2.25 2.25 0 0 1 2.25-2.25Z" />
+          </svg>
+          Open Billing & Invoices
+        </a>
+      </div>
+
+      <div>
         <h2 className="text-lg font-semibold mb-4">Plan Comparison</h2>
         <div className="rounded-xl border border-[var(--border)] p-6 overflow-x-auto">
           <table className="w-full text-sm">

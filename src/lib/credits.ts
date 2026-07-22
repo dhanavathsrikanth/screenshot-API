@@ -165,28 +165,8 @@ export async function ensureCredits(userId: string, params: {
     return { allowed: false, mode: "blocked", reason: "no_quota_row" };
   }
 
-  // Auto-initialize credits from plan limit if never granted
-  // Only auto-seed when a paid plan has just been initialized (never for free plan).
-  if (state.credit_balance === 0 && state.top_up_balance === 0 && state.plan !== "free") {
-    const plan = (state.plan || "free") as PlanId;
-    const limits = getPlanLimits(plan);
-    const initialCredits = limits.monthlyScreenshots;
-
-    const supabase = createServiceClient();
-    const { error } = await supabase
-      .from("user_quotas")
-      .update({
-        credit_balance: initialCredits,
-        credits_granted_this_cycle: initialCredits,
-        credits_used_this_cycle: 0,
-      })
-      .eq("user_id", userId)
-      .eq("credits_granted_this_cycle", 0);
-
-    if (!error) {
-      await cacheInvalidate(creditsCacheKey(userId));
-    }
-  }
+  // Paid-plan auto-seed removed to avoid double-granting.
+  // Rely on Dodo entitlements + syncCreditBalance() from webhook for paid plans.
 
   const { units, kind } = computeUnits(params);
   if (units === 0) {

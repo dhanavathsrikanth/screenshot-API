@@ -176,7 +176,35 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
     payload?.data?.subscription_id ??
     payload?.data?.subscription?.id;
 
-  // Upsert plan + credits + monthly limit to ensure a row exists
+  // If upgrading from free → paid and there are leftover free credits in credit_balance,
+  // convert them into top_up_balance so they are preserved and consumed after monthly credits.
+  try {
+    const { data: existingQuota } = await supabase
+      .from("user_quotas")
+      .select("plan, credit_balance, top_up_balance")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingQuota && existingQuota.plan === "free") {
+      const freeRemainder = Math.max(0, Number(existingQuota.credit_balance ?? 0));
+      if (freeRemainder > 0) {
+        const currentTopup = Math.max(0, Number(existingQuota.top_up_balance ?? 0));
+        await supabase
+          .from("user_quotas")
+          .update({
+            top_up_balance: currentTopup + freeRemainder,
+            credit_balance: 0,
+          })
+          .eq("user_id", userId);
+        console.log(`[Dodo Webhook] Preserved ${freeRemainder} free-credits as top-up for user ${userId}`);
+      }
+    }
+  } catch (preserveErr) {
+    console.error("[Dodo Webhook] Failed to preserve free credits as top-up:", (preserveErr as Error)?.message ?? preserveErr);
+  }
+
+  // Upsert only plan and metadata; do NOT mutate credit balances here to avoid double grants.
+  // Credit balances are sourced authoritatively via syncCreditBalance() from Dodo.
   const { error } = await supabase
     .from("user_quotas")
     .upsert(
@@ -184,9 +212,6 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
         user_id: userId,
         plan: planInfo.plan,
         monthly_limit: planInfo.monthlyLimit,
-        credit_balance: planInfo.credits,
-        credits_granted_this_cycle: planInfo.credits,
-        credits_used_this_cycle: 0,
         overage_enabled: true,
         dodo_subscription_id: subscriptionId ?? null,
         dodo_product_id: productId ?? null,
@@ -197,7 +222,7 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
   if (error) {
     console.error("[Dodo Webhook] Failed to upgrade plan:", error.message);
   } else {
-    console.log(`[Dodo Webhook] Upgraded user ${userId} to ${planInfo.plan} (${planInfo.credits} credits)`);
+    console.log(`[Dodo Webhook] Upgraded user ${userId} to ${planInfo.plan}`);
   }
 }
 
@@ -233,35 +258,13 @@ async function syncCreditBalance(payload: AnyRecord): Promise<void> {
       );
 
       const newBalance = parseInt((balance as AnyRecord).balance ?? "0", 10);
-
-      const { data: quota } = await supabase
+ 
+      await supabase
         .from("user_quotas")
-        .select("credit_balance")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      const currentBalance = quota?.credit_balance ?? 0;
-      const delta = newBalance - currentBalance;
-
-      const update: AnyRecord = { credit_balance: newBalance };
-      if (delta > 0) {
-        const { data: q2 } = await supabase
-          .from("user_quotas")
-          .select("credits_granted_this_cycle")
-          .eq("user_id", userId)
-          .maybeSingle();
-        update.credits_granted_this_cycle = (q2?.credits_granted_this_cycle ?? 0) + delta;
-      } else if (delta < 0) {
-        const { data: q2 } = await supabase
-          .from("user_quotas")
-          .select("credits_used_this_cycle")
-          .eq("user_id", userId)
-          .maybeSingle();
-        update.credits_used_this_cycle = (q2?.credits_used_this_cycle ?? 0) + Math.abs(delta);
-      }
-
-      await supabase.from("user_quotas").update(update).eq("user_id", userId);
-      console.log(`[Dodo Webhook] Synced credits for user ${userId}: ${currentBalance} → ${newBalance}`);
+        .update({ credit_balance: newBalance })
+        .eq("user_id", userId);
+ 
+      console.log(`[Dodo Webhook] Synced credits for user ${userId}: ${newBalance}`);
       return;
     } catch (err) {
       console.error("[Dodo Webhook] Failed to fetch Dodo balance:", err);
