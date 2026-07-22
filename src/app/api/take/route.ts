@@ -11,7 +11,7 @@ import { logRequest } from "@/lib/redis";
 import {
   getUserPlan, checkRateLimit,
   isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
-  isCloudStorageAllowed, type PlanId,
+  type PlanId,
 } from "@/lib/plans";
 import { ensureCredits } from "@/lib/credits";
 
@@ -40,31 +40,39 @@ function uniqueKey(url: string, format: string): string {
   return `${ts}_${rand}_${base}`;
 }
 
-function saveAndLog(
+/**
+ * Upload to R2 + save to DB + log usage. Always uploads to R2 for all plans.
+ * Returns the public URL after upload completes.
+ */
+async function uploadAndSave(
   userId: string | undefined,
   apiKeyId: string | undefined,
   buffer: Buffer,
   result: { format: string; width: number; height: number },
   options: { url?: string; method: string; cached: boolean },
   startTime: number,
-  plan: PlanId,
-  cloudStorageAllowed: boolean,
   ensureMeta?: { units?: number; mode?: "deducted" | "overage" }
-) {
-  if (!userId) return;
-
+): Promise<string | null> {
   const key = uniqueKey(options.url ?? "screenshot", result.format);
   const creditsMetadata =
     ensureMeta && typeof ensureMeta.units === "number"
       ? ({ credits_used: ensureMeta.units, mode: ensureMeta.mode ?? "deducted", cached: options.cached } as Record<string, unknown>)
       : ({ cached: options.cached } as Record<string, unknown>);
 
-  if (!cloudStorageAllowed) {
+  let publicUrl: string | null = null;
+
+  try {
+    publicUrl = await uploadToStorage(buffer, key, `image/${result.format}`);
+  } catch (e) {
+    console.error("[uploadToStorage]", e instanceof Error ? e.message : e);
+  }
+
+  if (userId) {
     saveScreenshot({
       userId,
       apiKeyId: apiKeyId ?? undefined,
       sourceUrl: options.url,
-      storageUrl: null,
+      storageUrl: publicUrl,
       format: result.format,
       width: result.width,
       height: result.height,
@@ -79,40 +87,13 @@ function saveAndLog(
       endpoint: "/api/take",
       method: options.method,
       statusCode: 200,
-      screenshotUrl: null,
+      screenshotUrl: publicUrl,
       cached: options.cached,
       responseTimeMs: Date.now() - startTime,
     }).catch(() => {});
-    return;
   }
 
-  uploadToStorage(buffer, key, `image/${result.format}`)
-    .then((publicUrl) => {
-      saveScreenshot({
-        userId,
-        apiKeyId: apiKeyId ?? undefined,
-        sourceUrl: options.url,
-        storageUrl: publicUrl,
-        format: result.format,
-        width: result.width,
-        height: result.height,
-        fileSizeBytes: buffer.length,
-        cached: options.cached,
-        metadata: creditsMetadata,
-      }).catch((e) => console.error("[saveScreenshot]", e.message));
-
-      logScreenshotUsage({
-        userId,
-        apiKeyId: apiKeyId ?? undefined,
-        endpoint: "/api/take",
-        method: options.method,
-        statusCode: 200,
-        screenshotUrl: publicUrl,
-        cached: options.cached,
-        responseTimeMs: Date.now() - startTime,
-      }).catch(() => {});
-    })
-    .catch(() => {});
+  return publicUrl;
 }
 
 export async function GET(request: NextRequest) {
@@ -149,7 +130,6 @@ export async function GET(request: NextRequest) {
     if (userId) {
       plan = await getUserPlan(userId);
 
-      // Rate limit
       rateLimitInfo = await checkRateLimit(userId, plan);
       if (!rateLimitInfo.allowed) {
         return NextResponse.json(
@@ -158,15 +138,12 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Format check
       if (!isFormatAllowed(options.format, plan)) {
         return NextResponse.json(
           { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/settings` },
           { status: 403 }
         );
       }
-
-      // Quota check replaced by credit engine (ensureCredits) before rendering
     }
 
     // Feature gating: force block settings per plan
@@ -174,8 +151,6 @@ export async function GET(request: NextRequest) {
       if (!isAdBlockingAllowed(plan)) options.block_ads = false;
       if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
     }
-
-    const cloudStorageAllowed = userId ? isCloudStorageAllowed(plan) : true;
 
     const cacheKey = getCacheKey(rawParams);
     const cached = await getFromCache(cacheKey);
@@ -196,7 +171,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      saveAndLog(
+      // Fire-and-forget: upload + save to DB in background
+      uploadAndSave(
         userId ?? undefined,
         apiKeyId ?? undefined,
         Buffer.from(cached.buffer),
@@ -206,10 +182,9 @@ export async function GET(request: NextRequest) {
           height: cached.metadata.height as number,
         },
         { url: options.url, method: "GET", cached: true },
-        startTime,
-        plan,
-        cloudStorageAllowed
-      );
+        startTime
+      ).catch(() => {});
+
       logRequest(userId ?? "anonymous", {
         ts: new Date().toISOString(),
         endpoint: "/api/take",
@@ -252,25 +227,32 @@ export async function GET(request: NextRequest) {
 
     const result = await render(options);
 
-    // Fire-and-forget: store in cache
-    setInCache(cacheKey, result.buffer, {
-      width: result.width,
-      height: result.height,
-      format: result.format,
-    }).catch(() => {});
-
-    const ext = options.format === "jpeg" ? "jpg" : options.format;
-
-    saveAndLog(
+    // Fire-and-forget: upload + cache + save to DB in background
+    uploadAndSave(
       userId ?? undefined,
       apiKeyId ?? undefined,
       result.buffer,
       { format: result.format, width: result.width, height: result.height },
       { url: options.url, method: "GET", cached: false },
-      startTime,
-      plan,
-      cloudStorageAllowed
-    );
+      startTime
+    ).then((publicUrl) => {
+      // Update cache with storage URL after upload
+      if (publicUrl) {
+        setInCache(cacheKey, result.buffer, {
+          width: result.width,
+          height: result.height,
+          format: result.format,
+          storageUrl: publicUrl,
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+
+    setInCache(cacheKey, result.buffer, {
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      storageUrl: null,
+    }).catch(() => {});
 
     logRequest(userId ?? "anonymous", {
       ts: new Date().toISOString(),
@@ -281,6 +263,8 @@ export async function GET(request: NextRequest) {
       cached: false,
       url: options.url,
     }).catch(() => {});
+
+    const ext = options.format === "jpeg" ? "jpg" : options.format;
 
     return new NextResponse(new Uint8Array(result.buffer), {
       headers: {
@@ -348,23 +332,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Quota check replaced by credit engine (ensureCredits) before rendering
-
       if (!isAdBlockingAllowed(plan)) options.block_ads = false;
       if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
     }
-
-    const cloudStorageAllowed = userId ? isCloudStorageAllowed(plan) : true;
 
     // Check cache before rendering (POST handler)
     const cacheKey = getCacheKey(options as unknown as Record<string, unknown>);
     const cached = await getFromCache(cacheKey);
 
     if (cached) {
-      // Return cached result with X-Cache: HIT header
-      const publicUrl: string | null = cloudStorageAllowed
-        ? (cached.metadata.storageUrl as string | null)
-        : null;
+      const publicUrl: string | null = (cached.metadata.storageUrl as string) ?? null;
 
       if (userId) {
         saveScreenshot({
@@ -438,69 +415,28 @@ export async function POST(request: NextRequest) {
 
     const result = await render(options);
 
-    // Fire-and-forget: store in cache
+    // Upload to R2 + save to DB (awaited for POST so we return the URL)
+    let publicUrl: string | null = null;
+    try {
+      publicUrl = await uploadAndSave(
+        userId ?? undefined,
+        apiKeyId ?? undefined,
+        result.buffer,
+        { format: result.format, width: result.width, height: result.height },
+        { url: options.url, method: "POST", cached: false },
+        startTime
+      );
+    } catch {
+      // Upload failed — still return the format/dimensions
+    }
+
+    // Store in cache with the storage URL
     setInCache(cacheKey, result.buffer, {
       width: result.width,
       height: result.height,
       format: result.format,
-      storageUrl: null,
+      storageUrl: publicUrl,
     }).catch(() => {});
-
-    // Fire-and-forget: upload to storage and log in background
-    const publicUrl: string | null = cloudStorageAllowed ? null : null;
-    if (cloudStorageAllowed) {
-      const key = uniqueKey(options.url ?? "screenshot", result.format);
-      uploadToStorage(result.buffer, key, `image/${result.format}`)
-        .then((url) => {
-          if (userId) {
-            saveScreenshot({
-              userId,
-              apiKeyId: apiKeyId ?? undefined,
-              sourceUrl: options.url,
-              storageUrl: url,
-              format: result.format,
-              width: result.width,
-              height: result.height,
-              fileSizeBytes: result.buffer.length,
-              cached: false,
-            }).catch((e) => console.error("[saveScreenshot]", e.message));
-          }
-          logScreenshotUsage({
-            userId: userId ?? "",
-            apiKeyId: apiKeyId ?? undefined,
-            endpoint: "/api/take",
-            method: "POST",
-            statusCode: 200,
-            screenshotUrl: url,
-            cached: false,
-            responseTimeMs: Date.now() - startTime,
-          }).catch(() => {});
-        })
-        .catch(() => {});
-    } else if (userId) {
-      saveScreenshot({
-        userId,
-        apiKeyId: apiKeyId ?? undefined,
-        sourceUrl: options.url,
-        storageUrl: null,
-        format: result.format,
-        width: result.width,
-        height: result.height,
-        fileSizeBytes: result.buffer.length,
-        cached: false,
-      }).catch((e) => console.error("[saveScreenshot]", e.message));
-
-      logScreenshotUsage({
-        userId,
-        apiKeyId: apiKeyId ?? undefined,
-        endpoint: "/api/take",
-        method: "POST",
-        statusCode: 200,
-        screenshotUrl: null,
-        cached: false,
-        responseTimeMs: Date.now() - startTime,
-      }).catch(() => {});
-    }
 
     logRequest(userId ?? "anonymous", {
       ts: new Date().toISOString(),

@@ -10,7 +10,7 @@ import { getFilename } from "@/lib/utils";
 import {
   getUserPlan, checkRateLimit,
   isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
-  isCloudStorageAllowed, type PlanId,
+  type PlanId,
 } from "@/lib/plans";
 import { ensureCredits } from "@/lib/credits";
 
@@ -89,8 +89,6 @@ export async function POST(request: NextRequest) {
       if (!isCookieBlockingAllowed(plan)) renderOptions.block_cookie_banners = false;
     }
 
-    const cloudStorageAllowed = userId ? isCloudStorageAllowed(plan) : true;
-
     const results = await bulkRender(urls, renderOptions, {
       concurrency,
       maxRetries: max_retries,
@@ -100,16 +98,14 @@ export async function POST(request: NextRequest) {
       for (const r of results) {
         if (r.success && r.renderResult) {
           let publicUrl: string | null = null;
-          if (cloudStorageAllowed) {
-            try {
-              const key = uniqueKey(r.url, r.renderResult.format);
-              publicUrl = await uploadToStorage(
-                r.renderResult.buffer,
-                key,
-                `image/${r.renderResult.format}`
-              );
-            } catch {}
-          }
+          try {
+            const key = uniqueKey(r.url, r.renderResult.format);
+            publicUrl = await uploadToStorage(
+              r.renderResult.buffer,
+              key,
+              `image/${r.renderResult.format}`
+            );
+          } catch {}
 
           saveScreenshot({
             userId,

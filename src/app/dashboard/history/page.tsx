@@ -15,10 +15,18 @@ type Screenshot = {
   created_at: string;
 };
 
-function ClockIcon() {
+function DownloadIcon() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
     </svg>
   );
 }
@@ -61,7 +69,7 @@ export default async function HistoryPage() {
       <div>
         <h1 className="text-2xl font-bold">History</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Your latest rendered screenshots.
+          Your latest rendered screenshots. Click any row to open the full image.
         </p>
       </div>
 
@@ -92,21 +100,27 @@ export default async function HistoryPage() {
           {screenshots.map((s) => (
             <div
               key={s.id}
-              className="rounded-xl border border-[var(--border)] p-4 flex items-center gap-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+              className="group rounded-xl border border-[var(--border)] p-4 flex items-center gap-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
             >
-              <div className="flex-shrink-0 w-16 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+              {/* Thumbnail */}
+              <div className="flex-shrink-0 w-20 h-14 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-[var(--border)]">
                 {s.storage_url ? (
-                  <img
-                    src={s.storage_url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
+                  <a href={s.storage_url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={s.storage_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </a>
                 ) : (
                   <span className="text-[10px] font-medium text-zinc-400 uppercase">
                     {s.format}
                   </span>
                 )}
               </div>
+
+              {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm truncate font-medium" title={s.url}>
                   {s.url}
@@ -125,9 +139,34 @@ export default async function HistoryPage() {
                   )}
                 </div>
               </div>
-              <div className="flex-shrink-0 flex items-center gap-1.5 text-xs text-zinc-400">
-                <ClockIcon />
-                <span>{formatDate(s.created_at)}</span>
+
+              {/* Actions */}
+              <div className="flex-shrink-0 flex items-center gap-2">
+                {s.storage_url && (
+                  <a
+                    href={s.storage_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    title="Open full image"
+                  >
+                    <ExternalLinkIcon />
+                    Open
+                  </a>
+                )}
+                {s.storage_url && (
+                  <a
+                    href={s.storage_url}
+                    download={`screenshot.${s.format === "jpeg" ? "jpg" : s.format}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors"
+                    title="Download"
+                  >
+                    <DownloadIcon />
+                  </a>
+                )}
+                <span className="text-xs text-zinc-400 ml-1">
+                  {formatDate(s.created_at)}
+                </span>
               </div>
             </div>
           ))}
