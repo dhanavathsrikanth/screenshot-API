@@ -1,4 +1,5 @@
-import { S3Client, S3ClientConfig, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, S3ClientConfig, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/lib/env";
 
 let client: S3Client | null = null;
@@ -27,7 +28,6 @@ export async function uploadToStorage(
   contentType: string
 ): Promise<string> {
   const bucket = env("R2_BUCKET_NAME");
-  const publicUrl = env("R2_PUBLIC_URL");
 
   const s3 = getS3Client();
 
@@ -40,5 +40,16 @@ export async function uploadToStorage(
     })
   );
 
-  return `${publicUrl}/${key}`;
+  return key;
+}
+
+export async function getSignedDownloadUrl(key: string): Promise<string> {
+  const bucket = env("R2_BUCKET_NAME");
+  const s3 = getS3Client();
+
+  return getSignedUrl(
+    s3,
+    new GetObjectCommand({ Bucket: bucket, Key: key }),
+    { expiresIn: 3600 }
+  );
 }

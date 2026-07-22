@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { BulkScreenshotSchema } from "@/lib/schema";
 import { bulkRender } from "@/screenshot-engine/bulk";
-import { uploadToStorage } from "@/screenshot-engine/uploader";
+import { uploadToStorage, getSignedDownloadUrl } from "@/screenshot-engine/uploader";
 import { saveScreenshot } from "@/app/actions/screenshots";
 import { logScreenshotUsage } from "@/app/actions/usage";
 import { logRequest } from "@/lib/redis";
@@ -97,10 +97,10 @@ export async function POST(request: NextRequest) {
     if (userId) {
       for (const r of results) {
         if (r.success && r.renderResult) {
-          let publicUrl: string | null = null;
+          let storageKey: string | null = null;
           try {
             const key = uniqueKey(r.url, r.renderResult.format);
-            publicUrl = await uploadToStorage(
+            storageKey = await uploadToStorage(
               r.renderResult.buffer,
               key,
               `image/${r.renderResult.format}`
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
           saveScreenshot({
             userId,
             apiKeyId: apiKeyId ?? undefined,
-            storageUrl: publicUrl,
+            storageUrl: storageKey,
             format: r.renderResult!.format,
             width: r.renderResult!.width,
             height: r.renderResult!.height,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
             endpoint: "/api/take/bulk",
             method: "POST",
             statusCode: 200,
-            screenshotUrl: publicUrl,
+            screenshotUrl: storageKey,
             cached: false,
             responseTimeMs: Math.round((Date.now() - startTime) / results.length),
           }).catch(() => {});
