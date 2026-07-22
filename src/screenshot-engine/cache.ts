@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 
 // Unstable parameters that vary per request but don't affect visual output
 const UNSTABLE_PARAMS = [
@@ -38,7 +38,9 @@ export async function getFromCache(
   key: string
 ): Promise<{ buffer: Buffer; metadata: Record<string, unknown> } | null> {
   try {
-    const cached = await redis.get<{ buffer: string; metadata: Record<string, unknown> }>(key);
+    const client = getRedis();
+    if (!client) return null;
+    const cached = await client.get<{ buffer: string; metadata: Record<string, unknown> }>(key);
     if (cached) {
       return {
         buffer: Buffer.from(cached.buffer, "base64"),
@@ -58,7 +60,9 @@ export async function setInCache(
   metadata: Record<string, unknown>
 ): Promise<void> {
   try {
-    await redis.set(
+    const client = getRedis();
+    if (!client) return;
+    await client.set(
       key,
       {
         buffer: buffer.toString("base64"),

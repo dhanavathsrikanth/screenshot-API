@@ -1,15 +1,23 @@
 import { Redis } from "@upstash/redis";
 
-export const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+let _redis: Redis | null = null;
+
+export function getRedis(): Redis | null {
+  if (_redis) return _redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  _redis = new Redis({ url, token });
+  return _redis;
+}
 
 // ─── Cache Helpers ─────────────────────────────────────────────────────
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
   try {
-    const data = await redis.get<T>(key);
+    const client = getRedis();
+    if (!client) return null;
+    const data = await client.get<T>(key);
     return data ?? null;
   } catch {
     return null;
@@ -18,7 +26,9 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 
 export async function cacheSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
   try {
-    await redis.set(key, value, { ex: ttlSeconds });
+    const client = getRedis();
+    if (!client) return;
+    await client.set(key, value, { ex: ttlSeconds });
   } catch {
     // Silently fail — cache is optional
   }
@@ -26,8 +36,10 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number):
 
 export async function cacheInvalidate(pattern: string): Promise<void> {
   try {
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) await redis.del(...keys);
+    const client = getRedis();
+    if (!client) return;
+    const keys = await client.keys(pattern);
+    if (keys.length > 0) await client.del(...keys);
   } catch {
     // Silently fail
   }
@@ -49,10 +61,12 @@ const MAX_LOG_ENTRIES = 1000;
 
 export async function logRequest(userId: string, entry: RequestLogEntry): Promise<void> {
   try {
+    const client = getRedis();
+    if (!client) return;
     const key = `rl:${userId}:requests`;
-    await redis.lpush(key, JSON.stringify(entry));
-    await redis.ltrim(key, 0, MAX_LOG_ENTRIES - 1);
-    await redis.expire(key, 60 * 60 * 24 * 30); // 30 days
+    await client.lpush(key, JSON.stringify(entry));
+    await client.ltrim(key, 0, MAX_LOG_ENTRIES - 1);
+    await client.expire(key, 60 * 60 * 24 * 30); // 30 days
   } catch {
     // Silently fail
   }
@@ -60,7 +74,9 @@ export async function logRequest(userId: string, entry: RequestLogEntry): Promis
 
 export async function getRequestLogs(userId: string, offset = 0, count = 50): Promise<RequestLogEntry[]> {
   try {
-    const entries = await redis.lrange<RequestLogEntry>(`rl:${userId}:requests`, offset, offset + count - 1);
+    const client = getRedis();
+    if (!client) return [];
+    const entries = await client.lrange<RequestLogEntry>(`rl:${userId}:requests`, offset, offset + count - 1);
     return entries ?? [];
   } catch {
     return [];
@@ -69,7 +85,9 @@ export async function getRequestLogs(userId: string, offset = 0, count = 50): Pr
 
 export async function getRequestLogCount(userId: string): Promise<number> {
   try {
-    return await redis.llen(`rl:${userId}:requests`);
+    const client = getRedis();
+    if (!client) return 0;
+    return await client.llen(`rl:${userId}:requests`);
   } catch {
     return 0;
   }

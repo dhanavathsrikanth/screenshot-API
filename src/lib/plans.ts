@@ -1,5 +1,5 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 import { createClient } from "@/lib/supabase/server";
 
 // ─── Plan Definitions ─────────────────────────────────────────────────
@@ -60,11 +60,18 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   },
 };
 
-// ─── Upstash Rate Limiters (per-plan) ──────────────────────────────────
+// ─── Upstash Rate Limiters (per-plan, lazy) ──────────────────────────
 
 function createRateLimiter(maxRequests: number): Ratelimit {
+  const client = getRedis();
+  if (!client) {
+    // Return a no-op ratelimit that always allows requests when Redis is unavailable
+    return {
+      limit: async () => ({ success: true, limit: maxRequests, remaining: maxRequests, reset: Date.now() + 60000 }),
+    } as unknown as Ratelimit;
+  }
   return new Ratelimit({
-    redis,
+    redis: client,
     limiter: Ratelimit.slidingWindow(maxRequests, "60 s"),
     analytics: true,
     prefix: "rl:ratelimit",
@@ -72,8 +79,14 @@ function createRateLimiter(maxRequests: number): Ratelimit {
 }
 
 const rateLimiters = new Map<PlanId, Ratelimit>();
-for (const [plan, limits] of Object.entries(PLAN_LIMITS)) {
-  rateLimiters.set(plan as PlanId, createRateLimiter(limits.rateLimitPerMinute));
+let rateLimitersInitialized = false;
+
+function ensureRateLimiters() {
+  if (rateLimitersInitialized) return;
+  for (const [plan, limits] of Object.entries(PLAN_LIMITS)) {
+    rateLimiters.set(plan as PlanId, createRateLimiter(limits.rateLimitPerMinute));
+  }
+  rateLimitersInitialized = true;
 }
 
 // ─── Get User Plan (cached 60s) ───────────────────────────────────────
@@ -145,6 +158,7 @@ export async function checkRateLimit(
   userId: string,
   plan: PlanId
 ): Promise<{ allowed: boolean; retryAfterMs: number; limit: number; remaining: number; reset: number }> {
+  ensureRateLimiters();
   const limiter = rateLimiters.get(plan) ?? rateLimiters.get("free")!;
   const result = await limiter.limit(userId);
 
