@@ -135,7 +135,6 @@ export function computeUnits(params: {
   bulkCount?: number;
   pdfPages?: number;
 }): { units: number; kind: "screenshot" | "pdf" } {
-  if (params.cached) return { units: 0, kind: "screenshot" };
   if (params.format === "pdf") {
     const pages = Math.max(1, params.pdfPages ?? 1);
     return { units: pages * 5, kind: "pdf" };

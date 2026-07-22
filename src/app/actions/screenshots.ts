@@ -10,6 +10,7 @@ export async function saveScreenshot(params: {
   height: number;
   fileSizeBytes: number;
   cached: boolean;
+  metadata?: Record<string, unknown>;
 }) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -24,6 +25,7 @@ export async function saveScreenshot(params: {
       height: params.height,
       file_size_bytes: params.fileSizeBytes,
       cached: params.cached,
+      metadata: params.metadata ?? {},
     })
     .select("id")
     .single();

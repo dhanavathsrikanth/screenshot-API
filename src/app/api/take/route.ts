@@ -46,11 +46,16 @@ function saveAndLog(
   options: { url?: string; method: string; cached: boolean },
   startTime: number,
   plan: PlanId,
-  cloudStorageAllowed: boolean
+  cloudStorageAllowed: boolean,
+  ensureMeta?: { units?: number; mode?: "deducted" | "overage" }
 ) {
   if (!userId) return;
 
   const key = uniqueKey(options.url ?? "screenshot", result.format);
+  const creditsMetadata =
+    ensureMeta && typeof ensureMeta.units === "number"
+      ? ({ credits_used: ensureMeta.units, mode: ensureMeta.mode ?? "deducted", cached: options.cached } as Record<string, unknown>)
+      : ({ cached: options.cached } as Record<string, unknown>);
 
   if (!cloudStorageAllowed) {
     saveScreenshot({
@@ -63,6 +68,7 @@ function saveAndLog(
       height: result.height,
       fileSizeBytes: buffer.length,
       cached: options.cached,
+      metadata: creditsMetadata,
     }).catch((e) => console.error("[saveScreenshot]", e.message));
 
     logScreenshotUsage({
@@ -90,6 +96,7 @@ function saveAndLog(
         height: result.height,
         fileSizeBytes: buffer.length,
         cached: options.cached,
+        metadata: creditsMetadata,
       }).catch((e) => console.error("[saveScreenshot]", e.message));
 
       logScreenshotUsage({
@@ -172,6 +179,21 @@ export async function GET(request: NextRequest) {
     const cached = await getFromCache(cacheKey);
 
     if (cached) {
+      if (userId) {
+        const ensure = await ensureCredits(userId, {
+          cached: true,
+          format: options.format,
+          pdfPages: options.pdfPages,
+          meterMetadata: { endpoint: "/api/take", method: "GET", cache: "hit" },
+        });
+        if (!ensure.allowed) {
+          return NextResponse.json(
+            { error: "No credits remaining. Upgrade or buy credits." },
+            { status: 402 }
+          );
+        }
+      }
+
       saveAndLog(
         userId ?? undefined,
         apiKeyId ?? undefined,
