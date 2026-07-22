@@ -70,7 +70,7 @@ export async function getScreenshotHistory(userId: string, limit = 20) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("screenshots")
-    .select("id, url, storage_url, format, width, height, file_size_bytes, cached, created_at")
+    .select("id, url, storage_url, format, width, height, file_size_bytes, cached, created_at, metadata")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);

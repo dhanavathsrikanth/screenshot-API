@@ -49,7 +49,21 @@ async function uploadAndSave(
   apiKeyId: string | undefined,
   buffer: Buffer,
   result: { format: string; width: number; height: number },
-  options: { url?: string; method: string; cached: boolean },
+  options: {
+    url?: string;
+    method: string;
+    cached: boolean;
+    fullPage?: boolean;
+    darkMode?: boolean;
+    viewportWidth?: number;
+    viewportHeight?: number;
+    blockAds?: boolean;
+    blockTrackers?: boolean;
+    blockCookieBanners?: boolean;
+    selector?: string;
+    waitUntil?: string;
+    quality?: number;
+  },
   startTime: number,
   ensureMeta?: { units?: number; mode?: "deducted" | "overage" }
 ): Promise<string | null> {
@@ -78,7 +92,21 @@ async function uploadAndSave(
       height: result.height,
       fileSizeBytes: buffer.length,
       cached: options.cached,
-      metadata: creditsMetadata,
+      metadata: {
+        ...creditsMetadata,
+        full_page: options.fullPage ?? false,
+        dark_mode: options.darkMode ?? false,
+        viewport_width: options.viewportWidth,
+        viewport_height: options.viewportHeight,
+        block_ads: options.blockAds ?? false,
+        block_trackers: options.blockTrackers ?? false,
+        block_cookie_banners: options.blockCookieBanners ?? false,
+        selector: options.selector ?? null,
+        wait_until: options.waitUntil ?? null,
+        quality: options.quality ?? null,
+        method: options.method,
+        response_time_ms: Date.now() - startTime,
+      },
     }).catch((e) => console.error("[saveScreenshot]", e.message));
 
     logScreenshotUsage({
@@ -181,7 +209,21 @@ export async function GET(request: NextRequest) {
           width: cached.metadata.width as number,
           height: cached.metadata.height as number,
         },
-        { url: options.url, method: "GET", cached: true },
+        {
+          url: options.url,
+          method: "GET",
+          cached: true,
+          fullPage: options.full_page,
+          darkMode: options.dark_mode,
+          viewportWidth: options.viewport_width,
+          viewportHeight: options.viewport_height,
+          blockAds: options.block_ads,
+          blockTrackers: options.block_trackers,
+          blockCookieBanners: options.block_cookie_banners,
+          selector: options.selector,
+          waitUntil: options.wait_until,
+          quality: options.quality,
+        },
         startTime
       ).catch(() => {});
 
@@ -233,7 +275,21 @@ export async function GET(request: NextRequest) {
       apiKeyId ?? undefined,
       result.buffer,
       { format: result.format, width: result.width, height: result.height },
-      { url: options.url, method: "GET", cached: false },
+      {
+        url: options.url,
+        method: "GET",
+        cached: false,
+        fullPage: options.full_page,
+        darkMode: options.dark_mode,
+        viewportWidth: options.viewport_width,
+        viewportHeight: options.viewport_height,
+        blockAds: options.block_ads,
+        blockTrackers: options.block_trackers,
+        blockCookieBanners: options.block_cookie_banners,
+        selector: options.selector,
+        waitUntil: options.wait_until,
+        quality: options.quality,
+      },
       startTime
     ).then((publicUrl) => {
       // Update cache with storage URL after upload
@@ -354,6 +410,20 @@ export async function POST(request: NextRequest) {
           height: cached.metadata.height as number,
           fileSizeBytes: cached.buffer.length,
           cached: true,
+          metadata: {
+            full_page: options.full_page,
+            dark_mode: options.dark_mode,
+            viewport_width: options.viewport_width,
+            viewport_height: options.viewport_height,
+            block_ads: options.block_ads,
+            block_trackers: options.block_trackers,
+            block_cookie_banners: options.block_cookie_banners,
+            selector: options.selector,
+            wait_until: options.wait_until,
+            quality: options.quality,
+            method: "POST",
+            response_time_ms: Date.now() - startTime,
+          },
         }).catch((e) => console.error("[saveScreenshot]", e.message));
 
         logScreenshotUsage({
@@ -423,7 +493,21 @@ export async function POST(request: NextRequest) {
         apiKeyId ?? undefined,
         result.buffer,
         { format: result.format, width: result.width, height: result.height },
-        { url: options.url, method: "POST", cached: false },
+        {
+          url: options.url,
+          method: "POST",
+          cached: false,
+          fullPage: options.full_page,
+          darkMode: options.dark_mode,
+          viewportWidth: options.viewport_width,
+          viewportHeight: options.viewport_height,
+          blockAds: options.block_ads,
+          blockTrackers: options.block_trackers,
+          blockCookieBanners: options.block_cookie_banners,
+          selector: options.selector,
+          waitUntil: options.wait_until,
+          quality: options.quality,
+        },
         startTime
       );
     } catch {

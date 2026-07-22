@@ -3,6 +3,22 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getScreenshotHistory } from "@/app/actions/usage";
 
+type ScreenshotMetadata = {
+  full_page?: boolean;
+  dark_mode?: boolean;
+  viewport_width?: number;
+  viewport_height?: number;
+  block_ads?: boolean;
+  block_trackers?: boolean;
+  block_cookie_banners?: boolean;
+  selector?: string;
+  wait_until?: string;
+  quality?: number;
+  method?: string;
+  response_time_ms?: number;
+  cached?: boolean;
+};
+
 type Screenshot = {
   id: string;
   url: string;
@@ -13,11 +29,12 @@ type Screenshot = {
   file_size_bytes: number | null;
   cached: boolean;
   created_at: string;
+  metadata?: ScreenshotMetadata;
 };
 
 function DownloadIcon() {
   return (
-    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
     </svg>
   );
@@ -25,7 +42,7 @@ function DownloadIcon() {
 
 function ExternalLinkIcon() {
   return (
-    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
     </svg>
   );
@@ -33,9 +50,9 @@ function ExternalLinkIcon() {
 
 const formatBytes = (bytes: number | null) => {
   if (!bytes) return "N/A";
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 const formatDate = (dateStr: string) => {
@@ -53,24 +70,53 @@ const formatDate = (dateStr: string) => {
   return d.toLocaleDateString();
 };
 
+const formatFullDate = (dateStr: string) => {
+  const d = new Date(dateStr);
+  return d.toLocaleString();
+};
+
+const formatUrl = (url: string | null) => {
+  if (!url) return "(no URL)";
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname + parsed.pathname.slice(0, 40) + (parsed.pathname.length > 40 ? "..." : "");
+  } catch {
+    return url.slice(0, 50);
+  }
+};
+
+function OptionBadge({ label, active }: { label: string; active: boolean }) {
+  if (!active) return null;
+  return (
+    <span className="inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 ring-1 ring-inset ring-indigo-500/20">
+      {label}
+    </span>
+  );
+}
+
 export default async function HistoryPage() {
   const { userId } = await auth();
   if (!userId) redirect("/");
 
   let screenshots: Screenshot[] = [];
   try {
-    screenshots = await getScreenshotHistory(userId, 50);
+    screenshots = await getScreenshotHistory(userId, 100);
   } catch {
     screenshots = [];
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">History</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Your latest rendered screenshots. Click any row to open the full image.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Screenshot History</h1>
+          <p className="text-sm text-zinc-500 mt-1">
+            Every screenshot captured from the playground and API calls.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-400">{screenshots.length} captures</span>
+        </div>
       </div>
 
       {screenshots.length === 0 ? (
@@ -96,80 +142,203 @@ export default async function HistoryPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-2">
-          {screenshots.map((s) => (
-            <div
-              key={s.id}
-              className="group rounded-xl border border-[var(--border)] p-4 flex items-center gap-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-            >
-              {/* Thumbnail */}
-              <div className="flex-shrink-0 w-20 h-14 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-[var(--border)]">
-                {s.storage_url ? (
-                  <a href={s.storage_url} target="_blank" rel="noopener noreferrer">
-                    <img
-                      src={s.storage_url}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </a>
-                ) : (
-                  <span className="text-[10px] font-medium text-zinc-400 uppercase">
-                    {s.format}
-                  </span>
-                )}
-              </div>
+        <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-zinc-50 dark:bg-zinc-900">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[60px]">
+                    Preview
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    URL
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">
+                    Format
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[110px]">
+                    Viewport
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    Options
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[90px]">
+                    Size
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">
+                    Source
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[90px]">
+                    Time
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[100px]">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {screenshots.map((s) => {
+                  const meta = s.metadata ?? {};
+                  const vpWidth = meta.viewport_width ?? s.width;
+                  const vpHeight = meta.viewport_height ?? s.height;
+                  return (
+                    <tr
+                      key={s.id}
+                      className="border-b border-[var(--border)] last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+                    >
+                      {/* Thumbnail */}
+                      <td className="px-4 py-3">
+                        <div className="w-12 h-9 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-[var(--border)]">
+                          {s.storage_url && s.format !== "pdf" ? (
+                            <a href={s.storage_url} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={s.storage_url}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            </a>
+                          ) : (
+                            <span className="text-[9px] font-bold text-zinc-400 uppercase">
+                              {s.format}
+                            </span>
+                          )}
+                        </div>
+                      </td>
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm truncate font-medium" title={s.url}>
-                  {s.url}
-                </p>
-                <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-500">
-                  <span className="font-mono">{s.width}x{s.height}</span>
-                  <span>&middot;</span>
-                  <span>{s.format.toUpperCase()}</span>
-                  <span>&middot;</span>
-                  <span>{formatBytes(s.file_size_bytes)}</span>
-                  {s.cached && (
-                    <>
-                      <span>&middot;</span>
-                      <span className="text-green-600 dark:text-green-400">cached</span>
-                    </>
-                  )}
-                </div>
-              </div>
+                      {/* URL */}
+                      <td className="px-4 py-3">
+                        {s.url ? (
+                          <a
+                            href={s.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline max-w-[280px] truncate block"
+                            title={s.url}
+                          >
+                            {formatUrl(s.url)}
+                          </a>
+                        ) : (
+                          <span className="text-sm text-zinc-400">-</span>
+                        )}
+                      </td>
 
-              {/* Actions */}
-              <div className="flex-shrink-0 flex items-center gap-2">
-                {s.storage_url && (
-                  <a
-                    href={s.storage_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                    title="Open full image"
-                  >
-                    <ExternalLinkIcon />
-                    Open
-                  </a>
-                )}
-                {s.storage_url && (
-                  <a
-                    href={s.storage_url}
-                    download={`screenshot.${s.format === "jpeg" ? "jpg" : s.format}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors"
-                    title="Download"
-                  >
-                    <DownloadIcon />
-                  </a>
-                )}
-                <span className="text-xs text-zinc-400 ml-1">
-                  {formatDate(s.created_at)}
-                </span>
-              </div>
-            </div>
-          ))}
+                      {/* Format */}
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ring-1 ring-inset ${
+                          s.format === "pdf"
+                            ? "bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/50 dark:text-red-400"
+                            : s.format === "webp"
+                              ? "bg-green-50 text-green-700 ring-green-600/20 dark:bg-green-950/50 dark:text-green-400"
+                              : s.format === "jpeg"
+                                ? "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-400"
+                                : "bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/50 dark:text-blue-400"
+                        }`}>
+                          {s.format}
+                        </span>
+                      </td>
+
+                      {/* Viewport */}
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                          {vpWidth}x{vpHeight}
+                        </span>
+                        {meta.full_page && (
+                          <span className="ml-1.5 text-[10px] text-zinc-400">full</span>
+                        )}
+                      </td>
+
+                      {/* Options badges */}
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          <OptionBadge label="dark" active={meta.dark_mode ?? false} />
+                          <OptionBadge label="ads" active={meta.block_ads ?? false} />
+                          <OptionBadge label="trackers" active={meta.block_trackers ?? false} />
+                          <OptionBadge label="cookies" active={meta.block_cookie_banners ?? false} />
+                          {meta.selector && (
+                            <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 ring-1 ring-inset ring-zinc-500/20" title={meta.selector}>
+                              selector
+                            </span>
+                          )}
+                          {meta.wait_until && meta.wait_until !== "domcontentloaded" && (
+                            <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 ring-1 ring-inset ring-zinc-500/20">
+                              {meta.wait_until}
+                            </span>
+                          )}
+                          {meta.response_time_ms != null && (
+                            <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 ring-1 ring-inset ring-zinc-500/20">
+                              {meta.response_time_ms}ms
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* File size */}
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                          {formatBytes(s.file_size_bytes)}
+                        </span>
+                      </td>
+
+                      {/* Source (API / Playground) */}
+                      <td className="px-4 py-3">
+                        {meta.method ? (
+                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ring-1 ring-inset ${
+                            meta.method === "POST"
+                              ? "bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/50 dark:text-violet-400"
+                              : "bg-cyan-50 text-cyan-700 ring-cyan-600/20 dark:bg-cyan-950/50 dark:text-cyan-400"
+                          }`}>
+                            {meta.method}
+                          </span>
+                        ) : s.cached ? (
+                          <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-950/50 dark:text-green-400">
+                            cached
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-zinc-400">-</span>
+                        )}
+                      </td>
+
+                      {/* Time */}
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-xs text-zinc-500" title={formatFullDate(s.created_at)}>
+                          {formatDate(s.created_at)}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {s.storage_url && (
+                            <a
+                              href={s.storage_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                              title="Open full image"
+                            >
+                              <ExternalLinkIcon />
+                              Open
+                            </a>
+                          )}
+                          {s.storage_url && (
+                            <a
+                              href={s.storage_url}
+                              download={`screenshot.${s.format === "jpeg" ? "jpg" : s.format}`}
+                              className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 transition-colors"
+                              title="Download"
+                            >
+                              <DownloadIcon />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

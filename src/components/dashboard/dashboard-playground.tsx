@@ -29,7 +29,7 @@ export function DashboardPlayground() {
         dark_mode: String(darkMode),
       });
 
-      const response = await fetch(`/api/take?${params}`);
+      const response = await fetch(`/api/take?${params}`, { credentials: "include" });
       if (!response.ok) {
         let message = "Failed to render screenshot";
         try {
