@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { DashboardLayoutClient } from "./dashboard-client";
+import { ensureWelcomeCredits } from "@/lib/credits";
 
 export default async function DashboardLayout({
   children,
@@ -7,6 +8,15 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { userId } = await auth();
+
+  // Seed 100 welcome credits for new users or legacy users missing credits
+  if (userId) {
+    try {
+      await ensureWelcomeCredits(userId);
+    } catch {
+      // non-fatal
+    }
+  }
 
   let plan = "free";
   if (userId) {

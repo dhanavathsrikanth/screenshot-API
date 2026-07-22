@@ -242,3 +242,61 @@ export async function ensureCredits(userId: string, params: {
   // Block for Free plan or when overage disabled
   return { allowed: false, mode: "blocked", reason: "no_credits" };
 }
+
+// One-time 100 free credits grant for new or previously signed-in users without credits
+export async function ensureWelcomeCredits(userId: string): Promise<void> {
+  const supabase = createServiceClient();
+
+  // Check existing quota row and credit state
+  const { data, error } = await supabase
+    .from("user_quotas")
+    .select("user_id, plan, credit_balance, credits_granted_this_cycle")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    // Avoid throwing during page load; rely on DB trigger/webhook seeding
+    return;
+  }
+
+  const BASE = 100;
+
+  // If no quota row exists (older accounts before trigger), create one with 100 credits
+  if (!data) {
+    await supabase
+      .from("user_quotas")
+      .insert({
+        user_id: userId,
+        plan: "free",
+        monthly_limit: BASE,
+        monthly_used: 0,
+        credit_balance: BASE,
+        credits_used_this_cycle: 0,
+        credits_granted_this_cycle: BASE,
+        top_up_balance: 0,
+        overage_enabled: false,
+      })
+      .then(async () => {
+        await cacheInvalidate(creditsCacheKey(userId));
+      });
+    return;
+  }
+
+  // If a row exists but this user never received free credits (both zero), grant once
+  const plan = (data.plan as any) ?? "free";
+  const currentBalance = data.credit_balance ?? 0;
+  const grantedThisCycle = data.credits_granted_this_cycle ?? 0;
+
+  if (plan === "free" && currentBalance === 0 && grantedThisCycle === 0) {
+    await supabase
+      .from("user_quotas")
+      .update({
+        credit_balance: BASE,
+        credits_granted_this_cycle: BASE,
+        credits_used_this_cycle: 0,
+      })
+      .eq("user_id", userId);
+
+    await cacheInvalidate(creditsCacheKey(userId));
+  }
+}
