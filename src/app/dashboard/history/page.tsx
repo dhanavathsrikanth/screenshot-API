@@ -17,7 +17,16 @@ type ScreenshotMetadata = {
   method?: string;
   response_time_ms?: number;
   cached?: boolean;
+  credits_used?: number;
+  mode?: string;
 };
+
+const CREDIT_COSTS: Record<string, number> = { png: 1, jpg: 1, jpeg: 1, webp: 1, pdf: 5 };
+
+function getCreditCost(format: string, meta: ScreenshotMetadata): number {
+  if (meta.credits_used != null) return meta.credits_used;
+  return CREDIT_COSTS[format] ?? 1;
+}
 
 type Screenshot = {
   id: string;
@@ -147,7 +156,7 @@ export default async function HistoryPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-zinc-50 dark:bg-zinc-900">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[60px]">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">
                     Preview
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
@@ -167,6 +176,9 @@ export default async function HistoryPage() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">
                     Source
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">
+                    Credits
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[90px]">
                     Time
@@ -188,7 +200,7 @@ export default async function HistoryPage() {
                     >
                       {/* Thumbnail */}
                       <td className="px-4 py-3">
-                        <div className="w-12 h-9 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-[var(--border)]">
+                        <div className="w-16 h-12 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-[var(--border)]">
                           {s.storage_url && s.format !== "pdf" ? (
                             <a href={s.storage_url} target="_blank" rel="noopener noreferrer">
                               <img
@@ -297,6 +309,19 @@ export default async function HistoryPage() {
                         ) : (
                           <span className="text-[11px] text-zinc-400">-</span>
                         )}
+                      </td>
+
+                      {/* Credits */}
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ${
+                          s.cached
+                            ? "bg-green-50 text-green-700 ring-green-600/20 dark:bg-green-950/50 dark:text-green-400"
+                            : getCreditCost(s.format, meta) >= 5
+                              ? "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-400"
+                              : "bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/50 dark:text-blue-400"
+                        }`}>
+                          {s.cached ? "0" : getCreditCost(s.format, meta)}
+                        </span>
                       </td>
 
                       {/* Time */}

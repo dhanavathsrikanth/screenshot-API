@@ -2,6 +2,12 @@
 
 import { useState, useCallback } from "react";
 
+const CREDIT_COSTS: Record<string, number> = { png: 1, jpg: 1, jpeg: 1, webp: 1, pdf: 5 };
+
+function getCreditCost(format: string): number {
+  return CREDIT_COSTS[format] ?? 1;
+}
+
 export function DashboardPlayground() {
   const [url, setUrl] = useState("https://example.com");
   const [format, setFormat] = useState<"png" | "jpeg" | "webp" | "pdf">("png");
@@ -9,27 +15,35 @@ export function DashboardPlayground() {
   const [darkMode, setDarkMode] = useState(false);
   const [width, setWidth] = useState(1280);
   const [result, setResult] = useState<string | null>(null);
+  const [storageUrl, setStorageUrl] = useState<string | null>(null);
   const [resultType, setResultType] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [creditsUsed, setCreditsUsed] = useState<number | null>(null);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setResult(null);
+    setStorageUrl(null);
     setResultType(null);
+    setCreditsUsed(null);
 
     try {
-      const params = new URLSearchParams({
-        url,
-        format,
-        viewport_width: String(width),
-        full_page: String(fullPage),
-        dark_mode: String(darkMode),
+      const response = await fetch("/api/take", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          url,
+          format,
+          viewport_width: width,
+          full_page: fullPage,
+          dark_mode: darkMode,
+        }),
       });
 
-      const response = await fetch(`/api/take?${params}`, { credentials: "include" });
       if (!response.ok) {
         let message = "Failed to render screenshot";
         try {
@@ -41,17 +55,19 @@ export function DashboardPlayground() {
         throw new Error(message);
       }
 
-      const contentType = response.headers.get("content-type") ?? "";
-      if (format === "pdf") {
-        const blob = await response.blob();
-        const pdfUrl = URL.createObjectURL(blob);
-        setResult(pdfUrl);
-        setResultType("pdf");
+      const data = await response.json();
+      const cost = getCreditCost(format);
+      setCreditsUsed(cost);
+
+      if (data.url) {
+        setStorageUrl(data.url);
+        setResult(data.url);
+        setResultType(format === "pdf" ? "pdf" : "image");
       } else {
         const blob = await response.blob();
-        const imgUrl = URL.createObjectURL(blob);
-        setResult(imgUrl);
-        setResultType(contentType.includes("image") ? "image" : "unknown");
+        const objectUrl = URL.createObjectURL(blob);
+        setResult(objectUrl);
+        setResultType(format === "pdf" ? "pdf" : "image");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -61,14 +77,15 @@ export function DashboardPlayground() {
   }, [url, format, fullPage, darkMode, width]);
 
   const handleDownload = useCallback(() => {
-    if (!result) return;
+    const href = storageUrl ?? result;
+    if (!href) return;
     const a = document.createElement("a");
-    a.href = result;
+    a.href = href;
     a.download = `screenshot.${format === "jpeg" ? "jpg" : format}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }, [result, format]);
+  }, [result, storageUrl, format]);
 
   return (
     <div>
@@ -134,6 +151,9 @@ export function DashboardPlayground() {
             />
             <span className="text-xs text-zinc-500">Dark mode</span>
           </label>
+          <span className="text-xs text-zinc-400 ml-auto">
+            Cost: <span className="font-semibold text-amber-600 dark:text-amber-400">{getCreditCost(format)} credit{getCreditCost(format) !== 1 ? "s" : ""}</span>
+          </span>
         </div>
       </form>
 
@@ -146,7 +166,19 @@ export function DashboardPlayground() {
       {result && (
         <div className="mt-4 rounded-lg border border-[var(--border)] overflow-hidden">
           <div className="bg-zinc-50 dark:bg-zinc-900 px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
-            <span className="text-xs text-zinc-500">Preview</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-zinc-500">Preview</span>
+              {creditsUsed != null && (
+                <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 ring-1 ring-inset ring-amber-600/20">
+                  {creditsUsed} credit{creditsUsed !== 1 ? "s" : ""} used
+                </span>
+              )}
+              {storageUrl && (
+                <a href={storageUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-500 hover:underline">
+                  View saved
+                </a>
+              )}
+            </div>
             <button
               onClick={handleDownload}
               className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
@@ -165,7 +197,7 @@ export function DashboardPlayground() {
             <img
               src={result}
               alt="Screenshot preview"
-              className="w-full"
+              className="w-full max-h-[500px] object-contain bg-zinc-50 dark:bg-zinc-900"
             />
           )}
         </div>

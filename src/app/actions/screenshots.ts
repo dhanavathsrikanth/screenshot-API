@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export async function saveScreenshot(params: {
   userId: string;
@@ -12,7 +12,7 @@ export async function saveScreenshot(params: {
   cached: boolean;
   metadata?: Record<string, unknown>;
 }) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("screenshots")
     .insert({
