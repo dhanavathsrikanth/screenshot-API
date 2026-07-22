@@ -55,6 +55,15 @@ const navigation = [
         ),
       },
       {
+        label: "Billing",
+        href: "/dashboard/billing",
+        icon: (
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 7.5h6M9 10.5h6M8.25 3.75h7.5A2.25 2.25 0 0 1 18 6v12.75l-3-1.5-3 1.5-3-1.5-3 1.5V6a2.25 2.25 0 0 1 2.25-2.25Z" />
+          </svg>
+        ),
+      },
+      {
         label: "SLA Monitor",
         href: "/dashboard/sla",
         icon: (

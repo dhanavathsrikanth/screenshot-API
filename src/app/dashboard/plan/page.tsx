@@ -108,13 +108,19 @@ export default async function PlanPage() {
           <StatsCard
             label="Credits Remaining"
             value={stats.creditBalance.toLocaleString()}
-            sublabel={`${stats.creditsGrantedThisCycle.toLocaleString()} granted this cycle`}
+            sublabel={stats.plan === "free" ? "Lifetime allocation" : `${stats.creditsGrantedThisCycle.toLocaleString()} granted this cycle`}
             icon={<CreditIcon />}
           />
           <StatsCard
             label="Credits Used This Cycle"
             value={stats.creditsUsedThisCycle.toLocaleString()}
-            sublabel={stats.topUpBalance > 0 ? `+${stats.topUpBalance.toLocaleString()} top-up balance` : undefined}
+            sublabel={
+              stats.plan === "free"
+                ? `Total allocation: ${(stats.creditsGrantedThisCycle + stats.topUpBalance).toLocaleString()}`
+                : stats.topUpBalance > 0
+                  ? `+${stats.topUpBalance.toLocaleString()} top-up balance`
+                  : undefined
+            }
             icon={<UsedIcon />}
           />
           <div className="flex items-center">

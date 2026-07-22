@@ -60,19 +60,21 @@ async function updateState(
 ): Promise<void> {
   const supabase = createServiceClient();
 
+  // Prefer atomic RPC for usage deductions to avoid race conditions
+  if (typeof update.used_increment === "number" && update.used_increment > 0) {
+    const delta = -Math.abs(update.used_increment);
+    await supabase.rpc("adjust_credits", { p_user_id: userId, p_delta: delta });
+    await cacheInvalidate(creditsCacheKey(userId));
+    return;
+  }
+
+  // Otherwise, apply absolute balance updates (e.g., sync or top-ups)
   const patch: Record<string, unknown> = {};
   if (typeof update.credit_balance === "number") patch.credit_balance = update.credit_balance;
   if (typeof update.top_up_balance === "number") patch.top_up_balance = update.top_up_balance;
-  if (typeof update.used_increment === "number" && update.used_increment > 0) {
-    patch.credits_used_this_cycle = (update.used_increment as number) + 0; // increment via RPC-style update
-    // Also increment legacy monthly_used to keep dashboards coherent
-    patch.monthly_used = (update.used_increment as number) + 0;
-  }
 
-  // NOTE: Supabase doesn't support atomic increments with arithmetic in plain update easily here.
-  // For simplicity, set absolute balances and separately add to *_used_this_cycle via SQL function if you later add one.
-  const { error } = await supabase.from("user_quotas").update(patch).eq("user_id", userId);
-  if (!error) {
+  if (Object.keys(patch).length > 0) {
+    await supabase.from("user_quotas").update(patch).eq("user_id", userId);
     await cacheInvalidate(creditsCacheKey(userId));
   }
 }
@@ -164,13 +166,14 @@ export async function ensureCredits(userId: string, params: {
   }
 
   // Auto-initialize credits from plan limit if never granted
-  if (state.credit_balance === 0 && state.top_up_balance === 0) {
+  // Only auto-seed when a paid plan has just been initialized (never for free plan).
+  if (state.credit_balance === 0 && state.top_up_balance === 0 && state.plan !== "free") {
     const plan = (state.plan || "free") as PlanId;
     const limits = getPlanLimits(plan);
     const initialCredits = limits.monthlyScreenshots;
 
     const supabase = createServiceClient();
-    await supabase
+    const { error } = await supabase
       .from("user_quotas")
       .update({
         credit_balance: initialCredits,
@@ -180,8 +183,9 @@ export async function ensureCredits(userId: string, params: {
       .eq("user_id", userId)
       .eq("credits_granted_this_cycle", 0);
 
-    state.credit_balance = initialCredits;
-    await cacheInvalidate(creditsCacheKey(userId));
+    if (!error) {
+      await cacheInvalidate(creditsCacheKey(userId));
+    }
   }
 
   const { units, kind } = computeUnits(params);

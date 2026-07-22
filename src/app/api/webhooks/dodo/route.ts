@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { Webhooks } from "@dodopayments/nextjs";
 import DodoPayments from "dodopayments";
@@ -9,6 +12,29 @@ type AnyRecord = Record<string, any>;
 // ── Plan mapping from Dodo product IDs ──────────────────────────────────
 
 const PRODUCT_PLAN_MAP: Record<string, { plan: string; credits: number; monthlyLimit: number }> = {};
+
+// ── Top-up mapping from Dodo product IDs ─────────────────────────────────
+function resolveTopupFromProduct(productId: string | undefined): number | null {
+  if (!productId) return null;
+
+  const TOPUPS: [string | undefined, number][] = [
+    [process.env.NEXT_PUBLIC_DODO_PRODUCT_TOPUP_500_ID, 500],
+    [process.env.NEXT_PUBLIC_DODO_PRODUCT_TOPUP_2500_ID, 2500],
+    [process.env.NEXT_PUBLIC_DODO_PRODUCT_TOPUP_10000_ID, 10000],
+  ];
+
+  for (const [pid, credits] of TOPUPS) {
+    if (pid && pid === productId) return credits;
+  }
+
+  // Fallback: try to infer from id string
+  const lower = productId.toLowerCase();
+  if (lower.includes("10000")) return 10000;
+  if (lower.includes("2500")) return 2500;
+  if (lower.includes("500")) return 500;
+
+  return null;
+}
 
 function resolvePlanFromProduct(productId: string | undefined): { plan: string; credits: number; monthlyLimit: number } | null {
   if (!productId) return null;
@@ -137,7 +163,8 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
   const productId: string | undefined =
     payload?.data?.product_id ??
     payload?.data?.subscription?.product_id ??
-    payload?.data?.items?.[0]?.product_id;
+    payload?.data?.items?.[0]?.product_id ??
+    payload?.data?.line_items?.[0]?.product_id;
 
   const planInfo = resolvePlanFromProduct(productId);
   if (!planInfo) {
@@ -149,20 +176,23 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
     payload?.data?.subscription_id ??
     payload?.data?.subscription?.id;
 
-  // Update plan + credits + monthly limit
+  // Upsert plan + credits + monthly limit to ensure a row exists
   const { error } = await supabase
     .from("user_quotas")
-    .update({
-      plan: planInfo.plan,
-      monthly_limit: planInfo.monthlyLimit,
-      credit_balance: planInfo.credits,
-      credits_granted_this_cycle: planInfo.credits,
-      credits_used_this_cycle: 0,
-      overage_enabled: true,
-      dodo_subscription_id: subscriptionId ?? null,
-      dodo_product_id: productId ?? null,
-    })
-    .eq("user_id", userId);
+    .upsert(
+      {
+        user_id: userId,
+        plan: planInfo.plan,
+        monthly_limit: planInfo.monthlyLimit,
+        credit_balance: planInfo.credits,
+        credits_granted_this_cycle: planInfo.credits,
+        credits_used_this_cycle: 0,
+        overage_enabled: true,
+        dodo_subscription_id: subscriptionId ?? null,
+        dodo_product_id: productId ?? null,
+      },
+      { onConflict: "user_id" }
+    );
 
   if (error) {
     console.error("[Dodo Webhook] Failed to upgrade plan:", error.message);
@@ -179,9 +209,14 @@ async function syncCreditBalance(payload: AnyRecord): Promise<void> {
 
   const supabase = createServiceClient();
 
-  const creditEntitlementId: string | undefined =
+  let creditEntitlementId: string | undefined =
     payload?.data?.credit_entitlement_id ?? payload?.data?.entitlement_id;
   const customerId: string | undefined = payload?.data?.customer_id;
+
+  // Fallback to configured entitlement if not present in payload
+  if (!creditEntitlementId) {
+    creditEntitlementId = process.env.DODO_CREDIT_ENTITLEMENT_ID;
+  }
 
   // If we have a customer + entitlement, fetch authoritative balance from Dodo
   if (creditEntitlementId && customerId) {
@@ -299,6 +334,46 @@ async function recordLowBalanceAlert(payload: AnyRecord): Promise<void> {
 
 let _handler: ReturnType<typeof Webhooks> | null = null;
 
+// ── Top-up credit grant (one-time purchases) ─────────────────────────────
+async function grantTopupCredits(payload: AnyRecord): Promise<void> {
+  const supabase = createServiceClient();
+  const userId = await resolveUserIdFromPayload(payload);
+  if (!userId) return;
+
+  const productId: string | undefined =
+    payload?.data?.product_id ??
+    payload?.data?.items?.[0]?.product_id ??
+    payload?.data?.line_items?.[0]?.product_id;
+
+  const credits = resolveTopupFromProduct(productId);
+  if (!credits) return;
+
+  const { data: q } = await supabase
+    .from("user_quotas")
+    .select("top_up_balance")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const currentTopup = q?.top_up_balance ?? 0;
+  const nextTopup = currentTopup + credits;
+
+  const { error } = await supabase
+    .from("user_quotas")
+    .upsert(
+      {
+        user_id: userId,
+        top_up_balance: nextTopup,
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (error) {
+    console.error("[Dodo Webhook] Failed to grant top-up credits:", error.message);
+  } else {
+    console.log(`[Dodo Webhook] Granted top-up credits to user ${userId}: +${credits} (now ${nextTopup})`);
+  }
+}
+
 function getWebhookHandler() {
   if (!_handler) {
     _handler = Webhooks({
@@ -315,8 +390,12 @@ function getWebhookHandler() {
       onPaymentSucceeded: async (payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payment succeeded");
         await upsertCustomerMapping(payload);
-        // On first payment, upgrade plan based on product
+        // On first payment, upgrade plan based on product (if it's a subscription product)
         await upgradePlan(payload);
+        // Also grant top-up credits for one-time credit products
+        await grantTopupCredits(payload);
+        // Attempt to sync authoritative balance as a final step
+        await syncCreditBalance(payload);
       },
 
       onPaymentFailed: async (payload: AnyRecord) => {
@@ -347,6 +426,12 @@ function getWebhookHandler() {
 
       onSubscriptionUpdated: async (payload: AnyRecord) => {
         console.log("[Dodo Webhook] Subscription updated");
+        await upsertCustomerMapping(payload);
+        await upgradePlan(payload);
+      },
+
+      onSubscriptionPlanChanged: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Subscription plan changed");
         await upsertCustomerMapping(payload);
         await upgradePlan(payload);
       },
