@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ScreenshotOptionsSchema } from "@/lib/schema";
 import { render } from "@/screenshot-engine/renderer";
-import { uploadToStorage, getSignedDownloadUrl } from "@/screenshot-engine/uploader";
+import { uploadToStorage } from "@/screenshot-engine/uploader";
 import { getCacheKey, getFromCache, setInCache } from "@/screenshot-engine/cache";
 import { getFilename } from "@/lib/utils";
 import { logScreenshotUsage } from "@/app/actions/usage";
@@ -73,10 +73,10 @@ async function uploadAndSave(
       ? ({ credits_used: ensureMeta.units, mode: ensureMeta.mode ?? "deducted", cached: options.cached } as Record<string, unknown>)
       : ({ cached: options.cached } as Record<string, unknown>);
 
-  let storageKey: string | null = null;
+  let publicUrl: string | null = null;
 
   try {
-    storageKey = await uploadToStorage(buffer, key, `image/${result.format}`);
+    publicUrl = await uploadToStorage(buffer, key, `image/${result.format}`);
   } catch (e) {
     console.error("[uploadToStorage]", e instanceof Error ? e.message : e);
   }
@@ -86,7 +86,7 @@ async function uploadAndSave(
       userId,
       apiKeyId: apiKeyId ?? undefined,
       sourceUrl: options.url,
-      storageUrl: storageKey,
+      storageUrl: publicUrl,
       format: result.format,
       width: result.width,
       height: result.height,
@@ -115,13 +115,13 @@ async function uploadAndSave(
       endpoint: "/api/take",
       method: options.method,
       statusCode: 200,
-      screenshotUrl: storageKey,
+      screenshotUrl: publicUrl,
       cached: options.cached,
       responseTimeMs: Date.now() - startTime,
     }).catch(() => {});
   }
 
-  return storageKey;
+  return publicUrl;
 }
 
 export async function GET(request: NextRequest) {
@@ -291,14 +291,14 @@ export async function GET(request: NextRequest) {
         quality: options.quality,
       },
       startTime
-    ).then((storageKey) => {
-      // Update cache with storage key after upload
-      if (storageKey) {
+    ).then((publicUrl) => {
+      // Update cache with storage URL after upload
+      if (publicUrl) {
         setInCache(cacheKey, result.buffer, {
           width: result.width,
           height: result.height,
           format: result.format,
-          storageUrl: storageKey,
+          storageUrl: publicUrl,
         }).catch(() => {});
       }
     }).catch(() => {});
@@ -397,14 +397,14 @@ export async function POST(request: NextRequest) {
     const cached = await getFromCache(cacheKey);
 
     if (cached) {
-      const storageKey: string | null = (cached.metadata.storageUrl as string) ?? null;
+      const publicUrl: string | null = (cached.metadata.storageUrl as string) ?? null;
 
       if (userId) {
         saveScreenshot({
           userId,
           apiKeyId: apiKeyId ?? undefined,
           sourceUrl: options.url,
-          storageUrl: storageKey,
+          storageUrl: publicUrl,
           format: cached.metadata.format as string,
           width: cached.metadata.width as number,
           height: cached.metadata.height as number,
@@ -432,7 +432,7 @@ export async function POST(request: NextRequest) {
           endpoint: "/api/take",
           method: "POST",
           statusCode: 200,
-          screenshotUrl: storageKey,
+          screenshotUrl: publicUrl,
           cached: true,
           responseTimeMs: Date.now() - startTime,
         }).catch(() => {});
@@ -448,16 +448,8 @@ export async function POST(request: NextRequest) {
         url: options.url,
       }).catch(() => {});
 
-      let signedUrl: string | null = null;
-      if (storageKey) {
-        try {
-          signedUrl = await getSignedDownloadUrl(storageKey);
-        } catch {}
-      }
-
       return NextResponse.json({
-        url: signedUrl,
-        storage_key: storageKey,
+        url: publicUrl,
         format: cached.metadata.format,
         width: cached.metadata.width,
         height: cached.metadata.height,
@@ -494,9 +486,9 @@ export async function POST(request: NextRequest) {
     const result = await render(options);
 
     // Upload to R2 + save to DB (awaited for POST so we return the URL)
-    let storageKey: string | null = null;
+    let publicUrl: string | null = null;
     try {
-      storageKey = await uploadAndSave(
+      publicUrl = await uploadAndSave(
         userId ?? undefined,
         apiKeyId ?? undefined,
         result.buffer,
@@ -522,12 +514,12 @@ export async function POST(request: NextRequest) {
       // Upload failed — still return the format/dimensions
     }
 
-    // Store in cache with the storage key
+    // Store in cache with the storage URL
     setInCache(cacheKey, result.buffer, {
       width: result.width,
       height: result.height,
       format: result.format,
-      storageUrl: storageKey,
+      storageUrl: publicUrl,
     }).catch(() => {});
 
     logRequest(userId ?? "anonymous", {
@@ -540,16 +532,8 @@ export async function POST(request: NextRequest) {
       url: options.url,
     }).catch(() => {});
 
-    let signedUrl: string | null = null;
-    if (storageKey) {
-      try {
-        signedUrl = await getSignedDownloadUrl(storageKey);
-      } catch {}
-    }
-
     return NextResponse.json({
-      url: signedUrl,
-      storage_key: storageKey,
+      url: publicUrl,
       format: result.format,
       width: result.width,
       height: result.height,

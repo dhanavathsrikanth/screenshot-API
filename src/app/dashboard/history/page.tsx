@@ -2,7 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getScreenshotHistory } from "@/app/actions/usage";
-import { getSignedDownloadUrl } from "@/screenshot-engine/uploader";
 
 type ScreenshotMetadata = {
   full_page?: boolean;
@@ -115,18 +114,6 @@ export default async function HistoryPage() {
     screenshots = [];
   }
 
-  const signedUrlMap = new Map<string, string>();
-  await Promise.all(
-    screenshots
-      .filter((s) => s.storage_url)
-      .map(async (s) => {
-        try {
-          const url = await getSignedDownloadUrl(s.storage_url!);
-          signedUrlMap.set(s.storage_url!, url);
-        } catch {}
-      })
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -206,7 +193,6 @@ export default async function HistoryPage() {
                   const meta = s.metadata ?? {};
                   const vpWidth = meta.viewport_width ?? s.width;
                   const vpHeight = meta.viewport_height ?? s.height;
-                  const imageUrl = s.storage_url ? (signedUrlMap.get(s.storage_url) ?? null) : null;
                   return (
                     <tr
                       key={s.id}
@@ -215,10 +201,10 @@ export default async function HistoryPage() {
                       {/* Thumbnail */}
                       <td className="px-4 py-3">
                         <div className="w-16 h-12 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-[var(--border)]">
-                          {imageUrl && s.format !== "pdf" ? (
-                            <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+                          {s.storage_url && s.format !== "pdf" ? (
+                            <a href={s.storage_url} target="_blank" rel="noopener noreferrer">
                               <img
-                                src={imageUrl}
+                                src={s.storage_url}
                                 alt=""
                                 className="w-full h-full object-cover"
                                 loading="lazy"
@@ -348,9 +334,9 @@ export default async function HistoryPage() {
                       {/* Actions */}
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {imageUrl && (
+                          {s.storage_url && (
                             <a
-                              href={imageUrl}
+                              href={s.storage_url}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
@@ -360,9 +346,9 @@ export default async function HistoryPage() {
                               Open
                             </a>
                           )}
-                          {imageUrl && (
+                          {s.storage_url && (
                             <a
-                              href={imageUrl}
+                              href={s.storage_url}
                               download={`screenshot.${s.format === "jpeg" ? "jpg" : s.format}`}
                               className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 transition-colors"
                               title="Download"
