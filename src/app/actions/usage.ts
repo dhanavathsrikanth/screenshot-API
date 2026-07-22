@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function logScreenshotUsage(params: {
   userId: string;
@@ -10,7 +10,7 @@ export async function logScreenshotUsage(params: {
   cached: boolean;
   responseTimeMs: number;
 }) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { error: logError } = await supabase.from("api_key_logs").insert({
     user_id: params.userId,
     api_key_id: params.apiKeyId ?? null,

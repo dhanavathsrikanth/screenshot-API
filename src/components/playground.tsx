@@ -28,8 +28,14 @@ export function Playground() {
       });
       const response = await fetch(`/api/take?${params}`);
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error ?? "Failed to render screenshot");
+        let message = "Failed to render screenshot";
+        try {
+          const err = await response.json();
+          message = err.error ?? message;
+        } catch {
+          message = `Server error (${response.status})`;
+        }
+        throw new Error(message);
       }
       const blob = await response.blob();
       setResult(URL.createObjectURL(blob));
