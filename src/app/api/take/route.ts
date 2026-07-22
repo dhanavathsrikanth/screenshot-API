@@ -9,11 +9,13 @@ import { logScreenshotUsage } from "@/app/actions/usage";
 import { saveScreenshot } from "@/app/actions/screenshots";
 import { logRequest } from "@/lib/redis";
 import {
-  getUserPlan, getPlanLimits, checkRateLimit,
+  getUserPlan, checkRateLimit,
   isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
-  isCloudStorageAllowed, isPdfExportAllowed, type PlanId,
+  isCloudStorageAllowed, type PlanId,
 } from "@/lib/plans";
 import { ensureCredits } from "@/lib/credits";
+
+export const maxDuration = 60;
 
 async function getAuthContext(request: NextRequest) {
   const headerUserId = request.headers.get("x-user-id");
@@ -250,11 +252,12 @@ export async function GET(request: NextRequest) {
 
     const result = await render(options);
 
-    await setInCache(cacheKey, result.buffer, {
+    // Fire-and-forget: store in cache
+    setInCache(cacheKey, result.buffer, {
       width: result.width,
       height: result.height,
       format: result.format,
-    });
+    }).catch(() => {});
 
     const ext = options.format === "jpeg" ? "jpg" : options.format;
 
@@ -435,30 +438,51 @@ export async function POST(request: NextRequest) {
 
     const result = await render(options);
 
-    // Store in cache after rendering
-    await setInCache(cacheKey, result.buffer, {
+    // Fire-and-forget: store in cache
+    setInCache(cacheKey, result.buffer, {
       width: result.width,
       height: result.height,
       format: result.format,
-      storageUrl: null, // Will be populated if uploaded
-    });
+      storageUrl: null,
+    }).catch(() => {});
 
-    let publicUrl: string | null = null;
+    // Fire-and-forget: upload to storage and log in background
+    const publicUrl: string | null = cloudStorageAllowed ? null : null;
     if (cloudStorageAllowed) {
-      try {
-        const key = uniqueKey(options.url ?? "screenshot", result.format);
-        publicUrl = await uploadToStorage(result.buffer, key, `image/${result.format}`);
-      } catch {
-        // Storage unavailable
-      }
-    }
-
-    if (userId) {
+      const key = uniqueKey(options.url ?? "screenshot", result.format);
+      uploadToStorage(result.buffer, key, `image/${result.format}`)
+        .then((url) => {
+          if (userId) {
+            saveScreenshot({
+              userId,
+              apiKeyId: apiKeyId ?? undefined,
+              sourceUrl: options.url,
+              storageUrl: url,
+              format: result.format,
+              width: result.width,
+              height: result.height,
+              fileSizeBytes: result.buffer.length,
+              cached: false,
+            }).catch((e) => console.error("[saveScreenshot]", e.message));
+          }
+          logScreenshotUsage({
+            userId: userId ?? "",
+            apiKeyId: apiKeyId ?? undefined,
+            endpoint: "/api/take",
+            method: "POST",
+            statusCode: 200,
+            screenshotUrl: url,
+            cached: false,
+            responseTimeMs: Date.now() - startTime,
+          }).catch(() => {});
+        })
+        .catch(() => {});
+    } else if (userId) {
       saveScreenshot({
         userId,
         apiKeyId: apiKeyId ?? undefined,
         sourceUrl: options.url,
-        storageUrl: publicUrl,
+        storageUrl: null,
         format: result.format,
         width: result.width,
         height: result.height,
@@ -472,10 +496,10 @@ export async function POST(request: NextRequest) {
         endpoint: "/api/take",
         method: "POST",
         statusCode: 200,
-        screenshotUrl: publicUrl,
+        screenshotUrl: null,
         cached: false,
         responseTimeMs: Date.now() - startTime,
-      }).catch((e) => console.error("[logScreenshotUsage]", e.message));
+      }).catch(() => {});
     }
 
     logRequest(userId ?? "anonymous", {

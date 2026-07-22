@@ -14,6 +14,8 @@ import {
 } from "@/lib/plans";
 import { ensureCredits } from "@/lib/credits";
 
+export const maxDuration = 60;
+
 function uniqueKey(url: string, format: string): string {
   const ts = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 8);
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
     const headerUserId = request.headers.get("x-user-id");
     const headerApiKeyId = request.headers.get("x-api-key-id");
     let userId = headerUserId;
-    let apiKeyId = headerApiKeyId;
+    const apiKeyId = headerApiKeyId;
     if (!userId) {
       try {
         const authResult = await auth();

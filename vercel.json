@@ -1,9 +1,9 @@
 {
   "functions": {
-    "src/app/api/take/route.ts": {
+    "app/api/take/route.ts": {
       "maxDuration": 60
     },
-    "src/app/api/take/bulk/route.ts": {
+    "app/api/take/bulk/route.ts": {
       "maxDuration": 60
     }
   }
