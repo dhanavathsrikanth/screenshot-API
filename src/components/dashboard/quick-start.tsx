@@ -10,7 +10,7 @@ const snippets = [
   {
     label: "cURL",
     code: (key: string) =>
-      `curl "https://api.screentool.dev/api/take?url=https://example.com&format=png" \\
+      `curl "https://screenshotapi.tech/api/take?url=https://example.com&format=png" \\
   -H "Authorization: Bearer ${key}" \\
   --output screenshot.png`,
   },
@@ -18,7 +18,7 @@ const snippets = [
     label: "Node.js",
     code: (key: string) =>
       `const response = await fetch(
-  "https://api.screentool.dev/api/take?url=https://example.com&format=png",
+  "https://screenshotapi.tech/api/take?url=https://example.com&format=png",
   { headers: { Authorization: "Bearer ${key}" } }
 );
 const buffer = Buffer.from(await response.arrayBuffer());
@@ -30,7 +30,7 @@ require("fs").writeFileSync("screenshot.png", buffer);`,
       `import requests
 
 response = requests.get(
-    "https://api.screentool.dev/api/take",
+    "https://screenshotapi.tech/api/take",
     params={"url": "https://example.com", "format": "png"},
     headers={"Authorization": "Bearer ${key}"}
 )

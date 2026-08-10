@@ -1,40 +1,61 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { Webhooks } from "@dodopayments/nextjs";
 import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/server";
+import { cacheInvalidate } from "@/lib/redis";
 
 type AnyRecord = Record<string, any>;
+
+/** Extract the Dodo customer id from any webhook payload shape. */
+function getCustomerId(payload: AnyRecord): string | undefined {
+  return (
+    payload?.data?.customer_id ??
+    payload?.data?.customer?.customer_id ??
+    payload?.data?.subscription?.customer_id ??
+    payload?.data?.payment?.customer_id
+  );
+}
+
+/** Parse a credit amount string/number to a non-negative integer, or null when absent/invalid. */
+function toCredits(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+/**
+ * Stable dedup key for a webhook. The Dodo envelope has no top-level `id`;
+ * credit ledger events carry `data.id`, payments carry `data.payment_id`, etc.
+ * The type prefix keeps distinct events that share an entity id apart.
+ */
+function resolveDodoEventId(payload: AnyRecord): string | undefined {
+  const type = payload?.type ?? "unknown";
+  const id =
+    payload?.id ??
+    payload?.data?.id ??
+    payload?.data?.payment_id ??
+    payload?.data?.subscription_id ??
+    payload?.data?.refund_id ??
+    payload?.data?.dispute_id ??
+    payload?.data?.license_key_id;
+  return id ? `${type}:${id}` : `${type}:${payload?.timestamp ?? ""}`;
+}
+
+async function invalidateUserCaches(userId: string): Promise<void> {
+  await Promise.allSettled([
+    cacheInvalidate(`cache:userplan:${userId}`),
+    cacheInvalidate(`cache:credits:${userId}`),
+  ]);
+}
 
 // ── Plan mapping from Dodo product IDs ──────────────────────────────────
 
 const PRODUCT_PLAN_MAP: Record<string, { plan: string; credits: number; monthlyLimit: number }> = {};
-
-// ── Top-up mapping from Dodo product IDs ─────────────────────────────────
-function resolveTopupFromProduct(productId: string | undefined): number | null {
-  if (!productId) return null;
-
-  const TOPUPS: [string | undefined, number][] = [
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_TOPUP_500_ID, 500],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_TOPUP_2500_ID, 2500],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_TOPUP_10000_ID, 10000],
-  ];
-
-  for (const [pid, credits] of TOPUPS) {
-    if (pid && pid === productId) return credits;
-  }
-
-  // Fallback: try to infer from id string
-  const lower = productId.toLowerCase();
-  if (lower.includes("10000")) return 10000;
-  if (lower.includes("2500")) return 2500;
-  if (lower.includes("500")) return 500;
-
-  return null;
-}
 
 function resolvePlanFromProduct(productId: string | undefined): { plan: string; credits: number; monthlyLimit: number } | null {
   if (!productId) return null;
@@ -70,10 +91,7 @@ function resolvePlanFromProduct(productId: string | undefined): { plan: string; 
 async function resolveUserIdFromPayload(payload: AnyRecord): Promise<string | null> {
   const supabase = createServiceClient();
 
-  const customerId: string | undefined =
-    payload?.data?.customer_id ??
-    payload?.data?.subscription?.customer_id ??
-    payload?.data?.payment?.customer_id;
+  const customerId: string | undefined = getCustomerId(payload);
 
   // 1) Prefer explicit user_id metadata from checkout
   const metaUserId: string | undefined =
@@ -98,8 +116,9 @@ async function resolveUserIdFromPayload(payload: AnyRecord): Promise<string | nu
 
 // ── Webhook event logging ───────────────────────────────────────────────
 
-async function logWebhookEvent(eventType: string, payload: AnyRecord, dodoEventId?: string): Promise<boolean> {
+async function logWebhookEvent(eventType: string, payload: AnyRecord): Promise<boolean> {
   const supabase = createServiceClient();
+  const dodoEventId = resolveDodoEventId(payload);
 
   // Check for duplicate
   if (dodoEventId) {
@@ -118,7 +137,9 @@ async function logWebhookEvent(eventType: string, payload: AnyRecord, dodoEventI
     event_type: eventType,
     dodo_event_id: dodoEventId ?? null,
     payload,
-    status: "processed",
+    // onPayload runs before the event-type handlers, so record as received
+    // rather than processed.
+    status: "received",
   });
 
   return true;
@@ -128,10 +149,7 @@ async function logWebhookEvent(eventType: string, payload: AnyRecord, dodoEventI
 
 async function upsertCustomerMapping(payload: AnyRecord): Promise<void> {
   const supabase = createServiceClient();
-  const customerId: string | undefined =
-    payload?.data?.customer_id ??
-    payload?.data?.subscription?.customer_id ??
-    payload?.data?.payment?.customer_id;
+  const customerId = getCustomerId(payload);
   if (!customerId) return;
 
   const userId = await resolveUserIdFromPayload(payload);
@@ -159,12 +177,15 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
   const userId = await resolveUserIdFromPayload(payload);
   if (!userId) return;
 
-  // Try to get product ID from various payload locations
+  // Try to get product ID from various payload locations. Payment payloads carry
+  // product_cart instead of a top-level product_id; top-up products simply won't
+  // match the plan map, so this fallback can't cause a false upgrade.
   const productId: string | undefined =
     payload?.data?.product_id ??
     payload?.data?.subscription?.product_id ??
     payload?.data?.items?.[0]?.product_id ??
-    payload?.data?.line_items?.[0]?.product_id;
+    payload?.data?.line_items?.[0]?.product_id ??
+    payload?.data?.product_cart?.[0]?.product_id;
 
   const planInfo = resolvePlanFromProduct(productId);
   if (!planInfo) {
@@ -223,6 +244,7 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
     console.error("[Dodo Webhook] Failed to upgrade plan:", error.message);
   } else {
     console.log(`[Dodo Webhook] Upgraded user ${userId} to ${planInfo.plan}`);
+    await invalidateUserCaches(userId);
   }
 }
 
@@ -234,17 +256,28 @@ async function syncCreditBalance(payload: AnyRecord): Promise<void> {
 
   const supabase = createServiceClient();
 
-  let creditEntitlementId: string | undefined =
-    payload?.data?.credit_entitlement_id ?? payload?.data?.entitlement_id;
-  const customerId: string | undefined = payload?.data?.customer_id;
+  // Credit ledger webhooks (credit.added/deducted/...) include the authoritative
+  // post-transaction balance — use it directly, no extra API call.
+  const balanceAfter = toCredits(payload?.data?.balance_after);
+  if (balanceAfter !== null) {
+    await supabase
+      .from("user_quotas")
+      .update({ credit_balance: balanceAfter })
+      .eq("user_id", userId);
 
-  // Fallback to configured entitlement if not present in payload
-  if (!creditEntitlementId) {
-    creditEntitlementId = process.env.DODO_CREDIT_ENTITLEMENT_ID;
+    console.log(`[Dodo Webhook] Synced credit_balance for user ${userId}: ${balanceAfter}`);
+    await invalidateUserCaches(userId);
+    return;
   }
 
-  // If we have a customer + entitlement, fetch authoritative balance from Dodo
-  if (creditEntitlementId && customerId) {
+  // Otherwise fetch the authoritative balance from Dodo (payment events, etc.)
+  const customerId = getCustomerId(payload);
+  const creditEntitlementId: string | undefined =
+    payload?.data?.credit_entitlement_id ??
+    payload?.data?.entitlement_id ??
+    process.env.DODO_CREDIT_ENTITLEMENT_ID;
+
+  if (customerId && creditEntitlementId) {
     try {
       const dodoConfig = getDodoConfig();
       const client = new DodoPayments({
@@ -257,32 +290,31 @@ async function syncCreditBalance(payload: AnyRecord): Promise<void> {
         { credit_entitlement_id: creditEntitlementId }
       );
 
-      const newBalance = parseInt((balance as AnyRecord).balance ?? "0", 10);
- 
-      await supabase
-        .from("user_quotas")
-        .update({ credit_balance: newBalance })
-        .eq("user_id", userId);
- 
-      console.log(`[Dodo Webhook] Synced credits for user ${userId}: ${newBalance}`);
-      return;
+      const newBalance = toCredits((balance as AnyRecord).balance);
+      if (newBalance !== null) {
+        await supabase
+          .from("user_quotas")
+          .update({ credit_balance: newBalance })
+          .eq("user_id", userId);
+
+        console.log(`[Dodo Webhook] Synced credits for user ${userId}: ${newBalance}`);
+        await invalidateUserCaches(userId);
+        return;
+      }
     } catch (err) {
       console.error("[Dodo Webhook] Failed to fetch Dodo balance:", err);
     }
   }
 
-  // Fallback: try to extract balance from payload directly
-  const newBalance: number | undefined =
-    payload?.data?.balance ??
-    payload?.data?.available_balance ??
-    payload?.data?.credit_balance;
-
-  if (typeof newBalance === "number") {
+  // Last resort: extract a balance field from the payload directly
+  const fallback = toCredits(payload?.data?.available_balance ?? payload?.data?.credit_balance ?? payload?.data?.balance);
+  if (fallback !== null) {
     await supabase
       .from("user_quotas")
-      .update({ credit_balance: newBalance })
+      .update({ credit_balance: fallback })
       .eq("user_id", userId);
-    console.log(`[Dodo Webhook] Updated credit balance for user ${userId}: ${newBalance}`);
+    console.log(`[Dodo Webhook] Updated credit balance for user ${userId}: ${fallback}`);
+    await invalidateUserCaches(userId);
   }
 }
 
@@ -314,6 +346,7 @@ async function downgradeToFree(payload: AnyRecord): Promise<void> {
     console.error("[Dodo Webhook] Failed to downgrade:", error.message);
   } else {
     console.log(`[Dodo Webhook] Downgraded user ${userId} to free`);
+    await invalidateUserCaches(userId);
   }
 }
 
@@ -337,46 +370,6 @@ async function recordLowBalanceAlert(payload: AnyRecord): Promise<void> {
 
 let _handler: ReturnType<typeof Webhooks> | null = null;
 
-// ── Top-up credit grant (one-time purchases) ─────────────────────────────
-async function grantTopupCredits(payload: AnyRecord): Promise<void> {
-  const supabase = createServiceClient();
-  const userId = await resolveUserIdFromPayload(payload);
-  if (!userId) return;
-
-  const productId: string | undefined =
-    payload?.data?.product_id ??
-    payload?.data?.items?.[0]?.product_id ??
-    payload?.data?.line_items?.[0]?.product_id;
-
-  const credits = resolveTopupFromProduct(productId);
-  if (!credits) return;
-
-  const { data: q } = await supabase
-    .from("user_quotas")
-    .select("top_up_balance")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const currentTopup = q?.top_up_balance ?? 0;
-  const nextTopup = currentTopup + credits;
-
-  const { error } = await supabase
-    .from("user_quotas")
-    .upsert(
-      {
-        user_id: userId,
-        top_up_balance: nextTopup,
-      },
-      { onConflict: "user_id" }
-    );
-
-  if (error) {
-    console.error("[Dodo Webhook] Failed to grant top-up credits:", error.message);
-  } else {
-    console.log(`[Dodo Webhook] Granted top-up credits to user ${userId}: +${credits} (now ${nextTopup})`);
-  }
-}
-
 function getWebhookHandler() {
   if (!_handler) {
     _handler = Webhooks({
@@ -384,9 +377,8 @@ function getWebhookHandler() {
 
       onPayload: async (payload: AnyRecord) => {
         const eventType = payload?.type ?? "unknown";
-        const dodoEventId = payload?.id;
-        console.log(`[Dodo Webhook] Received: ${eventType} (id: ${dodoEventId})`);
-        await logWebhookEvent(eventType, payload, dodoEventId);
+        console.log(`[Dodo Webhook] Received: ${eventType}`);
+        await logWebhookEvent(eventType, payload);
       },
 
       // ── Payments ──────────────────────────────────────────────
@@ -395,14 +387,42 @@ function getWebhookHandler() {
         await upsertCustomerMapping(payload);
         // On first payment, upgrade plan based on product (if it's a subscription product)
         await upgradePlan(payload);
-        // Also grant top-up credits for one-time credit products
-        await grantTopupCredits(payload);
-        // Attempt to sync authoritative balance as a final step
+        // Sync the authoritative balance. One-time top-up products grant credits
+        // on the entitlement directly, so this folds them into credit_balance
+        // without double-counting.
         await syncCreditBalance(payload);
+      },
+
+      onPaymentProcessing: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Payment processing");
       },
 
       onPaymentFailed: async (payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payment failed");
+      },
+
+      onPaymentCancelled: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Payment cancelled");
+      },
+
+      // ── Refunds ───────────────────────────────────────────────
+      onRefundSucceeded: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Refund succeeded");
+        // Refunds reverse credit grants (credit.deducted also fires), so resync.
+        await syncCreditBalance(payload);
+      },
+
+      onRefundFailed: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Refund failed");
+      },
+
+      // ── Abandoned checkout ────────────────────────────────────
+      onAbandonedCheckoutDetected: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Abandoned checkout detected");
+      },
+
+      onAbandonedCheckoutRecovered: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Abandoned checkout recovered");
       },
 
       // ── Subscriptions ────────────────────────────────────────
@@ -410,6 +430,10 @@ function getWebhookHandler() {
         console.log("[Dodo Webhook] Subscription active");
         await upsertCustomerMapping(payload);
         await upgradePlan(payload);
+      },
+
+      onSubscriptionOnHold: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Subscription on hold");
       },
 
       onSubscriptionCancelled: async (payload: AnyRecord) => {
@@ -420,6 +444,10 @@ function getWebhookHandler() {
       onSubscriptionRenewed: async (payload: AnyRecord) => {
         console.log("[Dodo Webhook] Subscription renewed");
         await upsertCustomerMapping(payload);
+      },
+
+      onSubscriptionFailed: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Subscription failed");
       },
 
       onSubscriptionExpired: async (payload: AnyRecord) => {
@@ -437,6 +465,27 @@ function getWebhookHandler() {
         console.log("[Dodo Webhook] Subscription plan changed");
         await upsertCustomerMapping(payload);
         await upgradePlan(payload);
+      },
+
+      onSubscriptionUpdatePaymentMethod: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Subscription update payment method");
+      },
+
+      // ── Payouts (merchant-side; informational only) ───────────
+      onPayoutSuccess: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Payout success");
+      },
+
+      onPayoutFailed: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Payout failed");
+      },
+
+      onPayoutInProgress: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Payout in progress");
+      },
+
+      onPayoutOnHold: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Payout on hold");
       },
 
       // ── Credits ──────────────────────────────────────────────
@@ -467,6 +516,16 @@ function getWebhookHandler() {
 
       onCreditOverageCharged: async (payload: AnyRecord) => {
         console.log("[Dodo Webhook] Overage charged");
+        await syncCreditBalance(payload);
+      },
+
+      onCreditOverageReset: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Overage reset");
+        await syncCreditBalance(payload);
+      },
+
+      onCreditManualAdjustment: async (payload: AnyRecord) => {
+        console.log("[Dodo Webhook] Credit manual adjustment");
         await syncCreditBalance(payload);
       },
 

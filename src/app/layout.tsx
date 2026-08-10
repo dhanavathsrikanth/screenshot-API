@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ScreenTool - The Screenshot API for Developers",
+  title: "ScreenshotAPI - The Screenshot API for Developers",
   description:
     "Render website screenshots in one simple API call. Block cookie banners, ads, and chat widgets. Full-page, high-resolution, dark mode, and more.",
 };

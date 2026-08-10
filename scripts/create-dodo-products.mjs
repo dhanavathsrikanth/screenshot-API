@@ -52,27 +52,98 @@ async function main() {
     throw e;
   }
 
-  // 1) Create a Credit Entitlement (1 unit = 1 screenshot)
-  console.log("Creating credit entitlement: 'ScreenTool Screenshot Credits' ...");
-  const creditEntitlement = await client.creditEntitlements.create({
-    name: "ScreenTool Screenshot Credits",
-    unit: "screenshot",
-    precision: 0,
-    rollover_enabled: false,
-    overage_enabled: false,
-    description: "1 credit = 1 screenshot. Used by subscriptions and top-ups.",
+  // 1) Credit Entitlement (1 unit = 1 screenshot)
+  //    Reuse an existing one (via DODO_CREDIT_ENTITLEMENT_ID or by name).
+  const ENTITLEMENT_NAME = "ScreenTool Screenshot Credits";
+  let creditEntitlementId = process.env.DODO_CREDIT_ENTITLEMENT_ID;
+  if (!creditEntitlementId) {
+    // Look up any existing entitlement with the same name to avoid 409 conflicts.
+    // Note: page_number is 0-based in this API.
+    let pageNumber = 0;
+    let found = null;
+    while (pageNumber <= 5 && !found) {
+      const page = await client.creditEntitlements.list({ page_number: pageNumber, page_size: 50 });
+      found = page.items?.find((e) => e.name === ENTITLEMENT_NAME) ?? null;
+      pageNumber += 1;
+      if (!page.items?.length) break;
+    }
+    if (found) creditEntitlementId = found.id;
+  }
+  if (creditEntitlementId) {
+    console.log(`Reusing credit entitlement: ${creditEntitlementId}`);
+  } else {
+    console.log(`Creating credit entitlement: '${ENTITLEMENT_NAME}' ...`);
+    const creditEntitlement = await client.creditEntitlements.create({
+      name: ENTITLEMENT_NAME,
+      unit: "screenshot",
+      precision: 0,
+      rollover_enabled: false,
+      overage_enabled: true,
+      overage_behavior: "invoice_at_billing",
+      currency: "USD",
+      price_per_unit: "0.005", // default per-product overage price; products override it
+      description: "1 credit = 1 screenshot. Used by subscriptions and top-ups. Overage is configured per-product.",
+    });
+    creditEntitlementId = creditEntitlement.id;
+    console.log("Credit Entitlement ID:", creditEntitlementId);
+  }
+
+  // Ensure overage is enabled on the (possibly pre-existing) entitlement so
+  // product-level overage settings actually take effect.
+  await client.creditEntitlements.update(creditEntitlementId, {
+    overage_enabled: true,
+    overage_behavior: "invoice_at_billing",
+    currency: "USD",
+    price_per_unit: "0.005",
+  });
+  console.log(`Configured overage on credit entitlement: ${creditEntitlementId}`);
+
+  // 2) Meters — usage is deducted from the credit entitlement automatically.
+  //    Both meters SUM the `units` metadata field, which the app sets to the
+  //    total credits consumed (1 per screenshot, 5 per PDF page). So
+  //    meter_units_per_credit = 1 and Dodo deducts exactly what we charge.
+  async function getOrCreateMeter({ envName, name, eventName, measurementUnit }) {
+    const existing = process.env[envName];
+    if (existing) {
+      console.log(`Reusing meter '${name}': ${existing}`);
+      return existing;
+    }
+    const meter = await client.meters.create({
+      name,
+      event_name: eventName,
+      measurement_unit: measurementUnit,
+      aggregation: { type: "sum", key: "units" },
+      description: `ScreenTool usage metered for credit-based billing (event: ${eventName})`,
+    });
+    console.log(`Created meter '${name}': ${meter.id}`);
+    return meter.id;
+  }
+
+  const screenshotMeterId = await getOrCreateMeter({
+    envName: "DODO_METER_SCREENSHOT_ID",
+    name: "ScreenTool Screenshots",
+    eventName: "screentool.screenshot",
+    measurementUnit: "screenshot",
   });
 
-  console.log("Credit Entitlement ID:", creditEntitlement.id);
+  const pdfMeterId = await getOrCreateMeter({
+    envName: "DODO_METER_PDF_ID",
+    name: "ScreenTool PDF Pages",
+    eventName: "screentool.pdf_pages",
+    measurementUnit: "page",
+  });
 
   // Helpers
   async function createSubscriptionProduct({ name, priceCents, monthlyCredits, overagePricePerUnitUSD, planMeta }) {
+    // UBB (usage-based) price so Dodo can meter consumption against the
+    // credit entitlement: in-balance usage auto-deducts credits FIFO, and
+    // usage past zero becomes billable overage (overage_behavior set below).
     const product = await client.products.create({
       name,
       price: {
-        type: "recurring_price",
+        type: "usage_based_price",
         currency: "USD",
-        price: priceCents,
+        fixed_price: priceCents,
         discount: 0,
         purchasing_power_parity: true,
         payment_frequency_count: 1,
@@ -80,16 +151,35 @@ async function main() {
         subscription_period_count: 1,
         subscription_period_interval: "Month",
         tax_inclusive: false,
+        meters: [
+          {
+            meter_id: screenshotMeterId,
+            credit_entitlement_id: creditEntitlementId,
+            meter_units_per_credit: "1",
+            free_threshold: 0,
+            name: "ScreenTool Screenshots",
+            measurement_unit: "screenshot",
+          },
+          {
+            meter_id: pdfMeterId,
+            credit_entitlement_id: creditEntitlementId,
+            meter_units_per_credit: "1",
+            free_threshold: 0,
+            name: "ScreenTool PDF Pages",
+            measurement_unit: "page",
+          },
+        ],
       },
       tax_category: "saas",
       metadata: { plan: planMeta },
       credit_entitlements: [
         {
-          credit_entitlement_id: creditEntitlement.id,
+          credit_entitlement_id: creditEntitlementId,
           credits_amount: String(monthlyCredits),
           rollover_enabled: false,
           low_balance_threshold_percent: 20,
           overage_enabled: true,
+          overage_behavior: "invoice_at_billing",
           currency: "USD",
           price_per_unit: String(overagePricePerUnitUSD), // decimal string e.g. "0.005"
           proration_behavior: "prorate",
@@ -116,7 +206,7 @@ async function main() {
       metadata: { kind: "topup" },
       credit_entitlements: [
         {
-          credit_entitlement_id: creditEntitlement.id,
+          credit_entitlement_id: creditEntitlementId,
           credits_amount: String(credits),
           expires_after_days: expiresDays,
           rollover_enabled: false,
@@ -130,7 +220,7 @@ async function main() {
     return product;
   }
 
-  // 2) Create Subscription Products
+  // 3) Create Subscription Products (recreated as UBB with credit-billed meters)
   const starter = await createSubscriptionProduct({
     name: "ScreenTool Starter (Monthly)",
     priceCents: 900, // $9.00
@@ -155,7 +245,7 @@ async function main() {
     planMeta: "business",
   });
 
-  // 3) Create Top-Up Products (365-day validity)
+  // 4) Create Top-Up Products (365-day validity)
   const topup500 = await createTopupProduct({
     name: "ScreenTool Top-up 500",
     priceCents: 499, // $4.99
@@ -179,13 +269,20 @@ async function main() {
 
   // Output .env lines to paste
   console.log("\n=== Add these to your .env.local ===");
-  console.log(`DODO_CREDIT_ENTITLEMENT_ID=${creditEntitlement.id}`);
+  console.log(`DODO_CREDIT_ENTITLEMENT_ID=${creditEntitlementId}`);
+  console.log(`DODO_METER_SCREENSHOT_ID=${screenshotMeterId}`);
+  console.log(`DODO_METER_PDF_ID=${pdfMeterId}`);
   console.log(`DODO_PRODUCT_STARTER_ID=${starter.product_id}`);
   console.log(`DODO_PRODUCT_PRO_ID=${pro.product_id}`);
   console.log(`DODO_PRODUCT_BUSINESS_ID=${business.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_500_ID=${topup500.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_2500_ID=${topup2500.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_10000_ID=${topup10000.product_id}`);
+
+  console.log("\n=== IMPORTANT ===");
+  console.log("Subscription products were RECREATED as usage-based (with credit-billed meters).");
+  console.log("Any pre-existing ScreenTool subscription products WITHOUT meters must be archived in");
+  console.log("the Dodo dashboard (or left unused) — only the NEW product IDs above grant + auto-deduct credits.");
 }
 
 main().catch((err) => {

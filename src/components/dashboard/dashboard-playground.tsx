@@ -56,8 +56,8 @@ export function DashboardPlayground() {
       }
 
       const data = await response.json();
-      const cost = getCreditCost(format);
-      setCreditsUsed(cost);
+      const headerCost = response.headers.get("X-Credits-Used");
+      setCreditsUsed(headerCost != null ? Number(headerCost) : getCreditCost(format));
 
       if (data.url) {
         setStorageUrl(data.url);

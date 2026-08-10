@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
+import { createServiceClient } from "@/lib/supabase/server";
 
 type CheckoutBody = {
   product_id?: string;
@@ -9,6 +10,27 @@ type CheckoutBody = {
   return_url?: string;
   metadata?: Record<string, string>;
 };
+
+const PLAN_PRICES: Record<string, number> = { free: 0, starter: 9, pro: 49, business: 149 };
+const PLAN_LIMITS: Record<string, number> = { starter: 2500, pro: 15000, business: 50000 };
+
+function resolvePlanFromProduct(productId: string | undefined): { plan: string; monthlyLimit: number; price: number } | null {
+  if (!productId) return null;
+
+  const mappings: [string, string][] = [
+    [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID ?? "", "starter"],
+    [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID ?? "", "pro"],
+    [process.env.NEXT_PUBLIC_DODO_PRODUCT_BUSINESS_ID ?? "", "business"],
+  ];
+
+  for (const [pid, plan] of mappings) {
+    if (pid && pid === productId) {
+      return { plan, monthlyLimit: PLAN_LIMITS[plan] ?? 0, price: PLAN_PRICES[plan] ?? 0 };
+    }
+  }
+
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,24 +55,92 @@ export async function POST(request: NextRequest) {
       environment: dodoConfig.environment as "test_mode" | "live_mode",
     });
 
-    // Auto-fill customer info from Clerk
-    let customerInfo: { email: string; name?: string } | undefined;
-    try {
-      const clerkUser = await currentUser();
-      if (clerkUser) {
-        const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-        const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ");
-        if (email) {
-          customerInfo = { email, name: name || undefined };
-        }
+    const supabase = createServiceClient();
+    const { data: quota } = await supabase
+      .from("user_quotas")
+      .select("plan, dodo_subscription_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const requested = resolvePlanFromProduct(productId);
+
+    // Paid → paid plan change: swap the existing subscription in place instead
+    // of creating a parallel subscription (which would double-bill the customer).
+    if (
+      requested &&
+      quota?.plan &&
+      quota.dodo_subscription_id &&
+      quota.plan !== "free" &&
+      quota.plan !== requested.plan
+    ) {
+      const proration: "prorated_immediately" | "do_not_bill" =
+        requested.price > (PLAN_PRICES[quota.plan] ?? 0) ? "prorated_immediately" : "do_not_bill";
+
+      try {
+        await client.subscriptions.changePlan(quota.dodo_subscription_id, {
+          product_id: productId,
+          proration_billing_mode: proration,
+          quantity: 1,
+        });
+
+        // Best-effort immediate DB sync; the subscription.plan_changed webhook is
+        // the authoritative source and will re-apply the same values.
+        await supabase
+          .from("user_quotas")
+          .update({
+            plan: requested.plan,
+            monthly_limit: requested.monthlyLimit,
+            dodo_product_id: productId,
+          })
+          .eq("user_id", userId);
+
+        return NextResponse.json(
+          { changed: true, plan: requested.plan, checkout_url: returnUrl },
+          { status: 200 }
+        );
+      } catch (err) {
+        // Fail closed: never fall back to a regular checkout here, or the user
+        // would end up with a second, parallel subscription (double billing).
+        console.error("[checkout] changePlan failed:", err);
+        return NextResponse.json(
+          {
+            error:
+              "Couldn't switch your plan. Please update your payment method, then try again.",
+          },
+          { status: 400 }
+        );
       }
-    } catch {
-      // Continue without customer info
+    }
+
+    // Reuse the existing Dodo customer when known so the credit entitlement
+    // stays attached to the same customer across checkouts.
+    let customer: { customer_id: string } | { email: string; name?: string } | undefined;
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("dodo_customer_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (userRow?.dodo_customer_id) {
+      customer = { customer_id: userRow.dodo_customer_id };
+    } else {
+      try {
+        const clerkUser = await currentUser();
+        if (clerkUser) {
+          const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+          const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ");
+          if (email) {
+            customer = { email, name: name || undefined };
+          }
+        }
+      } catch {
+        // Continue without customer info
+      }
     }
 
     const session = await client.checkoutSessions.create({
       product_cart: [{ product_id: productId, quantity }],
-      customer: customerInfo,
+      customer,
       return_url: returnUrl,
       metadata: {
         user_id: userId,

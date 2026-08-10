@@ -7,10 +7,9 @@ const paidPlans = [
     id: "starter",
     name: "Starter",
     monthlyPrice: 9,
-    yearlyPrice: 7,
     description: "For developers building integrations",
     screenshots: "2,500",
-    overage: "$0.004 / extra",
+    overage: "$0.005 / extra",
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID || "",
     color: "blue",
     features: ["2,500 screenshots/mo", "PNG, JPEG, WebP, PDF", "Ad & cookie blocking", "5 API keys", "40 req/min", "Email support"],
@@ -19,7 +18,6 @@ const paidPlans = [
     id: "pro",
     name: "Pro",
     monthlyPrice: 49,
-    yearlyPrice: 39,
     description: "For teams shipping production features",
     screenshots: "15,000",
     overage: "$0.003 / extra",
@@ -32,7 +30,6 @@ const paidPlans = [
     id: "business",
     name: "Business",
     monthlyPrice: 149,
-    yearlyPrice: 119,
     description: "For growing companies with high volume",
     screenshots: "50,000",
     overage: "$0.002 / extra",
@@ -51,7 +48,6 @@ export function UpgradeDialog({
   onClose: () => void;
   currentPlan?: string;
 }) {
-  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,31 +118,6 @@ export function UpgradeDialog({
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-md mx-auto">
             Unlock more screenshots, faster rendering, and premium features. Cancel anytime.
           </p>
-
-          {/* Billing toggle */}
-          <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-zinc-100 dark:bg-zinc-800 p-1">
-            <button
-              onClick={() => setBilling("monthly")}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                billing === "monthly"
-                  ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBilling("annual")}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                billing === "annual"
-                  ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-              }`}
-            >
-              Annual
-              <span className="ml-1.5 text-xs font-semibold text-green-600 dark:text-green-400">Save 20%</span>
-            </button>
-          </div>
         </div>
 
         {/* Error */}
@@ -162,7 +133,7 @@ export function UpgradeDialog({
         {/* Plans */}
         <div className="px-8 pb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           {paidPlans.map((plan) => {
-            const price = billing === "annual" ? plan.yearlyPrice : plan.monthlyPrice;
+            const price = plan.monthlyPrice;
             const isCurrent = currentPlan === plan.id;
             const isLoading = loading === plan.id;
             const colorClasses = {
@@ -216,11 +187,6 @@ export function UpgradeDialog({
                   <span className="text-3xl font-bold">${price}</span>
                   <span className="text-sm text-zinc-500">/mo</span>
                 </div>
-                {billing === "annual" && (
-                  <p className="text-[11px] text-green-600 dark:text-green-400 mt-0.5">
-                    Save ${(plan.monthlyPrice - plan.yearlyPrice) * 12}/year
-                  </p>
-                )}
                 <p className="text-[11px] text-zinc-400 mt-1">Overage: {plan.overage}</p>
 
                 <ul className="mt-4 space-y-2 flex-1">

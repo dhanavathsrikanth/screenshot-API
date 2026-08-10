@@ -12,7 +12,7 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
             <Link href="/" className="text-xl font-bold gradient-text">
-              ScreenTool
+              ScreenshotAPI
             </Link>
             <div className="hidden md:flex items-center gap-6 text-sm text-zinc-600 dark:text-zinc-400">
               <Link href="/docs" className="hover:text-zinc-900 dark:hover:text-zinc-100">

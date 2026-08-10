@@ -86,7 +86,7 @@ export default async function DashboardPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Unlock the full power of ScreenTool</h3>
+                <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Unlock the full power of ScreenshotAPI</h3>
                 <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-0.5">
                   Upgrade to Starter for 2,500 screenshots/mo at just $9. That&apos;s 25x more than your free plan.
                 </p>

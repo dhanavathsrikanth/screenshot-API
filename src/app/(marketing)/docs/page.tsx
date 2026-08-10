@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Documentation - ScreenTool",
-  description: "Learn how to use the ScreenTool screenshot API.",
+  title: "Documentation - ScreenshotAPI",
+  description: "Learn how to use the ScreenshotAPI screenshot API.",
 };
 
 export default function DocsPage() {
@@ -154,14 +154,14 @@ export default function DocsPage() {
         <h3 className="text-lg font-medium mb-2">cURL</h3>
         <div className="rounded-lg bg-zinc-950 dark:bg-zinc-900 p-4 mb-6">
           <code className="text-sm text-green-400">
-            curl &quot;https://api.screentool.dev/api/take?url=https://example.com&amp;format=png&quot; --output screenshot.png
+            curl &quot;https://screenshotapi.tech/api/take?url=https://example.com&amp;format=png&quot; --output screenshot.png
           </code>
         </div>
 
         <h3 className="text-lg font-medium mb-2">Node.js</h3>
         <div className="rounded-lg bg-zinc-950 dark:bg-zinc-900 p-4 mb-6">
           <pre className="text-sm text-green-400">
-{`const response = await fetch("https://api.screentool.dev/api/take?url=https://example.com&format=png");
+{`const response = await fetch("https://screenshotapi.tech/api/take?url=https://example.com&format=png");
 const buffer = Buffer.from(await response.arrayBuffer());
 require("fs").writeFileSync("screenshot.png", buffer);`}
           </pre>
@@ -171,7 +171,7 @@ require("fs").writeFileSync("screenshot.png", buffer);`}
         <div className="rounded-lg bg-zinc-950 dark:bg-zinc-900 p-4 mb-6">
           <pre className="text-sm text-green-400">
 {`import requests
-response = requests.get("https://api.screentool.dev/api/take", params={"url": "https://example.com", "format": "png"})
+response = requests.get("https://screenshotapi.tech/api/take", params={"url": "https://example.com", "format": "png"})
 with open("screenshot.png", "wb") as f:
     f.write(response.content)`}
           </pre>

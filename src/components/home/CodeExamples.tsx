@@ -3,13 +3,13 @@
 const examples = [
   {
     lang: "cURL",
-    code: `curl "https://api.screentool.dev/api/take?url=https://example.com&format=png" \\
+    code: `curl "https://screenshotapi.tech/api/take?url=https://example.com&format=png" \\
   -o screenshot.png`,
   },
   {
     lang: "Node.js",
     code: `const response = await fetch(
-  "https://api.screentool.dev/api/take?url=https://example.com&format=png"
+  "https://screenshotapi.tech/api/take?url=https://example.com&format=png"
 );
 const buffer = Buffer.from(await response.arrayBuffer());
 require("fs").writeFileSync("screenshot.png", buffer);`,
@@ -18,7 +18,7 @@ require("fs").writeFileSync("screenshot.png", buffer);`,
     lang: "Python",
     code: `import requests
 response = requests.get(
-    "https://api.screentool.dev/api/take",
+    "https://screenshotapi.tech/api/take",
     params={"url": "https://example.com", "format": "png"}
 )
 with open("screenshot.png", "wb") as f:

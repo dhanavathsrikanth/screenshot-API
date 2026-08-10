@@ -13,7 +13,7 @@ export function DashboardTopNav({ plan }: { plan?: string }) {
       <div className="flex h-full items-center justify-between px-4 lg:px-6">
         <div className="flex items-center gap-3">
           <Link href="/" className="text-lg font-bold gradient-text">
-            ScreenTool
+            ScreenshotAPI
           </Link>
           <span className="hidden sm:inline text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
             Dashboard

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { ScreenshotOptionsSchema } from "@/lib/schema";
 import { render } from "@/screenshot-engine/renderer";
 import { uploadToStorage } from "@/screenshot-engine/uploader";
@@ -14,24 +13,9 @@ import {
   type PlanId,
 } from "@/lib/plans";
 import { ensureCredits } from "@/lib/credits";
+import { resolveAuth, type AuthContext } from "@/lib/api-auth";
 
 export const maxDuration = 60;
-
-async function getAuthContext(request: NextRequest) {
-  const headerUserId = request.headers.get("x-user-id");
-  const headerApiKeyId = request.headers.get("x-api-key-id");
-
-  if (headerUserId) {
-    return { userId: headerUserId, apiKeyId: headerApiKeyId };
-  }
-
-  try {
-    const { userId } = await auth();
-    return { userId, apiKeyId: null };
-  } catch {
-    return { userId: null, apiKeyId: null };
-  }
-}
 
 function uniqueKey(url: string, format: string): string {
   const ts = Date.now().toString(36);
@@ -45,7 +29,7 @@ function uniqueKey(url: string, format: string): string {
  * Returns the public URL after upload completes.
  */
 async function uploadAndSave(
-  userId: string | undefined,
+  userId: string,
   apiKeyId: string | undefined,
   buffer: Buffer,
   result: { format: string; width: number; height: number },
@@ -65,7 +49,8 @@ async function uploadAndSave(
     quality?: number;
   },
   startTime: number,
-  ensureMeta?: { units?: number; mode?: "deducted" | "overage" }
+  ensureMeta?: { units?: number; mode?: "deducted" | "overage" },
+  source: "app" | "api" = "app"
 ): Promise<string | null> {
   const key = uniqueKey(options.url ?? "screenshot", result.format);
   const creditsMetadata =
@@ -118,10 +103,22 @@ async function uploadAndSave(
       screenshotUrl: publicUrl,
       cached: options.cached,
       responseTimeMs: Date.now() - startTime,
+      creditsUsed: ensureMeta?.units ?? 0,
+      source,
     }).catch(() => {});
   }
 
   return publicUrl;
+}
+
+function unauthorized() {
+  return NextResponse.json(
+    {
+      error:
+        "Authentication required. Sign in at /dashboard or include a valid API key via the Authorization: Bearer header.",
+    },
+    { status: 401 }
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -150,58 +147,53 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { userId, apiKeyId } = await getAuthContext(request);
+    const authCtx: AuthContext | null = await resolveAuth(request);
+    if (!authCtx) return unauthorized();
+    const { userId, apiKeyId } = authCtx;
+    const source = authCtx.source;
 
     // ── Plan enforcement ─────────────────────────────────────────────
-    let plan: PlanId = "free";
-    let rateLimitInfo: { allowed: boolean; retryAfterMs: number; limit: number; remaining: number; reset: number } | null = null;
-    if (userId) {
-      plan = await getUserPlan(userId);
+    const plan: PlanId = await getUserPlan(userId);
 
-      rateLimitInfo = await checkRateLimit(userId, plan);
-      if (!rateLimitInfo.allowed) {
-        return NextResponse.json(
-          { error: "Rate limit exceeded. Try again later." },
-          { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
-        );
-      }
+    const rateLimitInfo = await checkRateLimit(userId, plan);
+    if (!rateLimitInfo.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
+      );
+    }
 
-      if (!isFormatAllowed(options.format, plan)) {
-        return NextResponse.json(
-          { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/settings` },
-          { status: 403 }
-        );
-      }
+    if (!isFormatAllowed(options.format, plan)) {
+      return NextResponse.json(
+        { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/plan` },
+        { status: 403 }
+      );
     }
 
     // Feature gating: force block settings per plan
-    if (userId) {
-      if (!isAdBlockingAllowed(plan)) options.block_ads = false;
-      if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
-    }
+    if (!isAdBlockingAllowed(plan)) options.block_ads = false;
+    if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
 
     const cacheKey = getCacheKey(rawParams);
     const cached = await getFromCache(cacheKey);
 
     if (cached) {
-      if (userId) {
-        const ensure = await ensureCredits(userId, {
-          cached: true,
-          format: options.format,
-          pdfPages: options.pdfPages,
-          meterMetadata: { endpoint: "/api/take", method: "GET", cache: "hit" },
-        });
-        if (!ensure.allowed) {
-          return NextResponse.json(
-            { error: "No credits remaining. Upgrade or buy credits." },
-            { status: 402 }
-          );
-        }
+      const ensure = await ensureCredits(userId, {
+        cached: true,
+        format: options.format,
+        pdfPages: options.pdfPages,
+        meterMetadata: { endpoint: "/api/take", method: "GET", cache: "hit" },
+      });
+      if (!ensure.allowed) {
+        return NextResponse.json(
+          { error: "No credits remaining. Upgrade or buy credits." },
+          { status: 402 }
+        );
       }
 
       // Fire-and-forget: upload + save to DB in background
       uploadAndSave(
-        userId ?? undefined,
+        userId,
         apiKeyId ?? undefined,
         Buffer.from(cached.buffer),
         {
@@ -224,10 +216,12 @@ export async function GET(request: NextRequest) {
           waitUntil: options.wait_until,
           quality: options.quality,
         },
-        startTime
+        startTime,
+        { units: ensure.units, mode: ensure.mode },
+        source
       ).catch(() => {});
 
-      logRequest(userId ?? "anonymous", {
+      logRequest(userId, {
         ts: new Date().toISOString(),
         endpoint: "/api/take",
         method: "GET",
@@ -242,6 +236,7 @@ export async function GET(request: NextRequest) {
           "Content-Type": `image/${options.format === "jpeg" ? "jpeg" : options.format}`,
           "Content-Length": cached.buffer.length.toString(),
           "X-Cache": "HIT",
+          "X-Credits-Used": String(ensure.units),
           ...(rateLimitInfo ? {
             "X-RateLimit-Limit": String(rateLimitInfo.limit),
             "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
@@ -251,27 +246,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Deduct or meter credits before rendering (skip if unauthenticated)
-    if (userId) {
-      const ensure = await ensureCredits(userId, {
-        cached: false,
-        format: options.format,
-        pdfPages: options.pdfPages,
-        meterMetadata: { endpoint: "/api/take", method: "GET" },
-      });
-      if (!ensure.allowed) {
-        return NextResponse.json(
-          { error: "No credits remaining. Upgrade or buy credits." },
-          { status: 402 }
-        );
-      }
+    // Deduct or meter credits before rendering
+    const ensure = await ensureCredits(userId, {
+      cached: false,
+      format: options.format,
+      pdfPages: options.pdfPages,
+      meterMetadata: { endpoint: "/api/take", method: "GET" },
+    });
+    if (!ensure.allowed) {
+      return NextResponse.json(
+        { error: "No credits remaining. Upgrade or buy credits." },
+        { status: 402 }
+      );
     }
 
     const result = await render(options);
 
     // Fire-and-forget: upload + cache + save to DB in background
     uploadAndSave(
-      userId ?? undefined,
+      userId,
       apiKeyId ?? undefined,
       result.buffer,
       { format: result.format, width: result.width, height: result.height },
@@ -290,7 +283,9 @@ export async function GET(request: NextRequest) {
         waitUntil: options.wait_until,
         quality: options.quality,
       },
-      startTime
+      startTime,
+      { units: ensure.units, mode: ensure.mode },
+      source
     ).then((publicUrl) => {
       // Update cache with storage URL after upload
       if (publicUrl) {
@@ -310,7 +305,7 @@ export async function GET(request: NextRequest) {
       storageUrl: null,
     }).catch(() => {});
 
-    logRequest(userId ?? "anonymous", {
+    logRequest(userId, {
       ts: new Date().toISOString(),
       endpoint: "/api/take",
       method: "GET",
@@ -331,6 +326,7 @@ export async function GET(request: NextRequest) {
         "Content-Length": result.buffer.length.toString(),
         "Content-Disposition": `inline; filename="${getFilename(options.url ?? "screenshot", ext)}"`,
         "X-Cache": "MISS",
+        "X-Credits-Used": String(ensure.units),
         ...(rateLimitInfo ? {
           "X-RateLimit-Limit": String(rateLimitInfo.limit),
           "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
@@ -365,32 +361,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId, apiKeyId } = await getAuthContext(request);
+    const authCtx: AuthContext | null = await resolveAuth(request);
+    if (!authCtx) return unauthorized();
+    const { userId, apiKeyId } = authCtx;
+    const source = authCtx.source;
 
     // ── Plan enforcement ─────────────────────────────────────────────
-    let plan: PlanId = "free";
-    let rateLimitInfo: { allowed: boolean; retryAfterMs: number; limit: number; remaining: number; reset: number } | null = null;
-    if (userId) {
-      plan = await getUserPlan(userId);
+    const plan: PlanId = await getUserPlan(userId);
 
-      rateLimitInfo = await checkRateLimit(userId, plan);
-      if (!rateLimitInfo.allowed) {
-        return NextResponse.json(
-          { error: "Rate limit exceeded. Try again later." },
-          { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
-        );
-      }
-
-      if (!isFormatAllowed(options.format, plan)) {
-        return NextResponse.json(
-          { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/settings` },
-          { status: 403 }
-        );
-      }
-
-      if (!isAdBlockingAllowed(plan)) options.block_ads = false;
-      if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
+    const rateLimitInfo = await checkRateLimit(userId, plan);
+    if (!rateLimitInfo.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
+      );
     }
+
+    if (!isFormatAllowed(options.format, plan)) {
+      return NextResponse.json(
+        { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/plan` },
+        { status: 403 }
+      );
+    }
+
+    if (!isAdBlockingAllowed(plan)) options.block_ads = false;
+    if (!isCookieBlockingAllowed(plan)) options.block_cookie_banners = false;
 
     // Check cache before rendering (POST handler)
     const cacheKey = getCacheKey(options as unknown as Record<string, unknown>);
@@ -399,46 +394,62 @@ export async function POST(request: NextRequest) {
     if (cached) {
       const publicUrl: string | null = (cached.metadata.storageUrl as string) ?? null;
 
-      if (userId) {
-        saveScreenshot({
-          userId,
-          apiKeyId: apiKeyId ?? undefined,
-          sourceUrl: options.url,
-          storageUrl: publicUrl,
-          format: cached.metadata.format as string,
-          width: cached.metadata.width as number,
-          height: cached.metadata.height as number,
-          fileSizeBytes: cached.buffer.length,
-          cached: true,
-          metadata: {
-            full_page: options.full_page,
-            dark_mode: options.dark_mode,
-            viewport_width: options.viewport_width,
-            viewport_height: options.viewport_height,
-            block_ads: options.block_ads,
-            block_trackers: options.block_trackers,
-            block_cookie_banners: options.block_cookie_banners,
-            selector: options.selector,
-            wait_until: options.wait_until,
-            quality: options.quality,
-            method: "POST",
-            response_time_ms: Date.now() - startTime,
-          },
-        }).catch((e) => console.error("[saveScreenshot]", e.message));
-
-        logScreenshotUsage({
-          userId,
-          apiKeyId: apiKeyId ?? undefined,
-          endpoint: "/api/take",
-          method: "POST",
-          statusCode: 200,
-          screenshotUrl: publicUrl,
-          cached: true,
-          responseTimeMs: Date.now() - startTime,
-        }).catch(() => {});
+      const ensure = await ensureCredits(userId, {
+        cached: true,
+        format: options.format,
+        pdfPages: options.pdfPages,
+        meterMetadata: { endpoint: "/api/take", method: "POST", cache: "hit" },
+      });
+      if (!ensure.allowed) {
+        return NextResponse.json(
+          { error: "No credits remaining. Upgrade or buy credits." },
+          { status: 402 }
+        );
       }
 
-      logRequest(userId ?? "anonymous", {
+      saveScreenshot({
+        userId,
+        apiKeyId: apiKeyId ?? undefined,
+        sourceUrl: options.url,
+        storageUrl: publicUrl,
+        format: cached.metadata.format as string,
+        width: cached.metadata.width as number,
+        height: cached.metadata.height as number,
+        fileSizeBytes: cached.buffer.length,
+        cached: true,
+        metadata: {
+          credits_used: ensure.units,
+          mode: ensure.mode,
+          cached: true,
+          full_page: options.full_page,
+          dark_mode: options.dark_mode,
+          viewport_width: options.viewport_width,
+          viewport_height: options.viewport_height,
+          block_ads: options.block_ads,
+          block_trackers: options.block_trackers,
+          block_cookie_banners: options.block_cookie_banners,
+          selector: options.selector,
+          wait_until: options.wait_until,
+          quality: options.quality,
+          method: "POST",
+          response_time_ms: Date.now() - startTime,
+        },
+      }).catch((e) => console.error("[saveScreenshot]", e.message));
+
+      logScreenshotUsage({
+        userId,
+        apiKeyId: apiKeyId ?? undefined,
+        endpoint: "/api/take",
+        method: "POST",
+        statusCode: 200,
+        screenshotUrl: publicUrl,
+        cached: true,
+        responseTimeMs: Date.now() - startTime,
+        creditsUsed: ensure.units,
+        source,
+      }).catch(() => {});
+
+      logRequest(userId, {
         ts: new Date().toISOString(),
         endpoint: "/api/take",
         method: "POST",
@@ -458,6 +469,7 @@ export async function POST(request: NextRequest) {
       }, {
         headers: {
           "X-Cache": "HIT",
+          "X-Credits-Used": String(ensure.units),
           ...(rateLimitInfo ? {
             "X-RateLimit-Limit": String(rateLimitInfo.limit),
             "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
@@ -467,20 +479,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Deduct or meter credits before rendering (skip if unauthenticated)
-    if (userId) {
-      const ensure = await ensureCredits(userId, {
-        cached: false,
-        format: options.format,
-        pdfPages: options.pdfPages,
-        meterMetadata: { endpoint: "/api/take", method: "POST" },
-      });
-      if (!ensure.allowed) {
-        return NextResponse.json(
-          { error: "No credits remaining. Upgrade or buy credits." },
-          { status: 402 }
-        );
-      }
+    // Deduct or meter credits before rendering
+    const ensure = await ensureCredits(userId, {
+      cached: false,
+      format: options.format,
+      pdfPages: options.pdfPages,
+      meterMetadata: { endpoint: "/api/take", method: "POST" },
+    });
+    if (!ensure.allowed) {
+      return NextResponse.json(
+        { error: "No credits remaining. Upgrade or buy credits." },
+        { status: 402 }
+      );
     }
 
     const result = await render(options);
@@ -489,7 +499,7 @@ export async function POST(request: NextRequest) {
     let publicUrl: string | null = null;
     try {
       publicUrl = await uploadAndSave(
-        userId ?? undefined,
+        userId,
         apiKeyId ?? undefined,
         result.buffer,
         { format: result.format, width: result.width, height: result.height },
@@ -508,7 +518,9 @@ export async function POST(request: NextRequest) {
           waitUntil: options.wait_until,
           quality: options.quality,
         },
-        startTime
+        startTime,
+        { units: ensure.units, mode: ensure.mode },
+        source
       );
     } catch {
       // Upload failed — still return the format/dimensions
@@ -522,7 +534,7 @@ export async function POST(request: NextRequest) {
       storageUrl: publicUrl,
     }).catch(() => {});
 
-    logRequest(userId ?? "anonymous", {
+    logRequest(userId, {
       ts: new Date().toISOString(),
       endpoint: "/api/take",
       method: "POST",
@@ -541,6 +553,7 @@ export async function POST(request: NextRequest) {
     }, {
       headers: {
         "X-Cache": "MISS",
+        "X-Credits-Used": String(ensure.units),
         ...(rateLimitInfo ? {
           "X-RateLimit-Limit": String(rateLimitInfo.limit),
           "X-RateLimit-Remaining": String(rateLimitInfo.remaining),

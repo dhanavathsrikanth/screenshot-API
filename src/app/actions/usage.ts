@@ -9,6 +9,8 @@ export async function logScreenshotUsage(params: {
   screenshotUrl?: string | null;
   cached: boolean;
   responseTimeMs: number;
+  creditsUsed?: number;
+  source?: "app" | "api";
 }) {
   const supabase = createServiceClient();
   const { error: logError } = await supabase.from("api_key_logs").insert({
@@ -20,6 +22,8 @@ export async function logScreenshotUsage(params: {
     screenshot_url: params.screenshotUrl ?? null,
     cached: params.cached,
     response_time_ms: params.responseTimeMs,
+    credits_used: params.creditsUsed ?? 0,
+    source: params.source ?? "app",
   });
 
   if (logError) {

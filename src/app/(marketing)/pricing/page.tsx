@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { PricingSection } from "@/components/pricing-section";
 
 export const metadata: Metadata = {
-  title: "Pricing - ScreenTool",
-  description: "Simple, transparent pricing for the ScreenTool screenshot API.",
+  title: "Pricing - ScreenshotAPI",
+  description: "Simple, transparent pricing for the ScreenshotAPI screenshot API.",
 };
 
 export default function PricingPage() {

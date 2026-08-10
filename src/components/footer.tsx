@@ -32,7 +32,7 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Company</h3>
             <ul className="mt-4 space-y-3">
-              <li><a href="mailto:hello@screentool.dev" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Contact</a></li>
+              <li><a href="mailto:hello@screenshotapi.tech" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Contact</a></li>
               <li><a href="#" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Privacy Policy</a></li>
               <li><a href="#" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Terms of Service</a></li>
             </ul>
@@ -40,7 +40,7 @@ export function Footer() {
         </div>
         <div className="mt-12 border-t border-[var(--border)] pt-8">
           <p className="text-center text-sm text-zinc-500">
-            &copy; {new Date().getFullYear()} ScreenTool. All rights reserved.
+            &copy; {new Date().getFullYear()} ScreenshotAPI. All rights reserved.
           </p>
         </div>
       </div>

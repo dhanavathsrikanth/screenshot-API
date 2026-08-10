@@ -20,7 +20,7 @@ export default async function QuickStartPage() {
       <div>
         <h1 className="text-2xl font-bold">Quick Start</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Get started with the ScreenTool API in seconds.
+          Get started with the ScreenshotAPI API in seconds.
         </p>
       </div>
       <QuickStart apiKeyPrefix={firstKeyPrefix} />

@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState, Fragment } from "react";
+import { Fragment } from "react";
 
 const plans = [
   {
     id: "free",
     name: "Free",
     monthlyPrice: 0,
-    yearlyPrice: 0,
     description: "For individuals and side projects",
     cta: "Get Started",
     href: "/dashboard",
@@ -37,12 +36,11 @@ const plans = [
     id: "starter",
     name: "Starter",
     monthlyPrice: 9,
-    yearlyPrice: 7,
     description: "For developers building integrations",
     cta: "Start Free Trial",
     href: "/dashboard",
     popular: false,
-    overage: "$0.004 / extra",
+    overage: "$0.005 / extra",
     features: {
       screenshots: "2,500 / month",
       formats: "PNG, JPEG, WebP, PDF",
@@ -66,7 +64,6 @@ const plans = [
     id: "pro",
     name: "Pro",
     monthlyPrice: 49,
-    yearlyPrice: 39,
     description: "For teams shipping production features",
     cta: "Start Free Trial",
     href: "/dashboard",
@@ -95,7 +92,6 @@ const plans = [
     id: "business",
     name: "Business",
     monthlyPrice: 149,
-    yearlyPrice: 119,
     description: "For growing companies with high volume",
     cta: "Start Free Trial",
     href: "/dashboard",
@@ -183,8 +179,6 @@ function FeatureValue({ value }: { value: string | boolean | null }) {
 }
 
 export function PricingSection() {
-  const [annual, setAnnual] = useState(false);
-
   return (
     <section className="py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -193,31 +187,11 @@ export function PricingSection() {
           <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
             Start free, scale as you grow. No hidden fees. Only pay for what you use.
           </p>
-          <div className="mt-8 inline-flex items-center gap-3 rounded-full bg-zinc-100 dark:bg-zinc-800 p-1">
-            <button
-              onClick={() => setAnnual(false)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                !annual ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setAnnual(true)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                annual ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-              }`}
-            >
-              Annual
-              <span className="ml-1.5 text-xs font-semibold text-green-600 dark:text-green-400">Save 20%</span>
-            </button>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
           {plans.map((plan) => {
-            const price = annual ? plan.yearlyPrice : plan.monthlyPrice;
-            const savings = plan.monthlyPrice > 0 ? Math.round((1 - plan.yearlyPrice / plan.monthlyPrice) * 100) : 0;
+            const price = plan.monthlyPrice;
 
             return (
               <div
@@ -249,12 +223,6 @@ export function PricingSection() {
                     </>
                   )}
                 </div>
-
-                {annual && savings > 0 && (
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                    Save ${Math.round((plan.monthlyPrice - plan.yearlyPrice) * 12)}/year ({savings}% off)
-                  </p>
-                )}
 
                 {plan.overage && (
                   <p className="text-xs text-zinc-400 mt-1">Overage: {plan.overage}</p>
@@ -339,7 +307,7 @@ export function PricingSection() {
               },
               {
                 q: "Do you offer annual billing?",
-                a: "Yes. Annual billing saves you 20% compared to monthly billing. You can switch from monthly to annual at any time.",
+                a: "Not yet. All plans are billed monthly, and you can upgrade or downgrade at any time.",
               },
               {
                 q: "What payment methods do you accept?",
@@ -361,7 +329,7 @@ export function PricingSection() {
             Custom plans with dedicated infrastructure, custom SLAs, volume discounts, and a dedicated account manager.
           </p>
           <Link
-            href="mailto:enterprise@screentool.dev"
+            href="mailto:enterprise@screenshotapi.tech"
             className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white dark:bg-zinc-900 px-6 py-3 text-sm font-medium text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >
             Contact Sales

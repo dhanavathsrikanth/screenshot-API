@@ -1,6 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { getRedis } from "@/lib/redis";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 // ─── Plan Definitions ─────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ export async function getUserPlan(userId: string): Promise<PlanId> {
     const cached = await cacheGet<PlanId>(`cache:userplan:${userId}`);
     if (cached) return cached;
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { data } = await supabase
       .from("user_quotas")
       .select("plan")
@@ -122,7 +122,7 @@ export function getPlanLimits(plan: PlanId): PlanLimits {
 export async function checkQuota(userId: string): Promise<{ allowed: boolean; used: number; limit: number; plan: PlanId }> {
   const plan = await getUserPlan(userId);
   const limits = getPlanLimits(plan);
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data } = await supabase
     .from("user_quotas")
@@ -141,7 +141,7 @@ export async function checkQuota(userId: string): Promise<{ allowed: boolean; us
 export async function checkApiKeyLimit(userId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
   const plan = await getUserPlan(userId);
   const limits = getPlanLimits(plan);
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { count } = await supabase
     .from("api_keys")

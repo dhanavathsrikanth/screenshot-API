@@ -244,7 +244,7 @@ export function MobileSidebar({
         }`}
       >
         <div className="flex items-center justify-between px-4 h-14 flex-shrink-0 border-b border-zinc-200 dark:border-zinc-800">
-          <span className="text-lg font-bold gradient-text">ScreenTool</span>
+          <span className="text-lg font-bold gradient-text">ScreenshotAPI</span>
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"

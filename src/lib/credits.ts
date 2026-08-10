@@ -2,7 +2,6 @@ import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/server";
 import { cacheGet, cacheSet, cacheInvalidate } from "@/lib/redis";
-import { getPlanLimits, type PlanId } from "@/lib/plans";
 
 type CreditState = {
   user_id: string;
@@ -34,7 +33,7 @@ async function loadState(userId: string): Promise<CreditState | null> {
 
   return {
     user_id: userId,
-    plan: (data.plan as any) ?? "free",
+    plan: (data.plan ?? "free") as CreditState["plan"],
     credit_balance: data.credit_balance ?? 0,
     top_up_balance: data.top_up_balance ?? 0,
     overage_enabled: data.overage_enabled ?? false,
@@ -50,33 +49,6 @@ export async function getCreditState(userId: string): Promise<CreditState | null
     await cacheSet(creditsCacheKey(userId), state, CACHE_TTL_SECONDS);
   }
   return state;
-}
-
-async function updateState(
-  userId: string,
-  update: Partial<Pick<CreditState, "credit_balance" | "top_up_balance">> & {
-    used_increment?: number;
-  }
-): Promise<void> {
-  const supabase = createServiceClient();
-
-  // Prefer atomic RPC for usage deductions to avoid race conditions
-  if (typeof update.used_increment === "number" && update.used_increment > 0) {
-    const delta = -Math.abs(update.used_increment);
-    await supabase.rpc("adjust_credits", { p_user_id: userId, p_delta: delta });
-    await cacheInvalidate(creditsCacheKey(userId));
-    return;
-  }
-
-  // Otherwise, apply absolute balance updates (e.g., sync or top-ups)
-  const patch: Record<string, unknown> = {};
-  if (typeof update.credit_balance === "number") patch.credit_balance = update.credit_balance;
-  if (typeof update.top_up_balance === "number") patch.top_up_balance = update.top_up_balance;
-
-  if (Object.keys(patch).length > 0) {
-    await supabase.from("user_quotas").update(patch).eq("user_id", userId);
-    await cacheInvalidate(creditsCacheKey(userId));
-  }
 }
 
 function envOrDefault(name: string, fallback: string): string {
@@ -96,19 +68,25 @@ async function sendUsageEvent(customerId: string, units: number, kind: "screensh
       ? envOrDefault("DODO_USAGE_EVENT_NAME_PDF", "screentool.pdf_pages")
       : envOrDefault("DODO_USAGE_EVENT_NAME_SCREENSHOT", "screentool.screenshot");
 
+  const safeMetadata: Record<string, string | number | boolean> = {
+    units,
+    kind,
+  };
+  for (const [key, value] of Object.entries(metadata)) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      safeMetadata[key] = value;
+    }
+  }
+
   const event = {
     event_id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
     customer_id: customerId,
     event_name: eventName,
     timestamp: new Date().toISOString(),
-    metadata: {
-      units,
-      kind,
-      ...metadata,
-    } as Record<string, unknown>,
+    metadata: safeMetadata,
   };
 
-  await client.usageEvents.ingest({ events: [event] as any });
+  await client.usageEvents.ingest({ events: [event] });
 }
 
 async function getDodoCustomerId(userId: string): Promise<string | null> {
@@ -123,11 +101,34 @@ async function getDodoCustomerId(userId: string): Promise<string | null> {
 }
 
 /**
- * Determine required units for a request
- * - cached screenshot => 0 units
- * - image screenshot => 1 unit
- * - bulk => N units
- * - pdf => 5 units per page (defaults to 5 if page count unknown)
+ * Meter usage to Dodo so its credit-billed meter auto-deducts credits.
+ * Best-effort: a metering failure must never block a paying customer, and
+ * users without a Dodo customer mapping (e.g. Free plan) are skipped.
+ * Dodo's balance is the source of truth; the local counter is a fast mirror
+ * that webhook syncs correct.
+ */
+export async function meterUsageToDodo(
+  userId: string,
+  units: number,
+  kind: "screenshot" | "pdf",
+  metadata: Record<string, unknown> = {}
+): Promise<void> {
+  if (units <= 0) return;
+  const customerId = await getDodoCustomerId(userId);
+  if (!customerId) return;
+  try {
+    await sendUsageEvent(customerId, units, kind, metadata);
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Credits required for a request.
+ * Every served request is charged (cache hits included — product decision):
+ *  - single image screenshot => 1 unit
+ *  - bulk => 1 unit per URL (and per page for PDFs)
+ *  - pdf => 5 units per page (defaults to 5 when page count is unknown)
  */
 export function computeUnits(params: {
   cached: boolean;
@@ -135,16 +136,58 @@ export function computeUnits(params: {
   bulkCount?: number;
   pdfPages?: number;
 }): { units: number; kind: "screenshot" | "pdf" } {
+  const count = Math.max(1, params.bulkCount ?? 1);
   if (params.format === "pdf") {
     const pages = Math.max(1, params.pdfPages ?? 1);
-    return { units: pages * 5, kind: "pdf" };
+    return { units: count * pages * 5, kind: "pdf" };
   }
-  const count = Math.max(1, params.bulkCount ?? 1);
   return { units: count, kind: "screenshot" };
 }
 
 /**
+ * Atomically check-and-deduct credits via the try_deduct_credits RPC.
+ * Fails closed: returns false when the balance can't cover the amount.
+ */
+async function deductCredits(userId: string, amount: number): Promise<boolean> {
+  if (amount <= 0) return true;
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("try_deduct_credits", {
+    p_user_id: userId,
+    p_amount: amount,
+  });
+  if (error) {
+    console.error("[credits] try_deduct_credits failed:", error.message);
+    return false;
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.allowed) return false;
+  await cacheInvalidate(creditsCacheKey(userId));
+  return true;
+}
+
+/**
+ * Refund credits that were charged upfront but not actually rendered
+ * (e.g. URLs that failed inside a bulk request).
+ */
+export async function refundCredits(userId: string, amount: number): Promise<void> {
+  if (amount <= 0) return;
+  const supabase = createServiceClient();
+  const { error } = await supabase.rpc("refund_credits", {
+    p_user_id: userId,
+    p_amount: amount,
+  });
+  if (error) {
+    console.error("[credits] refund_credits failed:", error.message);
+    return;
+  }
+  await cacheInvalidate(creditsCacheKey(userId));
+}
+
+/**
  * Ensure credits are available; deduct from monthly credit_balance first, then top_up_balance.
+ * For paid plans with a Dodo customer mapping, EVERY served request is also
+ * metered to Dodo (when `meter` is not disabled) so its credit-billed meter
+ * auto-deducts — local is only a fast mirror of the authoritative Dodo balance.
  * If still insufficient and overage is enabled (non-free plan), allow and meter usage to Dodo.
  * Returns:
  *  - allowed true, mode "deducted" when credits were deducted locally
@@ -157,64 +200,53 @@ export async function ensureCredits(userId: string, params: {
   bulkCount?: number;
   pdfPages?: number;
   meterMetadata?: Record<string, unknown>;
+  /** Disable Dodo metering so the caller meters successes individually (bulk). Defaults to true. */
+  meter?: boolean;
 }): Promise<EnsureResult> {
-  const state = await getCreditState(userId);
+  let state = await getCreditState(userId);
   if (!state) {
-    // Initialize a row on first use if missing
-    return { allowed: false, mode: "blocked", reason: "no_quota_row" };
+    // Seed welcome credits for new/legacy users (e.g. first API call before ever visiting the dashboard)
+    await ensureWelcomeCredits(userId);
+    state = await loadState(userId);
+    if (!state) {
+      return { allowed: false, mode: "blocked", reason: "no_quota_row" };
+    }
   }
-
-  // Paid-plan auto-seed removed to avoid double-granting.
-  // Rely on Dodo entitlements + syncCreditBalance() from webhook for paid plans.
 
   const { units, kind } = computeUnits(params);
   if (units === 0) {
     return { allowed: true, mode: "deducted", units: 0 };
   }
 
-  // Perform local deduction logic
+  const isPaidPlan = state.plan !== "free";
+  const shouldMeter = params.meter !== false && isPaidPlan;
+
+  // Estimate local coverage (used for the overage decision; actual deduction is atomic)
   let remaining = units;
-  let nextMonthly = state.credit_balance;
-  let nextTopup = state.top_up_balance;
-
-  const fromMonthly = Math.min(nextMonthly, remaining);
-  nextMonthly -= fromMonthly;
+  const fromMonthly = Math.min(state.credit_balance, remaining);
   remaining -= fromMonthly;
-
   if (remaining > 0) {
-    const fromTopup = Math.min(nextTopup, remaining);
-    nextTopup -= fromTopup;
+    const fromTopup = Math.min(state.top_up_balance, remaining);
     remaining -= fromTopup;
   }
+  const covered = units - remaining;
 
   if (remaining <= 0) {
-    // All covered locally
-    await updateState(userId, {
-      credit_balance: nextMonthly,
-      top_up_balance: nextTopup,
-      used_increment: units,
-    });
+    const ok = await deductCredits(userId, units);
+    if (!ok) return { allowed: false, mode: "blocked", reason: "no_credits" };
+    if (shouldMeter) await meterUsageToDodo(userId, units, kind, params.meterMetadata ?? {});
     return { allowed: true, mode: "deducted", units };
   }
 
   // Not enough local credits
-  const isPaidPlan = state.plan !== "free";
   if (isPaidPlan && state.overage_enabled) {
-    // Allow overage; meter to Dodo
-    const customerId = await getDodoCustomerId(userId);
-    if (customerId) {
-      try {
-        await sendUsageEvent(customerId, units, kind, params.meterMetadata ?? {});
-      } catch {
-        // If metering fails, still allow the request, but log in your observability (omitted here)
-      }
+    // Meter the full request to Dodo — its entitlement handles balance vs overage pricing
+    if (shouldMeter) await meterUsageToDodo(userId, units, kind, params.meterMetadata ?? {});
+    // Deduct whatever local balance could cover so the mirrors stay accurate
+    if (covered > 0) {
+      const ok = await deductCredits(userId, covered);
+      if (!ok) return { allowed: false, mode: "blocked", reason: "no_credits" };
     }
-    // Keep local balances at the fully deducted levels (zeroed if needed)
-    await updateState(userId, {
-      credit_balance: nextMonthly,
-      top_up_balance: nextTopup,
-      used_increment: units - remaining, // only what we could cover locally is counted as "used"
-    });
     return { allowed: true, mode: "overage", units };
   }
 
@@ -262,7 +294,7 @@ export async function ensureWelcomeCredits(userId: string): Promise<void> {
   }
 
   // If a row exists but this user never received free credits (both zero), grant once
-  const plan = (data.plan as any) ?? "free";
+  const plan = (data.plan ?? "free") as string;
   const currentBalance = data.credit_balance ?? 0;
   const grantedThisCycle = data.credits_granted_this_cycle ?? 0;
 
