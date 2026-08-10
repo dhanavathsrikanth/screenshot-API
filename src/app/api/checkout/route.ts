@@ -14,9 +14,15 @@ type CheckoutBody = {
 const PLAN_PRICES: Record<string, number> = { free: 0, starter: 9, pro: 49, business: 149 };
 const PLAN_LIMITS: Record<string, number> = { starter: 2500, pro: 15000, business: 50000 };
 
-function resolvePlanFromProduct(productId: string | undefined): { plan: string; monthlyLimit: number; price: number } | null {
-  if (!productId) return null;
+function resolvePlanFromProduct(
+  productId: string | undefined,
+  client?: DodoPayments
+): Promise<{ plan: string; monthlyLimit: number; price: number } | null> {
+  if (!productId) return Promise.resolve(null);
 
+  const match = (plan: string) => ({ plan, monthlyLimit: PLAN_LIMITS[plan] ?? 0, price: PLAN_PRICES[plan] ?? 0 });
+
+  // 1) Env-configured product IDs (fast path)
   const mappings: [string, string][] = [
     [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID ?? "", "starter"],
     [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID ?? "", "pro"],
@@ -24,12 +30,26 @@ function resolvePlanFromProduct(productId: string | undefined): { plan: string; 
   ];
 
   for (const [pid, plan] of mappings) {
-    if (pid && pid === productId) {
-      return { plan, monthlyLimit: PLAN_LIMITS[plan] ?? 0, price: PLAN_PRICES[plan] ?? 0 };
-    }
+    if (pid && pid === productId) return Promise.resolve(match(plan));
   }
 
-  return null;
+  // 2) Authoritative fallback: read `metadata.plan` from the Dodo product.
+  //    Product IDs are opaque and products may be recreated (new IDs), so the
+  //    env map above can miss the product the user actually selected.
+  if (client) {
+    return client.products
+      .retrieve(productId)
+      .then((product: { metadata?: { plan?: string } }) => {
+        const metaPlan = product?.metadata?.plan;
+        if (metaPlan === "starter" || metaPlan === "pro" || metaPlan === "business") {
+          return match(metaPlan);
+        }
+        return null;
+      })
+      .catch(() => null);
+  }
+
+  return Promise.resolve(null);
 }
 
 export async function POST(request: NextRequest) {
@@ -62,7 +82,7 @@ export async function POST(request: NextRequest) {
       .eq("user_id", userId)
       .maybeSingle();
 
-    const requested = resolvePlanFromProduct(productId);
+    const requested = await resolvePlanFromProduct(productId, client);
 
     // Paid → paid plan change: swap the existing subscription in place instead
     // of creating a parallel subscription (which would double-bill the customer).
