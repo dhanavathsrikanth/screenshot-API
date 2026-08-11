@@ -1,4 +1,5 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { rpcRows } from "@/app/actions/analytics";
 
 export async function logScreenshotUsage(params: {
   userId: string;
@@ -45,15 +46,29 @@ export async function getUsageStats(userId: string) {
     .eq("user_id", userId)
     .single();
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const logsResult = await supabase
-    .from("api_key_logs")
-    .select("id, cached", { count: "exact" })
-    .eq("user_id", userId)
-    .gte("created_at", thirtyDaysAgo);
+  let totalCalls = 0;
+  let cachedCalls = 0;
 
-  const totalCalls = logsResult.count ?? 0;
-  const cachedCalls = logsResult.data?.filter((l) => l.cached).length ?? 0;
+  const countRows = await rpcRows<{ total: number; cached: number }>("analytics_count_stats", {
+    p_user_id: userId,
+    p_days: 30,
+  });
+
+  if (countRows && countRows.length > 0) {
+    totalCalls = countRows[0].total ?? 0;
+    cachedCalls = countRows[0].cached ?? 0;
+  } else {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const logsResult = await supabase
+      .from("api_key_logs")
+      .select("id, cached", { count: "exact" })
+      .eq("user_id", userId)
+      .gte("created_at", thirtyDaysAgo);
+
+    totalCalls = logsResult.count ?? 0;
+    cachedCalls = logsResult.data?.filter((l) => l.cached).length ?? 0;
+  }
+
   const cacheHitRate = totalCalls > 0 ? Math.round((cachedCalls / totalCalls) * 100) : 0;
 
   return {

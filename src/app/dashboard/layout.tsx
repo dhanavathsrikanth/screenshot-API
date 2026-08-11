@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { DashboardLayoutClient } from "./dashboard-client";
 import { ensureWelcomeCredits } from "@/lib/credits";
+import { getUserPlan } from "@/lib/plans";
 
 export default async function DashboardLayout({
   children,
@@ -9,28 +10,18 @@ export default async function DashboardLayout({
 }) {
   const { userId } = await auth();
 
-  // Seed 100 welcome credits for new users or legacy users missing credits
-  if (userId) {
-    try {
-      await ensureWelcomeCredits(userId);
-    } catch {
-      // non-fatal
-    }
-  }
-
   let plan = "free";
   if (userId) {
+    // Run the (near-always no-op) credit seed in parallel with the plan lookup,
+    // which is itself Redis-cached for 60s, so navigation never waits on two
+    // sequential round-trips before rendering the page shell.
     try {
-      const { createClient } = await import("@/lib/supabase/server");
-      const supabase = await createClient();
-      const { data } = await supabase
-        .from("user_quotas")
-        .select("plan")
-        .eq("user_id", userId)
-        .single();
-      plan = data?.plan ?? "free";
+      [plan] = await Promise.all([
+        getUserPlan(userId).catch(() => "free" as const),
+        ensureWelcomeCredits(userId).catch(() => {}),
+      ]);
     } catch {
-      // fallback to free
+      plan = "free";
     }
   }
 
