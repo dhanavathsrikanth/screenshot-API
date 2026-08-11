@@ -106,40 +106,62 @@ export async function POST(request: NextRequest) {
       const proration: "prorated_immediately" | "do_not_bill" =
         requested.price > (PLAN_PRICES[quota.plan] ?? 0) ? "prorated_immediately" : "do_not_bill";
 
+      // Only swap an actually-active subscription. Users hit by the earlier
+      // false-upgrade bug (or abandoned checkouts) can hold a
+      // dodo_subscription_id pointing at a pending/on_hold/failed/missing
+      // subscription — Dodo's changePlan rejects it with a 400 and dead-ends
+      // the upgrade flow. Fall back to a fresh checkout in that case.
+      let existingStatus: string | null = null;
       try {
-        await client.subscriptions.changePlan(quota.dodo_subscription_id, {
-          product_id: productId,
-          proration_billing_mode: proration,
-          quantity: 1,
-        });
-
-        // Best-effort immediate DB sync; the subscription.plan_changed webhook is
-        // the authoritative source and will re-apply the same values.
-        await supabase
-          .from("user_quotas")
-          .update({
-            plan: requested.plan,
-            monthly_limit: requested.monthlyLimit,
-            dodo_product_id: productId,
-          })
-          .eq("user_id", userId);
-
-        return NextResponse.json(
-          { changed: true, plan: requested.plan, checkout_url: returnUrl },
-          { status: 200 }
-        );
-      } catch (err) {
-        // Fail closed: never fall back to a regular checkout here, or the user
-        // would end up with a second, parallel subscription (double billing).
-        console.error("[checkout] changePlan failed:", err);
-        return NextResponse.json(
-          {
-            error:
-              "Couldn't switch your plan. Please update your payment method, then try again.",
-          },
-          { status: 400 }
+        const existingSub = await client.subscriptions.retrieve(quota.dodo_subscription_id);
+        existingStatus = (existingSub as { status?: string }).status ?? null;
+      } catch {
+        console.log(
+          "[checkout] Existing subscription not found, creating a new checkout:",
+          quota.dodo_subscription_id
         );
       }
+
+      if (existingStatus === "active") {
+        try {
+          await client.subscriptions.changePlan(quota.dodo_subscription_id, {
+            product_id: productId,
+            proration_billing_mode: proration,
+            quantity: 1,
+          });
+
+          // Best-effort immediate DB sync; the subscription.plan_changed webhook is
+          // the authoritative source and will re-apply the same values.
+          await supabase
+            .from("user_quotas")
+            .update({
+              plan: requested.plan,
+              monthly_limit: requested.monthlyLimit,
+              dodo_product_id: productId,
+            })
+            .eq("user_id", userId);
+
+          return NextResponse.json(
+            { changed: true, plan: requested.plan, checkout_url: returnUrl },
+            { status: 200 }
+          );
+        } catch (err) {
+          // Fail closed: never fall back to a regular checkout here, or the user
+          // would end up with a second, parallel subscription (double billing).
+          console.error("[checkout] changePlan failed:", err);
+          return NextResponse.json(
+            {
+              error:
+                "Couldn't switch your plan. Please update your payment method, then try again.",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      console.log(
+        `[checkout] Existing subscription is ${existingStatus ?? "unknown"}; creating a new checkout instead of changePlan`
+      );
     }
 
     // Reuse the existing Dodo customer when known so the credit entitlement
