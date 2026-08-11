@@ -245,6 +245,28 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
     payload?.data?.subscription_id ??
     payload?.data?.subscription?.id;
 
+  // Ignore subscription events for a subscription that isn't the user's current
+  // one. A superseded subscription (replaced by a fresh checkout after a failed
+  // changePlan) could otherwise re-apply an old plan when its late events fire
+  // (e.g. its pending payment finally settling).
+  if (isSubscriptionEvent && subscriptionId) {
+    const { data: currentQuota } = await supabase
+      .from("user_quotas")
+      .select("dodo_subscription_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (
+      currentQuota?.dodo_subscription_id &&
+      currentQuota.dodo_subscription_id !== subscriptionId
+    ) {
+      console.log(
+        `[Dodo Webhook] Skipping upgrade: event subscription ${subscriptionId} is not the current subscription ${currentQuota.dodo_subscription_id}`
+      );
+      return;
+    }
+  }
+
   // Some payment payloads omit the product cart; recover the product from the
   // subscription when a subscription_id is present.
   if (!productId && subscriptionId) {
@@ -419,6 +441,29 @@ async function downgradeToFree(payload: AnyRecord): Promise<void> {
     return;
   }
 
+  // Ignore events for a superseded subscription: a user who switched to a new
+  // subscription (fresh checkout fallback) must not be downgraded when the old
+  // subscription's cancellation/failure events arrive.
+  const subscriptionId =
+    payload?.data?.subscription_id ?? payload?.data?.subscription?.id;
+  if (subscriptionId) {
+    const { data: currentQuota } = await supabase
+      .from("user_quotas")
+      .select("dodo_subscription_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (
+      currentQuota?.dodo_subscription_id &&
+      currentQuota.dodo_subscription_id !== subscriptionId
+    ) {
+      console.log(
+        `[Dodo Webhook] Skipping downgrade: event subscription ${subscriptionId} is not the current subscription ${currentQuota.dodo_subscription_id}`
+      );
+      return;
+    }
+  }
+
   const { error } = await supabase
     .from("user_quotas")
     .update({
@@ -440,6 +485,54 @@ async function downgradeToFree(payload: AnyRecord): Promise<void> {
   } else {
     console.log(`[Dodo Webhook] Downgraded user ${userId} to free`);
     await invalidateUserCaches(userId);
+  }
+}
+
+// ── Superseded subscription cleanup ──────────────────────────────────────
+//
+// When a plan change is impossible (e.g. Dodo 409 PREVIOUS_PAYMENT_PENDING)
+// the checkout route falls back to a fresh subscription checkout and tags the
+// session with `cancel_previous_subscription_id`. Once that new subscription's
+// first payment succeeds, cancel the old one so the user doesn't end up with
+// parallel subscriptions / double billing.
+
+async function cancelSupersededSubscription(payload: AnyRecord): Promise<void> {
+  const metadata =
+    payload?.data?.metadata ?? payload?.data?.payment?.metadata ?? {};
+  const supersededId: unknown = metadata?.cancel_previous_subscription_id;
+  if (typeof supersededId !== "string" || !supersededId) return;
+
+  const currentSubId = payload?.data?.subscription_id ?? payload?.data?.subscription?.id;
+  if (currentSubId === supersededId) return;
+
+  const client = getDodoClient();
+  try {
+    await client.subscriptions.update(supersededId, {
+      status: "cancelled",
+      cancel_reason: "cancelled_by_merchant",
+      cancellation_comment: "Superseded by a plan-upgrade checkout",
+    });
+    console.log(`[Dodo Webhook] Cancelled superseded subscription ${supersededId}`);
+  } catch (err) {
+    console.error(
+      `[Dodo Webhook] Immediate cancel failed for ${supersededId}, scheduling cancellation at next billing date:`,
+      (err as Error)?.message ?? err
+    );
+    try {
+      await client.subscriptions.update(supersededId, {
+        cancel_at_next_billing_date: true,
+        cancel_reason: "cancelled_by_merchant",
+        cancellation_comment: "Superseded by a plan-upgrade checkout",
+      });
+      console.log(
+        `[Dodo Webhook] Scheduled cancellation of superseded subscription ${supersededId}`
+      );
+    } catch (err2) {
+      console.error(
+        `[Dodo Webhook] Failed to cancel superseded subscription ${supersededId}:`,
+        (err2 as Error)?.message ?? err2
+      );
+    }
   }
 }
 
@@ -484,6 +577,9 @@ function getWebhookHandler() {
         // on the entitlement directly, so this folds them into credit_balance
         // without double-counting.
         await syncCreditBalance(payload);
+        // If this payment activated a replacement subscription, retire the old
+        // one so the user isn't left with parallel subscriptions.
+        await cancelSupersededSubscription(payload);
       },
 
       onPaymentProcessing: async (payload: AnyRecord) => {

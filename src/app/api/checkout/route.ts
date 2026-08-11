@@ -96,6 +96,9 @@ export async function POST(request: NextRequest) {
 
     // Paid → paid plan change: swap the existing subscription in place instead
     // of creating a parallel subscription (which would double-bill the customer).
+    // Dodo only supports this for active subscriptions, so verify status first.
+    let supersededSubscriptionId: string | undefined;
+
     if (
       requested &&
       quota?.plan &&
@@ -106,18 +109,13 @@ export async function POST(request: NextRequest) {
       const proration: "prorated_immediately" | "do_not_bill" =
         requested.price > (PLAN_PRICES[quota.plan] ?? 0) ? "prorated_immediately" : "do_not_bill";
 
-      // Only swap an actually-active subscription. Users hit by the earlier
-      // false-upgrade bug (or abandoned checkouts) can hold a
-      // dodo_subscription_id pointing at a pending/on_hold/failed/missing
-      // subscription — Dodo's changePlan rejects it with a 400 and dead-ends
-      // the upgrade flow. Fall back to a fresh checkout in that case.
       let existingStatus: string | null = null;
       try {
         const existingSub = await client.subscriptions.retrieve(quota.dodo_subscription_id);
         existingStatus = (existingSub as { status?: string }).status ?? null;
       } catch {
         console.log(
-          "[checkout] Existing subscription not found, creating a new checkout:",
+          "[checkout] Existing subscription not found, falling back to a new checkout:",
           quota.dodo_subscription_id
         );
       }
@@ -146,22 +144,23 @@ export async function POST(request: NextRequest) {
             { status: 200 }
           );
         } catch (err) {
-          // Fail closed: never fall back to a regular checkout here, or the user
-          // would end up with a second, parallel subscription (double billing).
-          console.error("[checkout] changePlan failed:", err);
-          return NextResponse.json(
-            {
-              error:
-                "Couldn't switch your plan. Please update your payment method, then try again.",
-            },
-            { status: 400 }
+          // Dodo rejects the swap when the subscription has an unsettled payment
+          // (409 PREVIOUS_PAYMENT_PENDING), is on-hold/failed/expired, etc. Don't
+          // dead-end the upgrade — fall back to a fresh subscription checkout below
+          // and tag the session so the webhook cancels the old subscription after
+          // the new payment succeeds (avoids parallel subscriptions / double billing).
+          console.error(
+            "[checkout] changePlan failed, falling back to a fresh checkout:",
+            err
           );
+          supersededSubscriptionId = quota.dodo_subscription_id;
         }
+      } else {
+        console.log(
+          `[checkout] Existing subscription is ${existingStatus ?? "unknown"}; creating a new checkout instead of changePlan`
+        );
+        supersededSubscriptionId = quota.dodo_subscription_id;
       }
-
-      console.log(
-        `[checkout] Existing subscription is ${existingStatus ?? "unknown"}; creating a new checkout instead of changePlan`
-      );
     }
 
     // Reuse the existing Dodo customer when known so the credit entitlement
@@ -200,8 +199,11 @@ export async function POST(request: NextRequest) {
       customer,
       return_url: returnUrl,
       metadata: {
-        user_id: userId,
         ...(body.metadata ?? {}),
+        user_id: userId,
+        ...(supersededSubscriptionId
+          ? { cancel_previous_subscription_id: supersededSubscriptionId }
+          : {}),
       } as Record<string, string>,
     });
 
