@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const quantity = Math.max(1, Number(body.quantity ?? 1));
     const dodoConfig = getDodoConfig();
     const returnUrl =
-      body.return_url ?? dodoConfig.returnUrlSuccess ?? "http://localhost:3000/dashboard/plan?upgraded=1";
+      body.return_url || dodoConfig.returnUrlSuccess || "http://localhost:3000/dashboard/plan?upgraded=1";
 
     const client = new DodoPayments({
       bearerToken: dodoConfig.apiKey,
@@ -83,6 +83,16 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     const requested = await resolvePlanFromProduct(productId, client);
+
+    // Record the selected plan before checkout. If the Dodo webhook is missed,
+    // fails, or can't map the product, the pending markers let the webhook and
+    // the ?upgraded=1 page reconciliation apply the plan anyway.
+    if (requested) {
+      await supabase
+        .from("user_quotas")
+        .update({ pending_plan: requested.plan, pending_product_id: productId })
+        .eq("user_id", userId);
+    }
 
     // Paid → paid plan change: swap the existing subscription in place instead
     // of creating a parallel subscription (which would double-bill the customer).
@@ -147,7 +157,12 @@ export async function POST(request: NextRequest) {
       try {
         const clerkUser = await currentUser();
         if (clerkUser) {
-          const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+          // Use the primary email: the Clerk webhook stores `users.email` from
+          // the primary address, so a non-primary address here would fail the
+          // webhook's email-based user resolution on first purchase.
+          const email =
+            clerkUser.primaryEmailAddress?.emailAddress ??
+            clerkUser.emailAddresses?.[0]?.emailAddress;
           const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ");
           if (email) {
             customer = { email, name: name || undefined };

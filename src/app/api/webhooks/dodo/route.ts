@@ -243,7 +243,35 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
     }
   }
 
-  const planInfo = await resolvePlanFromProduct(productId, client);
+  let planInfo = await resolvePlanFromProduct(productId, client);
+
+  // Fallback: the plan selected at checkout (pending_plan/pending_product_id).
+  // Webhooks can carry products that don't resolve via metadata/name mapping
+  // (opaque or recreated IDs), so prefer the user's own intent when the product
+  // matches. This makes the webhook self-healing instead of a silent no-op.
+  if (!planInfo && userId) {
+    try {
+      const { data: pendingQuota } = await supabase
+        .from("user_quotas")
+        .select("pending_plan, pending_product_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (
+        pendingQuota?.pending_plan &&
+        pendingQuota?.pending_product_id === productId &&
+        (pendingQuota.pending_plan === "starter" ||
+          pendingQuota.pending_plan === "pro" ||
+          pendingQuota.pending_plan === "business")
+      ) {
+        planInfo = planInfoFor(pendingQuota.pending_plan);
+        console.log(`[Dodo Webhook] Using pending plan ${pendingQuota.pending_plan} for user ${userId}`);
+      }
+    } catch (pendingErr) {
+      console.error("[Dodo Webhook] Failed to read pending plan:", (pendingErr as Error)?.message ?? pendingErr);
+    }
+  }
+
   if (!planInfo) {
     console.log(`[Dodo Webhook] No plan mapping for product: ${productId}`);
     return;
@@ -288,6 +316,8 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
         overage_enabled: true,
         dodo_subscription_id: subscriptionId ?? null,
         dodo_product_id: productId ?? null,
+        pending_plan: null,
+        pending_product_id: null,
       },
       { onConflict: "user_id" }
     );
@@ -387,6 +417,8 @@ async function downgradeToFree(payload: AnyRecord): Promise<void> {
       overage_enabled: false,
       dodo_subscription_id: null,
       dodo_product_id: null,
+      pending_plan: null,
+      pending_product_id: null,
     })
     .eq("user_id", userId);
 
