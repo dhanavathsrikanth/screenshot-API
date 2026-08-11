@@ -170,7 +170,9 @@ function resolveUserForSubscription(sub, maps) {
 
 // ── Load subscriptions ───────────────────────────────────────────────────
 
-const ACTIVE_STATUSES = ["active", "on_hold", "pending"];
+// Only `active` subscriptions entitle a plan. `pending` (payment not collected)
+// and `on_hold` (payment failed) must NOT grant access.
+const ACTIVE_STATUSES = ["active"];
 
 async function loadSubscriptions(maps) {
   const subs = [];
@@ -187,8 +189,7 @@ async function loadSubscriptions(maps) {
     }
   }
 
-  // Keep the best subscription per user: prefer active over on_hold/pending,
-  // then the most recently created.
+  // Keep the best (most recently created) active subscription per user.
   const bestByUser = new Map();
   for (const sub of subs) {
     const user = resolveUserForSubscription(sub, maps);

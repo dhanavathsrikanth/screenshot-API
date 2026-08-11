@@ -62,7 +62,9 @@ async function resolvePlanFromProduct(productId: string | undefined, client: Dod
   return null;
 }
 
-const ACTIVE_STATUSES = ["active", "on_hold", "pending"] as const;
+// Only `active` subscriptions entitle a plan. `pending` (payment not collected)
+// and `on_hold` (payment failed) must NOT grant access.
+const GRANTABLE_STATUSES = ["active"] as const;
 
 async function listUserSubscriptions(
   client: DodoPayments,
@@ -72,7 +74,7 @@ async function listUserSubscriptions(
   const subs: SubscriptionListResponse[] = [];
   const seen = new Set<string>();
 
-  for (const status of ACTIVE_STATUSES) {
+  for (const status of GRANTABLE_STATUSES) {
     const params: SubscriptionListParams = { status, page_size: 100 };
     if (customerId) params.customer_id = customerId;
     if (productId) params.product_id = productId;
@@ -145,21 +147,21 @@ export async function reconcilePlanAfterCheckout(userId: string): Promise<Reconc
   const pendingPlan = quota?.pending_plan;
   const pendingProductId = quota?.pending_product_id;
 
-  // Nothing to reconcile: no pending upgrade and no customer to query against.
-  if (!pendingProductId && !customerId) {
-    return { plan: quota?.plan ?? null, applied: false, reason: "no pending plan or customer" };
+  // Only reconcile a real checkout intent (pending markers set at checkout).
+  // No pending upgrade → nothing to apply, and we must never upgrade from a
+  // random subscription the user happens to have.
+  if (!pendingProductId || !pendingPlan) {
+    return { plan: quota?.plan ?? null, applied: false, reason: "no pending plan" };
   }
 
-  // Prefer subscriptions for the pending product, then all non-cancelled ones.
-  let subs = pendingProductId ? await listUserSubscriptions(client, customerId, pendingProductId) : [];
-  if (subs.length === 0 && customerId) {
-    subs = await listUserSubscriptions(client, customerId);
-  }
+  // Look up the user's ACTIVE subscription for the pending product only.
+  // A pending/on_hold subscription (payment not completed) must not grant.
+  const subs = await listUserSubscriptions(client, customerId, pendingProductId);
 
   // Pick the best subscription: active over on_hold/pending, then newest.
   subs.sort((a, b) => {
-    const rankA = ACTIVE_STATUSES.indexOf(a?.status as (typeof ACTIVE_STATUSES)[number]);
-    const rankB = ACTIVE_STATUSES.indexOf(b?.status as (typeof ACTIVE_STATUSES)[number]);
+    const rankA = GRANTABLE_STATUSES.indexOf(a?.status as (typeof GRANTABLE_STATUSES)[number]);
+    const rankB = GRANTABLE_STATUSES.indexOf(b?.status as (typeof GRANTABLE_STATUSES)[number]);
     if (rankA !== rankB) return rankA - rankB;
     return new Date(b?.created_at ?? 0).getTime() - new Date(a?.created_at ?? 0).getTime();
   });

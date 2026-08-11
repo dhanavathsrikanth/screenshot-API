@@ -216,6 +216,19 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
   const userId = await resolveUserIdFromPayload(payload);
   if (!userId) return;
 
+  // Only grant a plan when the user has actually paid. `subscription.updated`
+  // fires on ANY field change — including while a checkout's subscription is
+  // still `pending` (payment not yet collected) or `on_hold` (payment failed).
+  // Subscription webhook payloads carry the authoritative `data.status`;
+  // payment.succeeded payloads (Payment object) must not be gated on it.
+  const isSubscriptionEvent = typeof payload?.type === "string" && payload.type.startsWith("subscription.");
+  if (isSubscriptionEvent && payload?.data?.status !== "active") {
+    console.log(
+      `[Dodo Webhook] Skipping upgrade: subscription ${payload?.data?.subscription_id} is ${payload?.data?.status ?? "unknown"} (not paid)`
+    );
+    return;
+  }
+
   const client = getDodoClient();
 
   // Try to get product ID from various payload locations. Payment payloads carry
@@ -514,6 +527,10 @@ function getWebhookHandler() {
 
       onSubscriptionOnHold: async (payload: AnyRecord) => {
         console.log("[Dodo Webhook] Subscription on hold");
+        // Renewal/plan-change payment failed on an active subscription. The user
+        // is not paying anymore, so revoke the paid plan to avoid granting
+        // access without payment.
+        await downgradeToFree(payload);
       },
 
       onSubscriptionCancelled: async (payload: AnyRecord) => {
@@ -528,6 +545,9 @@ function getWebhookHandler() {
 
       onSubscriptionFailed: async (payload: AnyRecord) => {
         console.log("[Dodo Webhook] Subscription failed");
+        // Initial mandate failed at subscription creation — terminal. Make sure
+        // the user never ends up on a paid plan from a never-paid subscription.
+        await downgradeToFree(payload);
       },
 
       onSubscriptionExpired: async (payload: AnyRecord) => {
