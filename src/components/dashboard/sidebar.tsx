@@ -109,7 +109,25 @@ const navigation = [
   },
 ];
 
-function SidebarContent({ onLinkClick, plan }: { onLinkClick?: () => void; plan?: string }) {
+const adminLink = {
+  label: "Consent & Contacts",
+  href: "/dashboard/admin",
+  icon: (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+    </svg>
+  ),
+};
+
+function SidebarContent({
+  onLinkClick,
+  plan,
+  isAdmin,
+}: {
+  onLinkClick?: () => void;
+  plan?: string;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const { openUpgradeDialog } = useUpgradeDialog();
 
@@ -117,6 +135,8 @@ function SidebarContent({ onLinkClick, plan }: { onLinkClick?: () => void; plan?
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
   };
+
+  const adminActive = isAdmin && isActive(adminLink.href);
 
   const planLabels: Record<string, string> = { free: "Free", starter: "Starter", pro: "Pro", business: "Business" };
   const planColors: Record<string, string> = {
@@ -160,6 +180,22 @@ function SidebarContent({ onLinkClick, plan }: { onLinkClick?: () => void; plan?
                   )}
                 </Link>
               ))}
+              {section.label === "Dashboard" && isAdmin && (
+                <Link
+                  href={adminLink.href}
+                  onClick={onLinkClick}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                    adminActive
+                      ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  <span className={adminActive ? "text-indigo-500 dark:text-indigo-400" : "text-zinc-400 dark:text-zinc-500"}>
+                    {adminLink.icon}
+                  </span>
+                  {adminLink.label}
+                </Link>
+              )}
             </nav>
           </div>
         ))}
@@ -198,10 +234,10 @@ function SidebarContent({ onLinkClick, plan }: { onLinkClick?: () => void; plan?
   );
 }
 
-export function DashboardSidebar({ plan }: { plan?: string }) {
+export function DashboardSidebar({ plan, isAdmin }: { plan?: string; isAdmin?: boolean }) {
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 lg:fixed lg:inset-y-0 lg:top-14 z-30 overflow-hidden">
-      <SidebarContent plan={plan} />
+      <SidebarContent plan={plan} isAdmin={isAdmin} />
     </aside>
   );
 }
@@ -224,10 +260,12 @@ export function MobileSidebar({
   open,
   onClose,
   plan,
+  isAdmin,
 }: {
   open: boolean;
   onClose: () => void;
   plan?: string;
+  isAdmin?: boolean;
 }) {
   return (
     <>
@@ -255,7 +293,7 @@ export function MobileSidebar({
             </svg>
           </button>
         </div>
-        <SidebarContent onLinkClick={onClose} plan={plan} />
+        <SidebarContent onLinkClick={onClose} plan={plan} isAdmin={isAdmin} />
       </div>
     </>
   );

@@ -1,11 +1,10 @@
 "use client";
 
-import { clearConsent } from "@/lib/consent";
+import { openConsentSettings } from "@/lib/consent";
 
 export function CookieSettingsButton() {
   function openCookieSettings() {
-    clearConsent();
-    window.location.reload();
+    openConsentSettings();
   }
 
   return (

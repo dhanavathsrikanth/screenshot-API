@@ -81,8 +81,10 @@ export default function PrivacyPage() {
               <strong className="text-zinc-900 dark:text-zinc-100">Local storage.</strong>{" "}
               Your cookie banner choice (accept all, or essential only) is
               stored in your browser&apos;s local storage so the banner
-              does not reappear on every visit. See our Cookie Policy for
-              details.
+              does not reappear on every visit. We also record aggregate,
+              non-identifying banner events (banner shown, accepted, or
+              essential only) so we can understand how visitors respond to the
+              banner. See our Cookie Policy for details.
             </span>,
           ]}
         />

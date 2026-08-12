@@ -12,9 +12,11 @@ import { UpgradeDialogProvider } from "@/components/upgrade-dialog-provider";
 export function DashboardLayoutClient({
   children,
   plan,
+  isAdmin,
 }: {
   children: React.ReactNode;
   plan: string;
+  isAdmin: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -23,9 +25,14 @@ export function DashboardLayoutClient({
       <DashboardTopNav plan={plan} />
 
       <div className="relative min-h-[calc(100vh-3.5rem)]">
-        <DashboardSidebar plan={plan} />
+        <DashboardSidebar plan={plan} isAdmin={isAdmin} />
         <MobileSidebarButton onClick={() => setMobileOpen(true)} />
-        <MobileSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} plan={plan} />
+        <MobileSidebar
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          plan={plan}
+          isAdmin={isAdmin}
+        />
 
         <div className="lg:pl-64">
           <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">

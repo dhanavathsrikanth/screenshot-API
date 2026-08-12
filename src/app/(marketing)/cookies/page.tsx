@@ -79,10 +79,13 @@ export default function CookiesPage() {
           between &quot;Accept all&quot; and &quot;Essential only&quot;. Your
           choice is recorded in your browser&apos;s local storage and in a
           first-party cookie called &quot;screenshotapi_consent&quot; that
-          expires 12 months after it is set. Non-essential cookies, such as
-          analytics, are only used if you accept them. You can change your
-          choice at any time using the &quot;Cookie Settings&quot; button in
-          the footer of the website.
+          expires 12 months after it is set. We also record aggregate,
+          non-identifying events about the banner itself (that it was shown,
+          and whether you chose accept or essential-only) so we can understand
+          how visitors respond to it. Non-essential cookies, such as analytics,
+          are only used if you accept them. You can change your choice at any
+          time using the &quot;Cookie Settings&quot; button in the footer of
+          the website.
         </LegalParagraph>
       </LegalSection>
 

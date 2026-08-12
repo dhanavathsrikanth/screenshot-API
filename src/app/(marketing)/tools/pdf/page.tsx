@@ -1,67 +1,36 @@
-"use client";
+import type { Metadata } from "next";
+import { ToolCapture } from "@/components/tools/tool-capture";
+import { MoreTools } from "@/components/tools/more-tools";
 
-import { useState } from "react";
+export const metadata: Metadata = {
+  title: "Free URL to PDF Tool - ScreenshotAPI",
+  description:
+    "Convert any webpage into a downloadable PDF document. Choose A4, Letter, or Legal page size. Free, no registration required.",
+  alternates: { canonical: "/tools/pdf" },
+  openGraph: {
+    title: "Free URL to PDF Tool - ScreenshotAPI",
+    description:
+      "Convert any webpage to a clean, downloadable PDF in seconds. No registration required.",
+    url: "/tools/pdf",
+    type: "website",
+  },
+};
 
-export default function PdfTool() {
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(
-        `/api/take?url=${encodeURIComponent(url)}&format=pdf`
-      );
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error ?? "Failed to generate PDF");
-      }
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = downloadUrl;
-      a.download = "document.pdf";
-      a.click();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+export default function UrlToPdfToolPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold mb-4">URL to PDF</h1>
-      <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-        Convert any public webpage into a downloadable PDF document.
-      </p>
-      <form onSubmit={handleSubmit} className="flex gap-3 mb-8">
-        <input
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://example.com"
-          className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          required
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-        >
-          {loading ? "Generating..." : "Generate PDF"}
-        </button>
-      </form>
+      <div className="text-center mb-10">
+        <span className="text-4xl">📑</span>
+        <h1 className="mt-4 text-3xl font-bold sm:text-4xl">Free URL to PDF</h1>
+        <p className="mx-auto mt-4 max-w-xl text-zinc-600 dark:text-zinc-400">
+          Convert any webpage into a clean, downloadable PDF document. Choose your page
+          size, paste a URL, and get your PDF in seconds.
+        </p>
+      </div>
 
-      {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-4 mb-6">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
+      <ToolCapture mode="pdf" />
+
+      <MoreTools active="/tools/pdf" />
     </div>
   );
 }

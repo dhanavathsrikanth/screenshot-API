@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/home/Hero";
 import { TrustedBy } from "@/components/home/TrustedBy";
+import { HowItWorks } from "@/components/home/HowItWorks";
 import { Playground } from "@/components/playground";
-import { Features } from "@/components/features";
-import { PricingSection } from "@/components/pricing-section";
 import { FormatsSection } from "@/components/home/FormatsSection";
+import { Features } from "@/components/features";
+import { Testimonials } from "@/components/home/Testimonials";
 import { CodeExamples } from "@/components/home/CodeExamples";
+import { PricingSection } from "@/components/pricing-section";
 import { CTASection } from "@/components/home/CTASection";
 
 export const metadata: Metadata = {
@@ -24,9 +26,11 @@ export default function Home() {
     <div className="min-h-screen">
       <Hero />
       <TrustedBy />
+      <HowItWorks />
       <Playground />
       <FormatsSection />
       <Features />
+      <Testimonials />
       <CodeExamples />
       <PricingSection />
       <CTASection />

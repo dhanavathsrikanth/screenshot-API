@@ -10,7 +10,7 @@ const plans = [
     monthlyPrice: 0,
     description: "For individuals and side projects",
     cta: "Get Started",
-    href: "/dashboard",
+    href: "/sign-up",
     popular: false,
     overage: null,
     features: {
@@ -38,7 +38,7 @@ const plans = [
     monthlyPrice: 9,
     description: "For developers building integrations",
     cta: "Start Free Trial",
-    href: "/dashboard",
+    href: "/sign-up",
     popular: false,
     overage: "$0.005 / extra",
     features: {
@@ -66,7 +66,7 @@ const plans = [
     monthlyPrice: 49,
     description: "For teams shipping production features",
     cta: "Start Free Trial",
-    href: "/dashboard",
+    href: "/sign-up",
     popular: true,
     overage: "$0.003 / extra",
     features: {
@@ -94,7 +94,7 @@ const plans = [
     monthlyPrice: 149,
     description: "For growing companies with high volume",
     cta: "Start Free Trial",
-    href: "/dashboard",
+    href: "/sign-up",
     popular: false,
     overage: "$0.002 / extra",
     features: {
