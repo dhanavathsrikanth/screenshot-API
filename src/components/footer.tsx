@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CookieSettingsButton } from "@/components/cookie-settings-button";
 
 export function Footer() {
   return (
@@ -33,8 +34,12 @@ export function Footer() {
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Company</h3>
             <ul className="mt-4 space-y-3">
               <li><a href="mailto:hello@screenshotapi.tech" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Contact</a></li>
-              <li><a href="#" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Privacy Policy</a></li>
-              <li><a href="#" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Terms of Service</a></li>
+              <li><Link href="/privacy" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Terms of Service</Link></li>
+              <li><Link href="/cookies" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Cookie Policy</Link></li>
+              <li><CookieSettingsButton /></li>
+              <li><Link href="/refunds" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Refund Policy</Link></li>
+              <li><Link href="/aup" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Acceptable Use</Link></li>
             </ul>
           </div>
         </div>

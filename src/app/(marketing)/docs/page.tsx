@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Documentation - ScreenshotAPI",
   description: "Learn how to use the ScreenshotAPI screenshot API.",
+  alternates: { canonical: "/docs" },
 };
 
 export default function DocsPage() {

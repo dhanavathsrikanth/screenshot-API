@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Free Screenshot Tools - ScreenshotAPI",
   description: "Free online screenshot tools. No registration required.",
+  alternates: { canonical: "/tools" },
 };
 
 const tools = [
