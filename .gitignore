@@ -28,6 +28,9 @@
 .kiro/
 supabase/.temp/
 
+# puppeteer browser cache (downloaded during Render build)
+/.cache/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
