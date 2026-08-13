@@ -12,7 +12,7 @@ import {
   isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
   type PlanId,
 } from "@/lib/plans";
-import { ensureCredits } from "@/lib/credits";
+import { ensureCredits, refundCredits } from "@/lib/credits";
 import { resolveAuth, type AuthContext } from "@/lib/api-auth";
 import {
   featureUnavailable, getRequestId, insufficientCredits, internalError,
@@ -236,7 +236,16 @@ export async function GET(request: NextRequest) {
       return insufficientCredits(requestId);
     }
 
-    const result = await render(options);
+    let result: Awaited<ReturnType<typeof render>>;
+    try {
+      result = await render(options);
+    } catch (error) {
+      // Never charge for a render that failed — refund the deducted credits
+      if (ensure.mode === "deducted") {
+        await refundCredits(userId, ensure.units);
+      }
+      throw error;
+    }
 
     // Fire-and-forget: upload + cache + save to DB in background
     uploadAndSave(
@@ -446,7 +455,16 @@ export async function POST(request: NextRequest) {
       return insufficientCredits(requestId);
     }
 
-    const result = await render(options);
+    let result: Awaited<ReturnType<typeof render>>;
+    try {
+      result = await render(options);
+    } catch (error) {
+      // Never charge for a render that failed — refund the deducted credits
+      if (ensure.mode === "deducted") {
+        await refundCredits(userId, ensure.units);
+      }
+      throw error;
+    }
 
     // Upload to R2 + save to DB (awaited for POST so we return the URL)
     let publicUrl: string | null = null;

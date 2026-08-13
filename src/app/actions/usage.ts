@@ -71,15 +71,37 @@ export async function getUsageStats(userId: string) {
 
   const cacheHitRate = totalCalls > 0 ? Math.round((cachedCalls / totalCalls) * 100) : 0;
 
+  // The monthly window (and free-plan credit grant) only rolls over lazily inside
+  // try_deduct_credits/adjust_credits on the next API request. If it has already
+  // expired, show the reset values so the dashboard never displays stale counters.
+  const q = quotaResult.data;
+  const windowExpired = q?.quota_reset_at ? new Date(q.quota_reset_at).getTime() <= Date.now() : false;
+  const plan = q?.plan ?? "free";
+  const freeRefill = q?.monthly_limit ?? 100;
+
+  let monthlyUsed = q?.monthly_used ?? 0;
+  let creditBalance = q?.credit_balance ?? 0;
+  let creditsUsedThisCycle = q?.credits_used_this_cycle ?? 0;
+  let creditsGrantedThisCycle = q?.credits_granted_this_cycle ?? 0;
+
+  if (windowExpired) {
+    monthlyUsed = 0;
+    creditsUsedThisCycle = 0;
+    if (plan === "free") {
+      creditBalance = freeRefill;
+      creditsGrantedThisCycle = freeRefill;
+    }
+  }
+
   return {
-    plan: quotaResult.data?.plan ?? "free",
-    monthlyUsed: quotaResult.data?.monthly_used ?? 0,
-    monthlyLimit: quotaResult.data?.monthly_limit ?? 100,
-    creditBalance: quotaResult.data?.credit_balance ?? 0,
-    creditsUsedThisCycle: quotaResult.data?.credits_used_this_cycle ?? 0,
-    creditsGrantedThisCycle: quotaResult.data?.credits_granted_this_cycle ?? 0,
-    topUpBalance: quotaResult.data?.top_up_balance ?? 0,
-    overageEnabled: quotaResult.data?.overage_enabled ?? false,
+    plan,
+    monthlyUsed,
+    monthlyLimit: q?.monthly_limit ?? 100,
+    creditBalance,
+    creditsUsedThisCycle,
+    creditsGrantedThisCycle,
+    topUpBalance: q?.top_up_balance ?? 0,
+    overageEnabled: q?.overage_enabled ?? false,
     cacheHitRate,
     totalCalls,
   };

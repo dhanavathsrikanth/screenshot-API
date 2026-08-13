@@ -22,6 +22,7 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+#variable_conflict use_column
 DECLARE
   v_free_limit INTEGER := 100;
   v_credit INTEGER;
@@ -87,6 +88,7 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+#variable_conflict use_column
 DECLARE
   v_free_limit INTEGER := 100;
   v_credit INTEGER;
