@@ -3,7 +3,7 @@ dotenv.config({ path: ".env.local" });
 dotenv.config();
 
 // ─── Keep-alive for Render free tier (15-min idle sleep) ─────────────
-// Creates/updates an Upstash QStash cron schedule that pings /api/health
+// Creates/updates an Upstash QStash V2 cron schedule that pings /api/health
 // every 5 minutes so the Render web service never falls asleep.
 // Usage:
 //   node scripts/setup-keepalive.mjs            create/update schedule
@@ -38,8 +38,8 @@ function normalizeDestination(input) {
 
 function getApiBase() {
   const qstashUrl = process.env.QSTASH_URL;
-  if (qstashUrl) return `${qstashUrl.replace(/\/+$/, "")}/v1/schedules`;
-  return "https://qstash.upstash.com/v1/schedules";
+  if (qstashUrl) return `${qstashUrl.replace(/\/+$/, "")}/v2/schedules`;
+  return "https://qstash.upstash.io/v2/schedules";
 }
 
 async function callQStash(token, path, options = {}) {
@@ -122,16 +122,15 @@ async function main() {
     console.log(`[keepalive] Replaced old schedule ${s.scheduleId} (${s.destination})`);
   }
 
-  const created = await callQStash(token, "", {
+  const created = await callQStash(token, `/${destination}`, {
     method: "POST",
     headers: {
+      "Upstash-Cron": CRON_EVERY_5_MIN, // V2: cron is a header, destination goes in the path
+      "Upstash-Method": "GET", // /api/health only handles GET
       "Upstash-Retries": "0", // wake-up timeouts must not burn free messages on retries
-      "Upstash-Timeout": "60000", // allow up to 60s for Render to boot from sleep
+      "Upstash-Timeout": "60s", // allow up to 60s for Render to boot from sleep
     },
-    body: JSON.stringify({
-      destination,
-      cron: CRON_EVERY_5_MIN,
-    }),
+    body: JSON.stringify({}),
   });
 
   console.log(`[keepalive] Created schedule ${created?.scheduleId} -> ${destination}`);
