@@ -36,37 +36,37 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section className="border-b border-[var(--border)] py-20 lg:py-24">
+    <section className="border-b border-[var(--border)] bg-white py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
             How it works
           </p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
             From URL to screenshot in three steps
           </h2>
-          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
             No infrastructure, no browser setup, no maintenance. Just an API endpoint.
           </p>
         </div>
 
         <div className="relative mt-14 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-8">
           <div
-            className="absolute left-[12%] right-[12%] top-9 hidden border-t border-dashed border-zinc-300 md:block dark:border-zinc-700"
+            className="absolute left-[12%] right-[12%] top-9 hidden border-t border-dashed border-slate-300 md:block dark:border-slate-700"
             aria-hidden="true"
           />
           {steps.map((step) => (
             <div key={step.number} className="relative text-center md:text-left">
               <div className="relative mx-auto flex h-18 w-18 items-center justify-center md:mx-0">
-                <div className="flex h-18 w-18 items-center justify-center rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-violet-500/10 text-indigo-600 dark:text-indigo-400">
+                <div className="flex h-18 w-18 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-indigo-600 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400">
                   {step.icon}
                 </div>
                 <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
                   {step.number}
                 </span>
               </div>
-              <h3 className="mt-6 text-lg font-semibold">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+              <h3 className="mt-6 text-lg font-semibold text-slate-900 dark:text-white">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                 {step.description}
               </p>
             </div>

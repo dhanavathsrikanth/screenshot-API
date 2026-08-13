@@ -163,14 +163,14 @@ const featureGroups = [
 ];
 
 function FeatureValue({ value }: { value: string | boolean | null }) {
-  if (value === null) return <span className="text-zinc-300 dark:text-zinc-600">—</span>;
+  if (value === null) return <span className="text-slate-300 dark:text-slate-600">—</span>;
   if (typeof value === "boolean") {
     return value ? (
-      <svg className="h-5 w-5 text-green-500 mx-auto" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <svg className="h-5 w-5 text-emerald-500 mx-auto" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
       </svg>
     ) : (
-      <svg className="h-5 w-5 text-zinc-300 dark:text-zinc-600 mx-auto" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <svg className="h-5 w-5 text-slate-300 dark:text-slate-600 mx-auto" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
       </svg>
     );
@@ -183,8 +183,8 @@ export function PricingSection() {
     <section className="py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold tracking-tight">Simple, transparent pricing</h1>
-          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">Simple, transparent pricing</h1>
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
             Start free, scale as you grow. No hidden fees. Only pay for what you use.
           </p>
         </div>
@@ -196,11 +196,11 @@ export function PricingSection() {
             return (
               <div
                 key={plan.id}
-                className={`rounded-2xl border p-6 flex flex-col relative ${
+                className={`hover-lift rounded-xl border p-6 flex flex-col relative ${
                   plan.popular
-                    ? "border-indigo-500 ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/10"
-                    : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
-                } transition-colors`}
+                    ? "border-indigo-500 ring-2 ring-indigo-500 bg-white shadow-lg shadow-indigo-500/10 dark:bg-slate-900"
+                    : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
+                }`}
               >
                 {plan.popular && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white">
@@ -209,23 +209,23 @@ export function PricingSection() {
                 )}
 
                 <div>
-                  <h3 className="text-lg font-semibold">{plan.name}</h3>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{plan.description}</p>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{plan.name}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{plan.description}</p>
                 </div>
 
                 <div className="mt-4 flex items-baseline gap-1">
                   {plan.monthlyPrice === 0 ? (
-                    <span className="text-4xl font-bold">Free</span>
+                    <span className="text-4xl font-bold text-slate-900 dark:text-white">Free</span>
                   ) : (
                     <>
-                      <span className="text-4xl font-bold">${price}</span>
-                      <span className="text-sm text-zinc-500">/mo</span>
+                      <span className="text-4xl font-bold text-slate-900 dark:text-white">${price}</span>
+                      <span className="text-sm text-slate-500">/mo</span>
                     </>
                   )}
                 </div>
 
                 {plan.overage && (
-                  <p className="text-xs text-zinc-400 mt-1">Overage: {plan.overage}</p>
+                  <p className="text-xs text-slate-400 mt-1">Overage: {plan.overage}</p>
                 )}
 
                 <Link
@@ -233,7 +233,7 @@ export function PricingSection() {
                   className={`mt-6 block w-full rounded-lg px-4 py-2.5 text-center text-sm font-medium transition-colors ${
                     plan.popular
                       ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                      : "border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                      : "border border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                   }`}
                 >
                   {plan.cta}
@@ -245,13 +245,13 @@ export function PricingSection() {
 
         {/* Feature Comparison Table */}
         <div className="mt-24 max-w-5xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8">Compare all features</h2>
+          <h2 className="text-2xl font-bold text-center text-slate-900 mb-8 dark:text-white">Compare all features</h2>
 
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                  <th className="text-left py-3 pr-4 text-sm font-medium text-zinc-500 w-1/3"></th>
+                <tr className="border-b border-slate-200 dark:border-slate-800">
+                  <th className="text-left py-3 pr-4 text-sm font-medium text-slate-500 w-1/3"></th>
                   {plans.map((plan) => (
                     <th key={plan.id} className="text-center py-3 px-3 text-sm font-medium">
                       <span className={plan.popular ? "text-indigo-600 dark:text-indigo-400" : ""}>{plan.name}</span>
@@ -263,13 +263,13 @@ export function PricingSection() {
                 {featureGroups.map((group) => (
                   <Fragment key={group.name}>
                     <tr>
-                      <td colSpan={5} className="pt-6 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      <td colSpan={5} className="pt-6 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                         {group.name}
                       </td>
                     </tr>
                     {group.features.map((feature) => (
-                      <tr key={feature.key} className="border-b border-zinc-100 dark:border-zinc-800/50">
-                        <td className="py-3 pr-4 text-sm text-zinc-600 dark:text-zinc-400">{feature.label}</td>
+                      <tr key={feature.key} className="border-b border-slate-100 dark:border-slate-800/50">
+                        <td className="py-3 pr-4 text-sm text-slate-600 dark:text-slate-400">{feature.label}</td>
                         {plans.map((plan) => (
                           <td key={plan.id} className="py-3 px-3 text-center text-sm">
                             <FeatureValue value={(plan.features as Record<string, string | boolean | null>)[feature.key]} />
@@ -286,7 +286,7 @@ export function PricingSection() {
 
         {/* FAQ */}
         <div className="mt-24 max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8">Frequently asked questions</h2>
+          <h2 className="text-2xl font-bold text-center text-slate-900 mb-8 dark:text-white">Frequently asked questions</h2>
           <div className="space-y-6">
             {[
               {
@@ -314,23 +314,23 @@ export function PricingSection() {
                 a: "We accept all major credit cards (Visa, Mastercard, Amex) and offer wire transfer for Business and Enterprise plans.",
               },
             ].map((faq) => (
-              <div key={faq.q} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
-                <h3 className="text-sm font-semibold">{faq.q}</h3>
-                <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{faq.a}</p>
+              <div key={faq.q} className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{faq.q}</h3>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{faq.a}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Enterprise CTA */}
-        <div className="mt-20 rounded-2xl bg-zinc-900 dark:bg-zinc-100 p-8 md:p-12 text-center max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-white dark:text-zinc-900">Need more than 50,000 screenshots?</h2>
-          <p className="mt-3 text-zinc-400 dark:text-zinc-500 max-w-xl mx-auto">
+        <div className="mt-20 rounded-2xl bg-slate-900 p-8 md:p-12 text-center max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-white">Need more than 50,000 screenshots?</h2>
+          <p className="mt-3 text-slate-400 max-w-xl mx-auto">
             Custom plans with dedicated infrastructure, custom SLAs, volume discounts, and a dedicated account manager.
           </p>
           <Link
             href="mailto:enterprise@screenshotapi.tech"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white dark:bg-zinc-900 px-6 py-3 text-sm font-medium text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-medium text-slate-900 hover:bg-slate-100 transition-colors"
           >
             Contact Sales
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

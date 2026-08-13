@@ -21,7 +21,7 @@ type Summary = {
 export function ConsentAnalytics({ summary }: { summary: Summary }) {
   if (!summary) {
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5">
+      <div className="card p-5">
         <h2 className="text-sm font-semibold mb-2">Cookie Consent</h2>
         <p className="text-sm text-zinc-400">
           No consent data yet. Apply migration 010 and the cookie banner will
@@ -42,19 +42,16 @@ export function ConsentAnalytics({ summary }: { summary: Summary }) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Cookie Consent</h2>
+      <h2 className="eyebrow text-zinc-500">Cookie Consent</h2>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card) => (
-          <div
-            key={card.label}
-            className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5"
-          >
+          <div key={card.label} className="card p-5">
             <div className="text-2xl font-bold">{card.value}</div>
             <div className="text-xs text-zinc-400 mt-1">{card.label}</div>
           </div>
         ))}
       </div>
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5">
+      <div className="card p-5">
         <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-4">
           Last 14 Days
         </h3>

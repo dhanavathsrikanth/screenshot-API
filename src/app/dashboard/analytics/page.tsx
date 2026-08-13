@@ -16,6 +16,11 @@ import {
   BandwidthChart,
   CostEstimation,
 } from "@/components/dashboard/charts";
+import { PageHeader } from "@/components/dashboard/page-header";
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="eyebrow text-zinc-400 mb-4">{children}</h2>;
+}
 
 export default async function AnalyticsPage() {
   const { userId } = await auth();
@@ -49,13 +54,14 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Analytics</h1>
-        <p className="text-sm text-zinc-500">Usage insights and performance metrics</p>
-      </div>
+      <PageHeader
+        eyebrow="Analytics"
+        title="Usage & Performance"
+        description="Usage insights and performance metrics across your account"
+      />
 
       <section>
-        <h2 className="text-lg font-semibold mb-4">Usage Trends</h2>
+        <SectionTitle>Usage Trends</SectionTitle>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <UsageChart data={dailyUsage} />
           <LatencyChart data={latencyStats} />
@@ -63,7 +69,7 @@ export default async function AnalyticsPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4">Patterns</h2>
+        <SectionTitle>Patterns</SectionTitle>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <PeakHoursHeatmap data={peakHours} />
           <UsageForecast data={usageForecast} />
@@ -71,12 +77,12 @@ export default async function AnalyticsPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4">Infrastructure</h2>
+        <SectionTitle>Infrastructure</SectionTitle>
         <BandwidthChart data={bandwidthStats} />
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4">Cost Analysis</h2>
+        <SectionTitle>Cost Analysis</SectionTitle>
         <CostEstimation data={costEstimation} />
       </section>
     </div>

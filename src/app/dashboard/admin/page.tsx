@@ -4,6 +4,7 @@ import { isAdminUser } from "@/lib/admin";
 import { getConsentSummary, getContactMessages } from "@/app/actions/admin";
 import { ConsentAnalytics } from "@/components/dashboard/consent-analytics";
 import { ContactInbox } from "@/components/dashboard/contact-inbox";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function AdminPage() {
   const { userId } = await auth();
@@ -17,10 +18,11 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Admin</h1>
-        <p className="text-sm text-zinc-500">Cookie consent analytics and contact inbox</p>
-      </div>
+      <PageHeader
+        eyebrow="Admin"
+        title="Consent & Contacts"
+        description="Cookie consent analytics and contact inbox"
+      />
 
       <ConsentAnalytics summary={summary} />
       <ContactInbox messages={messages} />

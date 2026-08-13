@@ -13,6 +13,10 @@ import {
 } from "@/lib/plans";
 import { ensureCredits, refundCredits, computeUnits, meterUsageToDodo } from "@/lib/credits";
 import { resolveAuth, type AuthContext } from "@/lib/api-auth";
+import {
+  featureUnavailable, getRequestId, insufficientCredits, internalError,
+  normalizeUrl, rateLimited, rateLimitHeaders, unauthorized, zodErrorResponse,
+} from "@/lib/api";
 
 export const maxDuration = 60;
 
@@ -23,32 +27,30 @@ function uniqueKey(url: string, format: string): string {
   return `${ts}_${rand}_${base}`;
 }
 
-function unauthorized() {
-  return NextResponse.json(
-    {
-      error:
-        "Authentication required. Sign in at /dashboard or include a valid API key via the Authorization: Bearer header.",
-    },
-    { status: 401 }
-  );
-}
-
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  const requestId = getRequestId(request);
   try {
     const body = await request.json();
+    if (
+      body &&
+      typeof body === "object" &&
+      Array.isArray((body as { urls?: unknown }).urls)
+    ) {
+      (body as { urls: unknown[] }).urls = (
+        body as { urls: string[] }
+      ).urls.map((u) => (typeof u === "string" ? normalizeUrl(u) : u));
+    }
+
     const parsed = BulkScreenshotSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid parameters", details: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return zodErrorResponse(parsed.error, requestId);
     }
 
     const { urls, concurrency, max_retries, ...renderOptions } = parsed.data;
 
     const authCtx: AuthContext | null = await resolveAuth(request);
-    if (!authCtx) return unauthorized();
+    if (!authCtx) return unauthorized(requestId);
     const { userId, apiKeyId } = authCtx;
     const source = authCtx.source;
 
@@ -57,17 +59,11 @@ export async function POST(request: NextRequest) {
 
     const rateLimitInfo = await checkRateLimit(userId, plan);
     if (!rateLimitInfo.allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Try again later." },
-        { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
-      );
+      return rateLimited(rateLimitInfo.retryAfterMs, rateLimitInfo, requestId);
     }
 
     if (!isFormatAllowed(renderOptions.format, plan)) {
-      return NextResponse.json(
-        { error: `Format "${renderOptions.format}" requires a paid plan. Upgrade at /dashboard/settings` },
-        { status: 403 }
-      );
+      return featureUnavailable(`Format "${renderOptions.format}" requires a paid plan. Upgrade at /dashboard/settings`, requestId);
     }
 
     if (!isAdBlockingAllowed(plan)) renderOptions.block_ads = false;
@@ -84,10 +80,7 @@ export async function POST(request: NextRequest) {
       meter: false,
     });
     if (!ensure.allowed) {
-      return NextResponse.json(
-        { error: "No credits remaining. Upgrade or buy credits." },
-        { status: 402 }
-      );
+      return insufficientCredits(requestId);
     }
 
     const results = await bulkRender(urls, renderOptions, {
@@ -173,15 +166,10 @@ export async function POST(request: NextRequest) {
     }, {
       headers: {
         "X-Credits-Used": String(ensure.units),
-        ...(rateLimitInfo ? {
-          "X-RateLimit-Limit": String(rateLimitInfo.limit),
-          "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
-          "X-RateLimit-Reset": String(rateLimitInfo.reset),
-        } : {}),
+        ...rateLimitHeaders(rateLimitInfo),
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalError(error, requestId);
   }
 }

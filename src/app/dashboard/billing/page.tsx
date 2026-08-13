@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -75,43 +76,41 @@ export default async function BillingPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Billing & Invoices</h1>
-        <p className="text-sm text-zinc-500 mt-1">View your payments and download invoices</p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <a
-          href={customerId ? `/customer-portal?customer_id=${encodeURIComponent(customerId)}` : "#"}
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium ${
-            customerId
-              ? "bg-indigo-600 text-white hover:bg-indigo-700"
-              : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
-          }`}
-          aria-disabled={!customerId}
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m-9 8.25h9A2.25 2.25 0 0 0 18.75 18V6A2.25 2.25 0 0 0 16.5 3.75h-9A2.25 2.25 0 0 0 5.25 6v12A2.25 2.25 0 0 0 7.5 20.25z" />
-          </svg>
-          Open Customer Portal
-        </a>
-        {!customerId && (
-          <span className="text-xs text-zinc-500">
+      <PageHeader
+        eyebrow="Billing & Invoices"
+        title="Payments & Invoices"
+        description="View your payments and download invoices"
+        actions={
+          <a
+            href={customerId ? `/customer-portal?customer_id=${encodeURIComponent(customerId)}` : "#"}
+            className={`btn-primary ${!customerId ? "pointer-events-none opacity-50" : ""}`}
+            aria-disabled={!customerId}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m-9 8.25h9A2.25 2.25 0 0 0 18.75 18V6A2.25 2.25 0 0 0 16.5 3.75h-9A2.25 2.25 0 0 0 5.25 6v12A2.25 2.25 0 0 0 7.5 20.25z" />
+            </svg>
+            Open Customer Portal
+          </a>
+        }
+      />
+      {!customerId && (
+        <div className="card card-lift border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/30 p-4">
+          <p className="text-sm text-indigo-800 dark:text-indigo-200">
             No billing profile found for {displayName}. Complete a checkout to create one.
-          </span>
-        )}
-      </div>
+          </p>
+        </div>
+      )}
 
-      <div className="rounded-xl border border-[var(--border)] overflow-x-auto">
+      <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[var(--border)] bg-zinc-50 dark:bg-zinc-900/30">
-              <th className="text-left py-3 px-4">Date</th>
-              <th className="text-left py-3 px-4">Amount</th>
-              <th className="text-left py-3 px-4">Status</th>
-              <th className="text-left py-3 px-4">Method</th>
-              <th className="text-left py-3 px-4">Invoice</th>
-              <th className="text-left py-3 px-4">Action</th>
+            <tr className="border-b border-[var(--border)] text-zinc-500 uppercase text-xs">
+              <th className="text-left py-3 px-4 font-medium">Date</th>
+              <th className="text-left py-3 px-4 font-medium">Amount</th>
+              <th className="text-left py-3 px-4 font-medium">Status</th>
+              <th className="text-left py-3 px-4 font-medium">Method</th>
+              <th className="text-left py-3 px-4 font-medium">Invoice</th>
+              <th className="text-left py-3 px-4 font-medium">Action</th>
             </tr>
           </thead>
           <tbody>

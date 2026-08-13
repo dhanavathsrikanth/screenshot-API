@@ -43,16 +43,16 @@ function Stars() {
 
 export function Testimonials() {
   return (
-    <section className="border-b border-[var(--border)] py-20 lg:py-24">
+    <section className="border-b border-[var(--border)] bg-white py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
             Loved by developers
           </p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
             Trusted by teams who ship
           </h2>
-          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
             From side projects to high-volume production systems.
           </p>
         </div>
@@ -61,10 +61,10 @@ export function Testimonials() {
           {testimonials.map((t) => (
             <figure
               key={t.name}
-              className="flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--background)] p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-zinc-500/10"
+              className="hover-lift flex flex-col rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
             >
               <Stars />
-              <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+              <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                 &ldquo;{t.quote}&rdquo;
               </blockquote>
               <figcaption className="mt-6 flex items-center gap-3">
@@ -72,8 +72,8 @@ export function Testimonials() {
                   {t.initials}
                 </span>
                 <div>
-                  <p className="text-sm font-semibold">{t.name}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{t.role}</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{t.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t.role}</p>
                 </div>
               </figcaption>
             </figure>

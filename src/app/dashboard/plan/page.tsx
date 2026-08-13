@@ -8,6 +8,7 @@ import { getAllPlanLimits, type PlanId } from "@/lib/plans";
 import { StatsCard, UsageBar } from "@/components/dashboard/stats-card";
 import { UsageAlerts, UpgradePrompt, CostEstimation, UsageForecast } from "@/components/dashboard/charts";
 import { UpgradeSuccessBanner } from "@/components/upgrade-success-banner";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 const planLabels: Record<string, string> = { free: "Free", starter: "Starter", pro: "Pro", business: "Business" };
 
@@ -98,17 +99,18 @@ export default async function PlanPage({
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Plan & Usage</h1>
-        <p className="text-sm text-zinc-500 mt-1">Monitor your usage, quotas, and plan limits</p>
-      </div>
+      <PageHeader
+        eyebrow="Plan & Usage"
+        title="Monitor Usage & Quotas"
+        description="Monitor your usage, quotas, and plan limits"
+      />
 
       <Suspense>
         <UpgradeSuccessBanner />
       </Suspense>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Current Plan</h2>
+        <h2 className="eyebrow text-zinc-400 mb-4">Current Plan</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <StatsCard
@@ -149,30 +151,30 @@ export default async function PlanPage({
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Cost Estimation</h2>
+        <h2 className="eyebrow text-zinc-400 mb-4">Cost Estimation</h2>
         <CostEstimation data={costEst} />
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Usage Forecast</h2>
+        <h2 className="eyebrow text-zinc-400 mb-4">Usage Forecast</h2>
         <UsageForecast data={forecast} />
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Usage Alerts</h2>
+        <h2 className="eyebrow text-zinc-400 mb-4">Usage Alerts</h2>
         <UsageAlerts data={alerts} />
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Upgrade</h2>
+        <h2 className="eyebrow text-zinc-400 mb-4">Upgrade</h2>
         <UpgradePrompt data={{ plan: stats.plan, monthlyUsed: stats.monthlyUsed, monthlyLimit: stats.monthlyLimit, recommendedPlan: costEst.recommendedPlan }} />
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Billing</h2>
+        <h2 className="eyebrow text-zinc-400 mb-4">Billing</h2>
         <a
           href="/dashboard/billing"
-          className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+          className="btn-secondary"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 7.5h6M9 10.5h6M8.25 3.75h7.5A2.25 2.25 0 0 1 18 6v12.75l-3-1.5-3 1.5-3-1.5-3 1.5V6a2.25 2.25 0 0 1 2.25-2.25Z" />
@@ -182,7 +184,7 @@ export default async function PlanPage({
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Plan Comparison</h2>
+        <h2 className="eyebrow text-zinc-400 mb-4">Plan Comparison</h2>
         <div className="rounded-xl border border-[var(--border)] p-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

@@ -103,16 +103,16 @@ const formats = [
 
 export function FormatsSection() {
   return (
-    <section className="border-b border-[var(--border)] py-20 lg:py-24">
+    <section className="border-b border-[var(--border)] bg-white py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
             9 output formats
           </p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
             Every format your project needs
           </h2>
-          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
             From lossless PNG to next-gen AVIF, plus PDF with full page control and HTML extraction for scraping.
           </p>
         </div>
@@ -121,13 +121,13 @@ export function FormatsSection() {
           {formats.map((f) => (
             <div
               key={f.name}
-              className="group rounded-2xl border border-[var(--border)] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10"
+              className="hover-lift group rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
             >
-              <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${f.bg} ${f.accent}`}>
+              <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${f.bg} ${f.accent}`}>
                 {f.icon}
               </div>
-              <h3 className="mt-4 text-lg font-bold">{f.name}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{f.desc}</p>
+              <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">{f.name}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{f.desc}</p>
             </div>
           ))}
         </div>

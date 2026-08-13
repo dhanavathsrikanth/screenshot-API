@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { listApiKeys } from "@/app/actions/api-keys";
 import { ApiKeysManager } from "@/components/dashboard/api-keys-manager";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 type ApiKey = {
   id: string;
@@ -25,12 +26,11 @@ export default async function ApiKeysPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">API Keys</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Manage keys for programmatic access to the API.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="API Keys"
+        title="Manage API Keys"
+        description="Manage keys for programmatic access to the API."
+      />
       <ApiKeysManager initialKeys={apiKeys} />
     </div>
   );

@@ -48,7 +48,7 @@ export function DashboardPlayground() {
         let message = "Failed to render screenshot";
         try {
           const err = await response.json();
-          message = err.error ?? message;
+          message = typeof err.error === "string" ? err.error : err.error?.message ?? message;
         } catch {
           message = `Server error (${response.status})`;
         }

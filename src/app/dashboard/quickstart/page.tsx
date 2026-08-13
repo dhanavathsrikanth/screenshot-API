@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { listApiKeys } from "@/app/actions/api-keys";
 import { QuickStart } from "@/components/dashboard/quick-start";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function QuickStartPage() {
   const { userId } = await auth();
@@ -17,12 +18,11 @@ export default async function QuickStartPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Quick Start</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Get started with the ScreenshotAPI API in seconds.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Quick Start"
+        title="Get Started in Seconds"
+        description="Get started with the ScreenshotAPI API in seconds."
+      />
       <QuickStart apiKeyPrefix={firstKeyPrefix} />
     </div>
   );

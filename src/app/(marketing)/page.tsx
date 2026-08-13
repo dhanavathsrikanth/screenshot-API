@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/home/Hero";
-import { TrustedBy } from "@/components/home/TrustedBy";
 import { HowItWorks } from "@/components/home/HowItWorks";
-import { Playground } from "@/components/playground";
 import { FormatsSection } from "@/components/home/FormatsSection";
 import { Features } from "@/components/features";
 import { Testimonials } from "@/components/home/Testimonials";
@@ -25,9 +23,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <Hero />
-      <TrustedBy />
       <HowItWorks />
-      <Playground />
       <FormatsSection />
       <Features />
       <Testimonials />

@@ -1,6 +1,25 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getSLAStats } from "@/app/actions/analytics";
+import { PageHeader } from "@/components/dashboard/page-header";
+
+function StatCard({ label, value, tone = "" }: { label: string; value: React.ReactNode; tone?: string }) {
+  return (
+    <div className="card card-lift p-5 text-center">
+      <div className={`text-3xl font-bold tracking-tight ${tone}`}>{value}</div>
+      <div className="text-xs text-zinc-400 mt-2">{label}</div>
+    </div>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="card card-lift p-5">
+      <h3 className="text-sm font-semibold mb-4">{title}</h3>
+      {children}
+    </div>
+  );
+}
 
 export default async function SLAPage() {
   const { userId } = await auth();
@@ -10,33 +29,29 @@ export default async function SLAPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">SLA Monitor</h1>
-        <p className="text-sm text-zinc-500">Uptime, performance, and incident history for the last 30 days.</p>
-      </div>
+      <PageHeader
+        eyebrow="SLA Monitor"
+        title="Uptime & Performance"
+        description="Uptime, performance, and incident history for the last 30 days."
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 text-center">
-          <div className={`text-3xl font-bold ${sla.uptimeMet ? "text-green-500" : "text-red-500"}`}>{sla.uptime}%</div>
-          <div className="text-xs text-zinc-400 mt-1">Uptime (SLA: {sla.slaTarget}%)</div>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 text-center">
-          <div className="text-3xl font-bold">{sla.totalRequests.toLocaleString()}</div>
-          <div className="text-xs text-zinc-400 mt-1">Total Requests</div>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 text-center">
-          <div className="text-3xl font-bold">{sla.avgLatency}ms</div>
-          <div className="text-xs text-zinc-400 mt-1">Avg Latency</div>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 text-center">
-          <div className={`text-3xl font-bold ${sla.latencyMet ? "text-green-500" : "text-red-500"}`}>{sla.p99Latency}ms</div>
-          <div className="text-xs text-zinc-400 mt-1">P99 Latency (target: &lt;5s)</div>
-        </div>
+        <StatCard
+          label={`Uptime (SLA: ${sla.slaTarget}%)`}
+          value={`${sla.uptime}%`}
+          tone={sla.uptimeMet ? "text-green-500" : "text-red-500"}
+        />
+        <StatCard label="Total Requests" value={sla.totalRequests.toLocaleString()} />
+        <StatCard label="Avg Latency" value={`${sla.avgLatency}ms`} />
+        <StatCard
+          label="P99 Latency (target: <5s)"
+          value={`${sla.p99Latency}ms`}
+          tone={sla.latencyMet ? "text-green-500" : "text-red-500"}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5">
-          <h3 className="text-sm font-medium mb-3">SLA Status</h3>
+        <Panel title="SLA Status">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -64,10 +79,9 @@ export default async function SLAPage() {
               <span className="text-sm font-medium">{sla.totalRequests > 0 ? ((sla.errors / sla.totalRequests) * 100).toFixed(1) : 0}%</span>
             </div>
           </div>
-        </div>
+        </Panel>
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5">
-          <h3 className="text-sm font-medium mb-3">Incident Summary</h3>
+        <Panel title="Incident Summary">
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-zinc-500">Total incidents (30d)</span>
@@ -82,12 +96,12 @@ export default async function SLAPage() {
               <span className={`font-medium ${sla.errors > 0 ? "text-red-500" : ""}`}>{sla.errors}</span>
             </div>
           </div>
-        </div>
+        </Panel>
       </div>
 
       {sla.incidents.length > 0 && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5">
-          <h3 className="text-sm font-medium mb-4">Incident History</h3>
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold mb-4">Incident History</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

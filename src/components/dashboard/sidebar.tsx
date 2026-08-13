@@ -140,11 +140,18 @@ function SidebarContent({
 
   const planLabels: Record<string, string> = { free: "Free", starter: "Starter", pro: "Pro", business: "Business" };
   const planColors: Record<string, string> = {
-    free: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-    starter: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    pro: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
-    business: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+    free: "bg-zinc-100 text-zinc-600",
+    starter: "bg-blue-100 text-blue-700",
+    pro: "bg-indigo-100 text-indigo-700",
+    business: "bg-purple-100 text-purple-700",
   };
+
+  const linkBase =
+    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all";
+  const linkActive = "bg-indigo-500/10 text-indigo-600";
+  const linkInactive = "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900";
+  const iconActive = "text-indigo-500";
+  const iconInactive = "text-zinc-400";
 
   return (
     <div className="flex h-full flex-col">
@@ -152,29 +159,25 @@ function SidebarContent({
         {navigation.map((section, sectionIndex) => (
           <div key={section.label}>
             {sectionIndex > 0 && (
-              <div className="my-3 border-t border-zinc-200 dark:border-zinc-800" />
+              <div className="my-3 border-t border-[var(--border)]" />
             )}
             <nav className="space-y-0.5">
-              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                {section.label}
-              </p>
+              <p className="eyebrow px-3 mb-2 text-zinc-400">{section.label}</p>
               {section.links.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={onLinkClick}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-                    isActive(link.href)
-                      ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200"
+                  className={`${linkBase} ${
+                    isActive(link.href) ? linkActive : linkInactive
                   }`}
                 >
-                  <span className={isActive(link.href) ? "text-indigo-500 dark:text-indigo-400" : "text-zinc-400 dark:text-zinc-500"}>
+                  <span className={isActive(link.href) ? iconActive : iconInactive}>
                     {link.icon}
                   </span>
                   {link.label}
                   {link.href === "/dashboard/plan" && plan === "free" && (
-                    <span className="ml-auto text-[10px] font-bold text-indigo-500 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                    <span className="ml-auto text-[10px] font-bold text-indigo-600 bg-indigo-500/10 px-1.5 py-0.5 rounded">
                       UPGRADE
                     </span>
                   )}
@@ -184,13 +187,11 @@ function SidebarContent({
                 <Link
                   href={adminLink.href}
                   onClick={onLinkClick}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-                    adminActive
-                      ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200"
+                  className={`${linkBase} ${
+                    adminActive ? linkActive : linkInactive
                   }`}
                 >
-                  <span className={adminActive ? "text-indigo-500 dark:text-indigo-400" : "text-zinc-400 dark:text-zinc-500"}>
+                  <span className={adminActive ? iconActive : iconInactive}>
                     {adminLink.icon}
                   </span>
                   {adminLink.label}
@@ -202,9 +203,9 @@ function SidebarContent({
       </div>
 
       {/* Bottom section: Plan badge + Upgrade button */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 p-3 space-y-2">
+      <div className="border-t border-[var(--border)] p-3 space-y-2">
         <div className="flex items-center justify-between px-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Plan</span>
+          <span className="eyebrow text-zinc-400">Plan</span>
           <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${planColors[plan ?? "free"]}`}>
             {planLabels[plan ?? "free"] ?? "Free"}
           </span>
@@ -212,7 +213,7 @@ function SidebarContent({
         {(!plan || plan === "free") && (
           <button
             onClick={() => { openUpgradeDialog(); onLinkClick?.(); }}
-            className="flex items-center justify-center gap-2 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+            className="btn-primary w-full"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
@@ -224,7 +225,7 @@ function SidebarContent({
           <Link
             href="/dashboard/plan"
             onClick={onLinkClick}
-            className="flex items-center justify-center gap-2 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
+            className="btn-secondary w-full"
           >
             View Plans
           </Link>
@@ -236,7 +237,7 @@ function SidebarContent({
 
 export function DashboardSidebar({ plan, isAdmin }: { plan?: string; isAdmin?: boolean }) {
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 lg:fixed lg:inset-y-0 lg:top-14 z-30 overflow-hidden">
+    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-[var(--border)] bg-[var(--background)] lg:fixed lg:inset-y-0 lg:top-14 z-30 overflow-hidden">
       <SidebarContent plan={plan} isAdmin={isAdmin} />
     </aside>
   );
@@ -277,15 +278,15 @@ export function MobileSidebar({
       )}
 
       <div
-        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 transform transition-transform duration-200 ease-in-out ${
+        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-[var(--background)] border-r border-[var(--border)] transform transition-transform duration-200 ease-in-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-4 h-14 flex-shrink-0 border-b border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center justify-between px-4 h-14 flex-shrink-0 border-b border-[var(--border)]">
           <span className="text-lg font-bold gradient-text">ScreenshotAPI</span>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
+            className="rounded-lg p-1.5 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
             aria-label="Close menu"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

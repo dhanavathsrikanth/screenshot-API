@@ -10,6 +10,10 @@ import { checkGuestToolLimit } from "@/lib/tools";
 import { TOOL_GUEST_DAILY_LIMIT } from "@/lib/tool-limits";
 import { logScreenshotUsage } from "@/app/actions/usage";
 import { logRequest } from "@/lib/redis";
+import {
+  getRequestId, internalError, invalidUrl, jsonError,
+  normalizeUrl, rateLimited, rateLimitHeaders, zodErrorResponse,
+} from "@/lib/api";
 
 export const maxDuration = 60;
 
@@ -38,14 +42,18 @@ function getClientIp(request: NextRequest): string {
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  const requestId = getRequestId(request);
   try {
     const body = await request.json().catch(() => ({}));
-    const parsed = ToolRequestSchema.safeParse(body);
+    const parsed = ToolRequestSchema.safeParse({
+      ...body,
+      url:
+        typeof body.url === "string"
+          ? normalizeUrl(body.url)
+          : body.url,
+    });
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid parameters", details: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return zodErrorResponse(parsed.error, requestId);
     }
 
     const input = parsed.data;
@@ -53,20 +61,17 @@ export async function POST(request: NextRequest) {
     try {
       const protocol = new URL(input.url).protocol;
       if (protocol !== "http:" && protocol !== "https:") {
-        return NextResponse.json(
-          { error: "Only http:// and https:// URLs are supported." },
-          { status: 400 }
-        );
+        return invalidUrl(undefined, requestId);
       }
     } catch {
-      return NextResponse.json({ error: "Invalid URL." }, { status: 400 });
+      return invalidUrl("Invalid URL.", requestId);
     }
 
     const authCtx = await resolveAuth(request);
     const isGuest = !authCtx;
 
     let creditsUsed = 0;
-    let rateLimitHeaders: Record<string, string> = {};
+    let rateLimitHeadersObj: Record<string, string> = {};
 
     if (isGuest) {
       // Anonymous users: burst per browser + daily cap per IP
@@ -74,25 +79,18 @@ export async function POST(request: NextRequest) {
       const burstId = input.client_id ?? `ip:${ip}`;
       const limit = await checkGuestToolLimit(burstId, ip);
 
-      rateLimitHeaders = {
-        "X-RateLimit-Limit": String(limit.limit),
-        "X-RateLimit-Remaining": String(Math.max(0, limit.remaining)),
-        "X-RateLimit-Reset": String(limit.reset),
-      };
+      rateLimitHeadersObj = rateLimitHeaders({
+        limit: limit.limit,
+        remaining: Math.max(0, limit.remaining),
+        reset: limit.reset,
+      });
 
       if (!limit.allowed) {
-        return NextResponse.json(
-          {
-            error: `Guest limit reached. Free tools are limited to ${TOOL_GUEST_DAILY_LIMIT} captures per day. Sign in for higher limits.`,
-            retryAfterMs: limit.retryAfterMs,
-          },
-          {
-            status: 429,
-            headers: {
-              "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)),
-              ...rateLimitHeaders,
-            },
-          }
+        return rateLimited(
+          limit.retryAfterMs,
+          { limit: limit.limit, remaining: Math.max(0, limit.remaining), reset: limit.reset },
+          requestId,
+          `Guest limit reached. Free tools are limited to ${TOOL_GUEST_DAILY_LIMIT} captures per day. Sign in for higher limits.`
         );
       }
     } else {
@@ -101,23 +99,10 @@ export async function POST(request: NextRequest) {
       const plan = await getUserPlan(userId);
       const rateLimitInfo = await checkRateLimit(userId, plan);
 
-      rateLimitHeaders = {
-        "X-RateLimit-Limit": String(rateLimitInfo.limit),
-        "X-RateLimit-Remaining": String(Math.max(0, rateLimitInfo.remaining)),
-        "X-RateLimit-Reset": String(rateLimitInfo.reset),
-      };
+      rateLimitHeadersObj = rateLimitHeaders(rateLimitInfo);
 
       if (!rateLimitInfo.allowed) {
-        return NextResponse.json(
-          { error: "Rate limit exceeded. Try again later." },
-          {
-            status: 429,
-            headers: {
-              "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)),
-              ...rateLimitHeaders,
-            },
-          }
-        );
+        return rateLimited(rateLimitInfo.retryAfterMs, rateLimitInfo, requestId);
       }
 
       const ensure = await ensureCredits(userId, {
@@ -127,10 +112,7 @@ export async function POST(request: NextRequest) {
         meterMetadata: { endpoint: "/api/tools/capture", method: "POST" },
       });
       if (!ensure.allowed) {
-        return NextResponse.json(
-          { error: "No credits remaining. Upgrade or buy credits from the dashboard." },
-          { status: 402 }
-        );
+        return jsonError(402, "insufficient_credits", "No credits remaining. Upgrade or buy credits from the dashboard.", requestId);
       }
       creditsUsed = ensure.units;
     }
@@ -185,11 +167,10 @@ export async function POST(request: NextRequest) {
         "Content-Length": result.buffer.length.toString(),
         "Content-Disposition": `inline; filename="${getFilename(input.url, ext)}"`,
         "X-Free-Tool": "1",
-        ...rateLimitHeaders,
+        ...rateLimitHeadersObj,
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalError(error, requestId);
   }
 }

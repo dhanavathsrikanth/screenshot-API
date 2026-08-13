@@ -10,8 +10,8 @@ const COLORS = ["#6366f1", "#22d3ee", "#f59e0b", "#ef4444", "#10b981", "#a855f7"
 
 function ChartCard({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 ${className}`}>
-      <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-4">{title}</h3>
+    <div className={`card card-lift p-5 ${className}`}>
+      <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-4">{title}</h3>
       {children}
     </div>
   );

@@ -38,13 +38,20 @@ with open("screenshot.png", "wb") as f:
     code: `package main
 
 import (
+    "io"
     "net/http"
     "os"
 )
 
 func main() {
-    resp, err := http.Get(
-        "https://screenshotapi.tech/api/take?url=https://example.com&format=png")
+    req, err := http.NewRequest(
+        "GET", "https://screenshotapi.tech/api/take?url=https://example.com&format=png", nil)
+    if err != nil {
+        panic(err)
+    }
+    req.Header.Set("Authorization", "Bearer YOUR_API_KEY")
+
+    resp, err := http.DefaultClient.Do(req)
     if err != nil {
         panic(err)
     }
@@ -80,16 +87,55 @@ export function CodeExamples() {
           <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
             Get started in 30 seconds
           </p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
             Works with any HTTP client
           </h2>
-          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
             No SDK required. No browser setup. Just an authenticated GET request.
           </p>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {["No SDK", "No browser setup", "Authenticated GET", "Free API key"].map(
+              (feature) => (
+                <span
+                  key={feature}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300"
+                >
+                  <svg className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  {feature}
+                </span>
+              )
+            )}
+          </div>
         </div>
 
-        <div className="mt-12 overflow-hidden rounded-2xl border border-[var(--border)] bg-zinc-950 shadow-2xl shadow-zinc-900/20">
-          <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/60 pl-4 pr-2">
+        <div className="mx-auto mt-10 flex max-w-3xl items-start justify-center gap-4 sm:gap-8">
+          {[
+            { step: "1", title: "Copy your API key", desc: "Grab it from the dashboard" },
+            { step: "2", title: "Pick your language", desc: "cURL, Node, Python, Go and more" },
+            { step: "3", title: "Run it", desc: "Get your screenshot in seconds" },
+          ].map((s, i) => (
+            <div key={s.step} className="flex flex-1 flex-col items-center gap-2 sm:flex-row sm:items-start sm:gap-3">
+              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                {s.step}
+              </span>
+              <div className="text-center sm:text-left">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{s.title}</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{s.desc}</p>
+              </div>
+              {i < 2 && (
+                <svg className="hidden h-4 w-4 flex-shrink-0 text-slate-300 sm:block dark:text-slate-600 mt-1" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                </svg>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-12 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-900/20">
+          <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/60 pl-4 pr-2">
             <div className="flex flex-wrap">
               {examples.map((ex, i) => (
                 <button
@@ -101,7 +147,7 @@ export function CodeExamples() {
                   className={`relative px-4 py-3 text-sm font-medium transition-colors ${
                     i === active
                       ? "text-white"
-                      : "text-zinc-500 hover:text-zinc-300"
+                      : "text-slate-500 hover:text-slate-300"
                   }`}
                 >
                   {ex.lang}
@@ -113,7 +159,7 @@ export function CodeExamples() {
             </div>
             <button
               onClick={copy}
-              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
             >
               {copied ? (
                 <>
@@ -137,12 +183,12 @@ export function CodeExamples() {
           </pre>
         </div>
 
-        <p className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
           Copy your API key from the{" "}
           <a href="/dashboard/api-keys" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
             dashboard
           </a>{" "}
-          and replace <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs dark:bg-zinc-800">YOUR_API_KEY</code>.
+          and replace <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800">YOUR_API_KEY</code>.
         </p>
       </div>
     </section>

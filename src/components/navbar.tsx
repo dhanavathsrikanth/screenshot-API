@@ -8,20 +8,20 @@ const navLinks = [
   { label: "Docs", href: "/docs" },
   { label: "Pricing", href: "/pricing" },
   { label: "Tools", href: "/tools" },
-  { label: "API Reference", href: "/docs#api-reference" },
+  { label: "API Reference", href: "/docs#endpoints" },
   { label: "Contact", href: "/contact" },
 ];
 
 function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2.5">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow-sm shadow-indigo-600/20">
         <svg className="h-4.5 w-4.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
         </svg>
       </span>
-      <span className="text-lg font-bold tracking-tight gradient-text">ScreenshotAPI</span>
+      <span className="text-lg font-bold tracking-tighter text-slate-900 dark:text-white">ScreenshotAPI</span>
     </Link>
   );
 }
@@ -40,7 +40,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+                className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300"
               >
                 {link.label}
               </Link>
@@ -53,7 +53,7 @@ export function Navbar() {
             <>
               <Link
                 href="/dashboard"
-                className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+                className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60"
               >
                 Dashboard
               </Link>
@@ -67,13 +67,13 @@ export function Navbar() {
             </>
           ) : (
             <>
-              <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
-                <button className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60">
+              <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+                <button className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-300">
                   Sign in
                 </button>
               </SignInButton>
-              <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
-                <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-500/25 transition-all hover:bg-indigo-700 hover:shadow-indigo-500/40">
+              <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+                <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700">
                   Get Started
                 </button>
               </SignUpButton>
@@ -84,7 +84,7 @@ export function Navbar() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="lg:hidden rounded-md p-2 text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
+          className="lg:hidden rounded-md p-2 text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/60"
           aria-label="Toggle menu"
           aria-expanded={open}
         >
@@ -108,7 +108,7 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+                className="rounded-md px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60"
               >
                 {link.label}
               </Link>
@@ -120,7 +120,7 @@ export function Navbar() {
                 <Link
                   href="/dashboard"
                   onClick={() => setOpen(false)}
-                  className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                  className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
                   Go to Dashboard
                 </Link>
@@ -128,15 +128,15 @@ export function Navbar() {
               </div>
             ) : (
               <>
-                <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
+                <SignInButton mode="modal" forceRedirectUrl="/dashboard">
                   <button
                     onClick={() => setOpen(false)}
-                    className="w-full rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                    className="w-full rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300"
                   >
                     Sign in
                   </button>
                 </SignInButton>
-                <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
+                <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
                   <button
                     onClick={() => setOpen(false)}
                     className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white"

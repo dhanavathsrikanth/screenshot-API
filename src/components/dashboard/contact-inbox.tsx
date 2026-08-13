@@ -12,7 +12,7 @@ export function ContactInbox({ messages }: { messages: ContactMessage[] }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Contact Inbox</h2>
+        <h2 className="eyebrow text-zinc-500">Contact Inbox</h2>
         {newCount > 0 && (
           <span className="rounded-full bg-indigo-600 text-white text-xs font-medium px-2.5 py-1">
             {newCount} unread
@@ -21,7 +21,7 @@ export function ContactInbox({ messages }: { messages: ContactMessage[] }) {
       </div>
 
       {messages.length === 0 ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 text-sm text-zinc-400">
+        <div className="card p-5 text-sm text-zinc-400">
           No messages yet. Submissions from the /contact form appear here.
         </div>
       ) : (
@@ -29,9 +29,7 @@ export function ContactInbox({ messages }: { messages: ContactMessage[] }) {
           {messages.map((m) => (
             <div
               key={m.id}
-              className={`rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 ${
-                m.status === "new" ? "border-l-4 border-l-indigo-500" : ""
-              }`}
+              className={`card p-5 ${m.status === "new" ? "border-l-4 border-l-indigo-500" : ""}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">

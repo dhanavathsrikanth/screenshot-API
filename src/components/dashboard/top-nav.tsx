@@ -9,13 +9,13 @@ export function DashboardTopNav({ plan }: { plan?: string }) {
   const isFree = !plan || plan === "free";
 
   return (
-    <nav className="sticky top-0 z-40 h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl">
+    <nav className="sticky top-0 z-40 h-14 border-b border-[var(--border)] bg-white/80 backdrop-blur-xl dark:bg-zinc-950/80">
       <div className="flex h-full items-center justify-between px-4 lg:px-6">
         <div className="flex items-center gap-3">
           <Link href="/" className="text-lg font-bold gradient-text">
             ScreenshotAPI
           </Link>
-          <span className="hidden sm:inline text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
+          <span className="hidden sm:inline eyebrow text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
             Dashboard
           </span>
         </div>
@@ -24,7 +24,7 @@ export function DashboardTopNav({ plan }: { plan?: string }) {
           {isFree && (
             <button
               onClick={openUpgradeDialog}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors"
+              className="btn-primary hidden sm:inline-flex h-8 px-3 text-xs"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />

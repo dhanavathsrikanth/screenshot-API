@@ -14,6 +14,11 @@ import {
 } from "@/lib/plans";
 import { ensureCredits } from "@/lib/credits";
 import { resolveAuth, type AuthContext } from "@/lib/api-auth";
+import {
+  featureUnavailable, getRequestId, insufficientCredits, internalError,
+  missingTarget, normalizeUrl, rateLimited, rateLimitHeaders,
+  unauthorized, zodErrorResponse,
+} from "@/lib/api";
 
 export const maxDuration = 60;
 
@@ -111,18 +116,9 @@ async function uploadAndSave(
   return publicUrl;
 }
 
-function unauthorized() {
-  return NextResponse.json(
-    {
-      error:
-        "Authentication required. Sign in at /dashboard or include a valid API key via the Authorization: Bearer header.",
-    },
-    { status: 401 }
-  );
-}
-
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
+  const requestId = getRequestId(request);
   try {
     const { searchParams } = new URL(request.url);
     const rawParams: Record<string, string> = {};
@@ -130,25 +126,21 @@ export async function GET(request: NextRequest) {
       rawParams[key] = value;
     });
 
+    if (rawParams.url) rawParams.url = normalizeUrl(rawParams.url);
+
     const parsed = ScreenshotOptionsSchema.safeParse(rawParams);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid parameters", details: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return zodErrorResponse(parsed.error, requestId);
     }
 
     const options = parsed.data;
 
     if (!options.url && !options.html && !options.markdown) {
-      return NextResponse.json(
-        { error: "Must provide url, html, or markdown parameter" },
-        { status: 400 }
-      );
+      return missingTarget(requestId);
     }
 
     const authCtx: AuthContext | null = await resolveAuth(request);
-    if (!authCtx) return unauthorized();
+    if (!authCtx) return unauthorized(requestId);
     const { userId, apiKeyId } = authCtx;
     const source = authCtx.source;
 
@@ -157,17 +149,11 @@ export async function GET(request: NextRequest) {
 
     const rateLimitInfo = await checkRateLimit(userId, plan);
     if (!rateLimitInfo.allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Try again later." },
-        { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
-      );
+      return rateLimited(rateLimitInfo.retryAfterMs, rateLimitInfo, requestId);
     }
 
     if (!isFormatAllowed(options.format, plan)) {
-      return NextResponse.json(
-        { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/plan` },
-        { status: 403 }
-      );
+      return featureUnavailable(`Format "${options.format}" requires a paid plan. Upgrade at /dashboard/plan`, requestId);
     }
 
     // Feature gating: force block settings per plan
@@ -185,10 +171,7 @@ export async function GET(request: NextRequest) {
         meterMetadata: { endpoint: "/api/take", method: "GET", cache: "hit" },
       });
       if (!ensure.allowed) {
-        return NextResponse.json(
-          { error: "No credits remaining. Upgrade or buy credits." },
-          { status: 402 }
-        );
+        return insufficientCredits(requestId);
       }
 
       // Fire-and-forget: upload + save to DB in background
@@ -237,11 +220,7 @@ export async function GET(request: NextRequest) {
           "Content-Length": cached.buffer.length.toString(),
           "X-Cache": "HIT",
           "X-Credits-Used": String(ensure.units),
-          ...(rateLimitInfo ? {
-            "X-RateLimit-Limit": String(rateLimitInfo.limit),
-            "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
-            "X-RateLimit-Reset": String(rateLimitInfo.reset),
-          } : {}),
+          ...rateLimitHeaders(rateLimitInfo),
         },
       });
     }
@@ -254,10 +233,7 @@ export async function GET(request: NextRequest) {
       meterMetadata: { endpoint: "/api/take", method: "GET" },
     });
     if (!ensure.allowed) {
-      return NextResponse.json(
-        { error: "No credits remaining. Upgrade or buy credits." },
-        { status: 402 }
-      );
+      return insufficientCredits(requestId);
     }
 
     const result = await render(options);
@@ -327,42 +303,35 @@ export async function GET(request: NextRequest) {
         "Content-Disposition": `inline; filename="${getFilename(options.url ?? "screenshot", ext)}"`,
         "X-Cache": "MISS",
         "X-Credits-Used": String(ensure.units),
-        ...(rateLimitInfo ? {
-          "X-RateLimit-Limit": String(rateLimitInfo.limit),
-          "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
-          "X-RateLimit-Reset": String(rateLimitInfo.reset),
-        } : {}),
+        ...rateLimitHeaders(rateLimitInfo),
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalError(error, requestId);
   }
 }
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  const requestId = getRequestId(request);
   try {
     const body = await request.json();
+    if (body && typeof body === "object" && typeof (body as Record<string, unknown>).url === "string") {
+      (body as Record<string, unknown>).url = normalizeUrl((body as Record<string, unknown>).url as string);
+    }
     const parsed = ScreenshotOptionsSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid parameters", details: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return zodErrorResponse(parsed.error, requestId);
     }
 
     const options = parsed.data;
 
     if (!options.url && !options.html && !options.markdown) {
-      return NextResponse.json(
-        { error: "Must provide url, html, or markdown parameter" },
-        { status: 400 }
-      );
+      return missingTarget(requestId);
     }
 
     const authCtx: AuthContext | null = await resolveAuth(request);
-    if (!authCtx) return unauthorized();
+    if (!authCtx) return unauthorized(requestId);
     const { userId, apiKeyId } = authCtx;
     const source = authCtx.source;
 
@@ -371,17 +340,11 @@ export async function POST(request: NextRequest) {
 
     const rateLimitInfo = await checkRateLimit(userId, plan);
     if (!rateLimitInfo.allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Try again later." },
-        { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimitInfo.retryAfterMs / 1000)) } }
-      );
+      return rateLimited(rateLimitInfo.retryAfterMs, rateLimitInfo, requestId);
     }
 
     if (!isFormatAllowed(options.format, plan)) {
-      return NextResponse.json(
-        { error: `Format "${options.format}" requires a paid plan. Upgrade at /dashboard/plan` },
-        { status: 403 }
-      );
+      return featureUnavailable(`Format "${options.format}" requires a paid plan. Upgrade at /dashboard/plan`, requestId);
     }
 
     if (!isAdBlockingAllowed(plan)) options.block_ads = false;
@@ -401,10 +364,7 @@ export async function POST(request: NextRequest) {
         meterMetadata: { endpoint: "/api/take", method: "POST", cache: "hit" },
       });
       if (!ensure.allowed) {
-        return NextResponse.json(
-          { error: "No credits remaining. Upgrade or buy credits." },
-          { status: 402 }
-        );
+        return insufficientCredits(requestId);
       }
 
       saveScreenshot({
@@ -470,11 +430,7 @@ export async function POST(request: NextRequest) {
         headers: {
           "X-Cache": "HIT",
           "X-Credits-Used": String(ensure.units),
-          ...(rateLimitInfo ? {
-            "X-RateLimit-Limit": String(rateLimitInfo.limit),
-            "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
-            "X-RateLimit-Reset": String(rateLimitInfo.reset),
-          } : {}),
+          ...rateLimitHeaders(rateLimitInfo),
         },
       });
     }
@@ -487,10 +443,7 @@ export async function POST(request: NextRequest) {
       meterMetadata: { endpoint: "/api/take", method: "POST" },
     });
     if (!ensure.allowed) {
-      return NextResponse.json(
-        { error: "No credits remaining. Upgrade or buy credits." },
-        { status: 402 }
-      );
+      return insufficientCredits(requestId);
     }
 
     const result = await render(options);
@@ -554,15 +507,10 @@ export async function POST(request: NextRequest) {
       headers: {
         "X-Cache": "MISS",
         "X-Credits-Used": String(ensure.units),
-        ...(rateLimitInfo ? {
-          "X-RateLimit-Limit": String(rateLimitInfo.limit),
-          "X-RateLimit-Remaining": String(rateLimitInfo.remaining),
-          "X-RateLimit-Reset": String(rateLimitInfo.reset),
-        } : {}),
+        ...rateLimitHeaders(rateLimitInfo),
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalError(error, requestId);
   }
 }

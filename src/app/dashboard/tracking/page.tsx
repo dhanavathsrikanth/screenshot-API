@@ -15,6 +15,7 @@ import {
   StatusPie,
   CacheTrendChart,
 } from "@/components/dashboard/charts";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -24,6 +25,19 @@ function timeAgo(dateStr: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="eyebrow text-zinc-400 mb-4">{children}</h2>;
+}
+
+function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="card card-lift p-4">
+      <p className="eyebrow text-zinc-400">{label}</p>
+      <p className="text-2xl font-bold mt-2 tracking-tight">{value}</p>
+    </div>
+  );
 }
 
 export default async function TrackingPage() {
@@ -77,39 +91,27 @@ export default async function TrackingPage() {
   const activeKeys = keyUsageStats.filter((k) => k.isActive);
 
   return (
-    <div className="space-y-8 container">
-      <div>
-        <h1 className="text-2xl font-bold">API Tracking</h1>
-        <p className="text-muted-foreground">
-          Request logs, endpoint breakdown, and key health
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="API Tracking"
+        title="Request Logs & Key Health"
+        description="Request logs, endpoint breakdown, and API key health"
+      />
 
       {/* API Key Summary Cards */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">Active Keys</p>
-          <p className="text-2xl font-bold mt-1">{activeKeys.length}</p>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">Total API Calls (30d)</p>
-          <p className="text-2xl font-bold mt-1">{totalKeyCalls.toLocaleString()}</p>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">Error Rate</p>
-          <p className="text-2xl font-bold mt-1">
-            {totalKeyCalls > 0 ? `${Math.round((totalKeyErrors / totalKeyCalls) * 100)}%` : "0%"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">Requests Logged</p>
-          <p className="text-2xl font-bold mt-1">{totalLogs.toLocaleString()}</p>
-        </div>
+        <StatCard label="Active Keys" value={activeKeys.length} />
+        <StatCard label="Total API Calls (30d)" value={totalKeyCalls.toLocaleString()} />
+        <StatCard
+          label="Error Rate"
+          value={totalKeyCalls > 0 ? `${Math.round((totalKeyErrors / totalKeyCalls) * 100)}%` : "0%"}
+        />
+        <StatCard label="Requests Logged" value={totalLogs.toLocaleString()} />
       </section>
 
       {/* Request Log */}
       <section>
-        <h2 className="text-lg font-semibold mb-4">
+        <h2 className="text-sm font-semibold mb-4">
           Request Log
           {totalLogs > 0 && (
             <span className="ml-2 text-sm font-normal text-zinc-400">
@@ -117,16 +119,16 @@ export default async function TrackingPage() {
             </span>
           )}
         </h2>
-        <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--background)]">
+        <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-zinc-900 text-zinc-400 text-left uppercase text-xs">
-                <th className="px-4 py-3">Time</th>
-                <th className="px-4 py-3">Endpoint</th>
-                <th className="px-4 py-3">Method</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Latency</th>
-                <th className="px-4 py-3">Cached</th>
+              <tr className="border-b border-[var(--border)] text-zinc-500 text-left uppercase text-xs">
+                <th className="px-4 py-3 font-medium">Time</th>
+                <th className="px-4 py-3 font-medium">Endpoint</th>
+                <th className="px-4 py-3 font-medium">Method</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium text-right">Latency</th>
+                <th className="px-4 py-3 font-medium">Cached</th>
               </tr>
             </thead>
             <tbody>
@@ -140,7 +142,7 @@ export default async function TrackingPage() {
                 displayedLogs.map((log, i) => (
                   <tr
                     key={i}
-                    className="border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors"
+                    className="border-b border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
                   >
                     <td className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">
                       {timeAgo(log.ts)}
@@ -150,10 +152,10 @@ export default async function TrackingPage() {
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                           log.method === "GET"
-                            ? "bg-blue-500/10 text-blue-400"
+                            ? "bg-blue-500/10 text-blue-600"
                             : log.method === "POST"
-                              ? "bg-green-500/10 text-green-400"
-                              : "bg-zinc-500/10 text-zinc-400"
+                              ? "bg-green-500/10 text-green-600"
+                              : "bg-zinc-500/10 text-zinc-500"
                         }`}
                       >
                         {log.method}
@@ -163,10 +165,10 @@ export default async function TrackingPage() {
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                           log.status >= 200 && log.status < 300
-                            ? "bg-green-500/10 text-green-400"
+                            ? "bg-green-500/10 text-green-600"
                             : log.status >= 400 && log.status < 500
-                              ? "bg-amber-500/10 text-amber-400"
-                              : "bg-red-500/10 text-red-400"
+                              ? "bg-amber-500/10 text-amber-600"
+                              : "bg-red-500/10 text-red-600"
                         }`}
                       >
                         {log.status}
@@ -177,11 +179,11 @@ export default async function TrackingPage() {
                     </td>
                     <td className="px-4 py-3">
                       {log.cached ? (
-                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-500/10 text-green-400">
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-500/10 text-green-600">
                           Hit
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-500/10 text-zinc-400">
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-500/10 text-zinc-500">
                           Miss
                         </span>
                       )}
@@ -196,7 +198,7 @@ export default async function TrackingPage() {
 
       {/* Breakdowns */}
       <section>
-        <h2 className="text-lg font-semibold mb-4">Breakdowns</h2>
+        <SectionTitle>Breakdowns</SectionTitle>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <EndpointPie data={endpointBreakdown} />
           <FormatPie data={formatDistribution} />
@@ -207,15 +209,15 @@ export default async function TrackingPage() {
 
       {/* Cache Performance */}
       <section>
-        <h2 className="text-lg font-semibold mb-4">Cache Performance</h2>
+        <SectionTitle>Cache Performance</SectionTitle>
         <CacheTrendChart data={cacheTrend} />
       </section>
 
       {/* API Key Stats */}
       <section>
-        <h2 className="text-lg font-semibold mb-4">API Key Stats</h2>
+        <SectionTitle>API Key Stats</SectionTitle>
         {keyUsageStats.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center">
+          <div className="card border-dashed p-8 text-center">
             <p className="text-sm text-zinc-500">No API keys yet. Create one in the API Keys section.</p>
           </div>
         ) : (
@@ -223,16 +225,16 @@ export default async function TrackingPage() {
             {keyUsageStats.map((key) => (
               <div
                 key={key.id}
-                className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 flex items-center gap-4"
+                className="card card-lift p-4 flex items-center gap-4"
               >
                 <div className="flex-shrink-0">
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                       key.health === "healthy"
-                        ? "bg-green-500/10 text-green-400"
+                        ? "bg-green-500/10 text-green-600"
                         : key.health === "warning"
-                          ? "bg-amber-500/10 text-amber-400"
-                          : "bg-zinc-500/10 text-zinc-400"
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-zinc-500/10 text-zinc-500"
                     }`}
                   >
                     {key.health}

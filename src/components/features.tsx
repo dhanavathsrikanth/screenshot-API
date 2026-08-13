@@ -111,16 +111,16 @@ const features = [
 
 export function Features() {
   return (
-    <section className="border-b border-[var(--border)] bg-zinc-50/60 py-20 dark:bg-zinc-950/40 lg:py-24">
+    <section className="border-b border-[var(--border)] py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
             Features
           </p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
             Render precisely as you need
           </h2>
-          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
             Every option you need for website screenshot automation.
           </p>
         </div>
@@ -129,13 +129,13 @@ export function Features() {
           {features.map((feature) => (
             <article
               key={feature.title}
-              className="group rounded-2xl border border-[var(--border)] bg-[var(--background)] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10"
+              className="hover-lift group rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white dark:text-indigo-400">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
                 {feature.icon}
               </div>
-              <h3 className="mt-4 font-semibold">{feature.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+              <h3 className="mt-4 font-semibold text-slate-900 dark:text-white">{feature.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                 {feature.description}
               </p>
             </article>

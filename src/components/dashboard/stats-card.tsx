@@ -9,16 +9,16 @@ interface StatsCardProps {
 export function StatsCard({ label, value, sublabel, icon, accent }: StatsCardProps) {
   return (
     <div
-      className={`rounded-xl border p-6 ${
+      className={`card card-lift p-6 ${
         accent
-          ? "border-indigo-500/50 bg-indigo-50/50 dark:bg-indigo-950/30"
-          : "border-[var(--border)]"
+          ? "border-indigo-500/40 bg-indigo-50/50 dark:bg-indigo-950/30"
+          : ""
       }`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-zinc-500 truncate">{label}</p>
-          <p className="text-3xl font-bold mt-1 tracking-tight">{value}</p>
+          <p className="eyebrow text-zinc-400">{label}</p>
+          <p className="text-3xl font-bold mt-2 tracking-tight">{value}</p>
           {sublabel && (
             <p className="text-xs text-zinc-500 mt-1">{sublabel}</p>
           )}
@@ -57,7 +57,7 @@ export function UsageBar({ used, limit }: UsageBarProps) {
           className={`h-full rounded-full transition-all duration-500 ${
             isHigh
               ? "bg-amber-500"
-              : "bg-indigo-600"
+              : "bg-[var(--primary)]"
           }`}
           style={{ width: `${pct}%` }}
         />

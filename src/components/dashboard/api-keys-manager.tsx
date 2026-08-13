@@ -122,7 +122,7 @@ export function ApiKeysManager({ initialKeys }: ApiKeysManagerProps) {
         {!showCreateForm && (
           <button
             onClick={() => setShowCreateForm(true)}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+            className="btn-primary"
           >
             Create Key
           </button>
@@ -142,14 +142,14 @@ export function ApiKeysManager({ initialKeys }: ApiKeysManagerProps) {
           <button
             type="submit"
             disabled={isPending || !newKeyName.trim()}
-            className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            className="btn-primary disabled:opacity-50"
           >
             {isPending ? "Creating..." : "Create"}
           </button>
           <button
             type="button"
             onClick={() => { setShowCreateForm(false); setNewKeyName(""); }}
-            className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+            className="btn-secondary"
           >
             Cancel
           </button>
