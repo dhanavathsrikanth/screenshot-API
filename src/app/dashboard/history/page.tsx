@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getScreenshotHistory } from "@/app/actions/usage";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { HistoryThumb } from "@/components/dashboard/history-thumb";
 
 type ScreenshotMetadata = {
   full_page?: boolean;
@@ -197,20 +198,7 @@ export default async function HistoryPage() {
                       {/* Thumbnail */}
                       <td className="px-4 py-3">
                         <div className="w-16 h-12 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-[var(--border)]">
-                          {s.storage_url && s.format !== "pdf" ? (
-                            <a href={s.storage_url} target="_blank" rel="noopener noreferrer">
-                              <img
-                                src={s.storage_url}
-                                alt=""
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            </a>
-                          ) : (
-                            <span className="text-[9px] font-bold text-zinc-400 uppercase">
-                              {s.format}
-                            </span>
-                          )}
+                          <HistoryThumb src={s.storage_url} format={s.format} />
                         </div>
                       </td>
 
