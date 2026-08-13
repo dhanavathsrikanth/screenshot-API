@@ -74,13 +74,39 @@ async function getBlocker(): Promise<any> {
 
   blockerPromise = (async () => {
     const { PuppeteerBlocker } = await import("@cliqz/adblocker-puppeteer");
-    const blocker = await PuppeteerBlocker.fromLists(
-      globalThis.fetch,
-      [
-        "https://secure.fanboy.co.nz/fanboy-cookiemonster.txt",
-        "https://easylist.to/easylist/easylist.txt",
-      ]
-    );
+    const { existsSync, mkdirSync, readFileSync, writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+
+    // Disk-cache the compiled engine so the large list files are not
+    // re-downloaded on every cold start (.cache persists on Render).
+    const cacheFile = join(process.cwd(), ".cache", "blocker.engine");
+
+    let blocker: any = null;
+    try {
+      if (existsSync(cacheFile)) {
+        blocker = await PuppeteerBlocker.deserialize(readFileSync(cacheFile));
+      }
+    } catch (err) {
+      console.warn("[blocker] failed to load cached engine:", err instanceof Error ? err.message : err);
+      blocker = null;
+    }
+
+    if (!blocker) {
+      blocker = await PuppeteerBlocker.fromLists(
+        globalThis.fetch,
+        [
+          "https://secure.fanboy.co.nz/fanboy-cookiemonster.txt",
+          "https://easylist.to/easylist/easylist.txt",
+        ]
+      );
+      try {
+        mkdirSync(join(process.cwd(), ".cache"), { recursive: true });
+        writeFileSync(cacheFile, blocker.serialize());
+      } catch (err) {
+        console.warn("[blocker] failed to cache engine:", err instanceof Error ? err.message : err);
+      }
+    }
+
     cachedBlocker = blocker;
     return blocker;
   })();
@@ -376,11 +402,11 @@ export async function render(options: ScreenshotOptions): Promise<RenderResult> 
         }
         window.scrollTo(0, 0);
       }, options.full_page_scroll_by);
-      // Wait for lazy-loaded images to finish loading after scroll (with timeout)
+      // Wait for lazy-loaded images to finish loading after scroll (bounded: default timeout is 30s)
       await page.waitForFunction(() => {
         const images = Array.from(document.querySelectorAll('img'));
         return images.every((img) => img.complete);
-      }).catch(() => {});
+      }, { timeout: 3000 }).catch(() => {});
     } else if (options.full_page) {
       const scrollDelay = Math.min(options.full_page_scroll_delay || 50, 50);
       await page.evaluate(async (delay: number) => {
@@ -399,11 +425,11 @@ export async function render(options: ScreenshotOptions): Promise<RenderResult> 
           }, delay);
         });
       }, scrollDelay);
-      // Wait for lazy-loaded images to finish loading after scroll (with timeout)
+      // Wait for lazy-loaded images to finish loading after scroll (bounded: default timeout is 30s)
       await page.waitForFunction(() => {
         const images = Array.from(document.querySelectorAll('img'));
         return images.every((img) => img.complete);
-      }).catch(() => {});
+      }, { timeout: 3000 }).catch(() => {});
     }
 
     if (options.delay > 0) {
