@@ -1,3 +1,4 @@
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -12,7 +13,11 @@ function generateRequestId(): string {
   return crypto.randomUUID();
 }
 
-export function proxy(request: NextRequest) {
+// clerkMiddleware attaches the Clerk auth context so `auth()` works in Server
+// Components (dashboard, etc.). It never protects routes on its own, so the
+// Dodo/Clerk webhooks and the public API are unaffected. The callback adds
+// CORS headers and a request id for the screenshot API.
+export default clerkMiddleware((_auth, request: NextRequest) => {
   const requestId = request.headers.get("x-request-id") ?? generateRequestId();
 
   if (request.method === "OPTIONS") {
@@ -32,8 +37,11 @@ export function proxy(request: NextRequest) {
   }
 
   return response;
-}
+});
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
 };
