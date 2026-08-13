@@ -5,17 +5,17 @@ import { PageHeader } from "@/components/dashboard/page-header";
 
 function StatCard({ label, value, tone = "" }: { label: string; value: React.ReactNode; tone?: string }) {
   return (
-    <div className="card card-lift p-5 text-center">
-      <div className={`text-3xl font-bold tracking-tight ${tone}`}>{value}</div>
-      <div className="text-xs text-zinc-400 mt-2">{label}</div>
+    <div className="card card-lift p-6">
+      <div className={`text-3xl font-semibold tracking-tight ${tone}`}>{value}</div>
+      <div className="eyebrow text-zinc-400 mt-2">{label}</div>
     </div>
   );
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card card-lift p-5">
-      <h3 className="text-sm font-semibold mb-4">{title}</h3>
+    <div className="card card-lift p-6">
+      <h3 className="eyebrow text-zinc-400 mb-4">{title}</h3>
       {children}
     </div>
   );

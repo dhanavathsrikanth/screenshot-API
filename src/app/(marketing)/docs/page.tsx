@@ -400,7 +400,6 @@ export default function DocsPage() {
                     ["Free", "100", "10", "No"],
                     ["Starter", "2,500", "40", "Yes"],
                     ["Pro", "15,000", "120", "Yes"],
-                    ["Business", "50,000", "500", "Yes"],
                   ].map(([plan, screens, rate, pdf]) => (
                     <tr key={plan}>
                       <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{plan}</td>

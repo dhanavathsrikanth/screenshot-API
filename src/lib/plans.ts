@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 // ─── Plan Definitions ─────────────────────────────────────────────────
 
-export type PlanId = "free" | "starter" | "pro" | "business";
+export type PlanId = "free" | "starter" | "pro";
 
 export interface PlanLimits {
   monthlyScreenshots: number;
@@ -42,16 +42,6 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     monthlyScreenshots: 15000,
     apiKeys: 25,
     rateLimitPerMinute: 120,
-    formats: ["png", "jpeg", "webp", "pdf"],
-    adBlocking: true,
-    cookieBlocking: true,
-    cloudStorage: true,
-    pdfExport: true,
-  },
-  business: {
-    monthlyScreenshots: 50000,
-    apiKeys: 100,
-    rateLimitPerMinute: 500,
     formats: ["png", "jpeg", "webp", "pdf"],
     adBlocking: true,
     cookieBlocking: true,

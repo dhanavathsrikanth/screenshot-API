@@ -112,11 +112,11 @@ export default function PrivacyPage() {
           infrastructure fetches the target website and returns the rendered
           output in the requested format. The content of the websites you
           capture is delivered to you; we do not review screenshots except to
-          detect abuse or enforce our Acceptable Use Policy. If you enable
-          cloud storage on a Pro or Business plan, rendered files are written
-          directly to the AWS S3 bucket you configure. Request metadata is
-          retained for billing, quota, and abuse-prevention purposes. We do
-          not sell your data.
+          detect abuse or enforce our Acceptable Use Policy. Rendered files are
+          written directly to our R2 bucket and retained for a limited time
+          depending on your plan (24 hours on Free, 30 days on Starter, 90 days
+          on Pro). Request metadata is retained for billing, quota, and
+          abuse-prevention purposes. We do not sell your data.
         </LegalParagraph>
       </LegalSection>
 

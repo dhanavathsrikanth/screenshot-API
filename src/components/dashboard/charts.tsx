@@ -10,8 +10,8 @@ const COLORS = ["#6366f1", "#22d3ee", "#f59e0b", "#ef4444", "#10b981", "#a855f7"
 
 function ChartCard({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`card card-lift p-5 ${className}`}>
-      <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-4">{title}</h3>
+    <div className={`card card-lift p-6 ${className}`}>
+      <h3 className="eyebrow text-zinc-400 mb-4">{title}</h3>
       {children}
     </div>
   );
@@ -485,8 +485,8 @@ export function UpgradePrompt({ data }: { data: { plan: string; monthlyUsed: num
 
   if (usagePct < 60 && !data.recommendedPlan) return null;
 
-  const planPrices: Record<string, string> = { starter: "$9/mo", pro: "$49/mo", business: "$149/mo" };
-  const planLimits: Record<string, string> = { starter: "2,500", pro: "15,000", business: "50,000" };
+  const planPrices: Record<string, string> = { starter: "$9/mo", pro: "$49/mo" };
+  const planLimits: Record<string, string> = { starter: "2,500", pro: "15,000" };
 
   return (
     <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-indigo-900/20 p-6">

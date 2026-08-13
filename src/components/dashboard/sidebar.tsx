@@ -138,12 +138,11 @@ function SidebarContent({
 
   const adminActive = isAdmin && isActive(adminLink.href);
 
-  const planLabels: Record<string, string> = { free: "Free", starter: "Starter", pro: "Pro", business: "Business" };
+  const planLabels: Record<string, string> = { free: "Free", starter: "Starter", pro: "Pro" };
   const planColors: Record<string, string> = {
     free: "bg-zinc-100 text-zinc-600",
     starter: "bg-blue-100 text-blue-700",
     pro: "bg-indigo-100 text-indigo-700",
-    business: "bg-purple-100 text-purple-700",
   };
 
   const linkBase =
@@ -159,9 +158,9 @@ function SidebarContent({
         {navigation.map((section, sectionIndex) => (
           <div key={section.label}>
             {sectionIndex > 0 && (
-              <div className="my-3 border-t border-[var(--border)]" />
+              <div className="my-4 border-t border-[var(--border)]" />
             )}
-            <nav className="space-y-0.5">
+            <nav className="space-y-1">
               <p className="eyebrow px-3 mb-2 text-zinc-400">{section.label}</p>
               {section.links.map((link) => (
                 <Link
@@ -203,7 +202,7 @@ function SidebarContent({
       </div>
 
       {/* Bottom section: Plan badge + Upgrade button */}
-      <div className="border-t border-[var(--border)] p-3 space-y-2">
+      <div className="border-t border-[var(--border)] bg-[var(--muted)]/50 p-3 space-y-2">
         <div className="flex items-center justify-between px-2">
           <span className="eyebrow text-zinc-400">Plan</span>
           <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${planColors[plan ?? "free"]}`}>
@@ -221,7 +220,7 @@ function SidebarContent({
             Upgrade Plan
           </button>
         )}
-        {plan && plan !== "free" && plan !== "business" && (
+        {plan && plan !== "free" && (
           <Link
             href="/dashboard/plan"
             onClick={onLinkClick}
@@ -238,6 +237,17 @@ function SidebarContent({
 export function DashboardSidebar({ plan, isAdmin }: { plan?: string; isAdmin?: boolean }) {
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-[var(--border)] bg-[var(--background)] lg:fixed lg:inset-y-0 lg:top-14 z-30 overflow-hidden">
+      <div className="flex h-14 items-center border-b border-[var(--border)] px-5 flex-shrink-0">
+        <Link href="/" className="flex items-center gap-2 text-base font-bold tracking-tight">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-600 text-white">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+            </svg>
+          </span>
+          ScreenshotAPI
+        </Link>
+      </div>
       <SidebarContent plan={plan} isAdmin={isAdmin} />
     </aside>
   );

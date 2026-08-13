@@ -5,7 +5,7 @@ import { cacheGet, cacheSet, cacheInvalidate } from "@/lib/redis";
 
 type CreditState = {
   user_id: string;
-  plan: "free" | "starter" | "pro" | "business" | string;
+  plan: "free" | "starter" | "pro" | string;
   credit_balance: number;
   top_up_balance: number;
   overage_enabled: boolean;

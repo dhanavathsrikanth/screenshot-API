@@ -33,9 +33,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="card card-lift p-4">
+    <div className="card card-lift p-6">
       <p className="eyebrow text-zinc-400">{label}</p>
-      <p className="text-2xl font-bold mt-2 tracking-tight">{value}</p>
+      <p className="text-3xl font-semibold mt-4 tracking-tight">{value}</p>
     </div>
   );
 }

@@ -4,15 +4,13 @@ import { getDodoConfig } from "@/lib/env";
 import { cacheInvalidate } from "@/lib/redis";
 import type { SubscriptionListParams, SubscriptionListResponse } from "dodopayments/resources/subscriptions";
 
-type PlanId = "starter" | "pro" | "business";
+type PlanId = "starter" | "pro";
 type PlanInfo = { plan: PlanId; monthlyLimit: number };
 
 function planInfoFor(plan: PlanId): PlanInfo {
-  return plan === "business"
-    ? { plan: "business", monthlyLimit: 50000 }
-    : plan === "pro"
-      ? { plan: "pro", monthlyLimit: 15000 }
-      : { plan: "starter", monthlyLimit: 2500 };
+  return plan === "pro"
+    ? { plan: "pro", monthlyLimit: 15000 }
+    : { plan: "starter", monthlyLimit: 2500 };
 }
 
 function toCredits(value: unknown): number | null {
@@ -37,7 +35,6 @@ async function resolvePlanFromProduct(productId: string | undefined, client: Dod
   const mappings: [string, PlanId][] = [
     [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID ?? "", "starter"],
     [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID ?? "", "pro"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_BUSINESS_ID ?? "", "business"],
   ];
 
   for (const [pid, plan] of mappings) {
@@ -47,7 +44,7 @@ async function resolvePlanFromProduct(productId: string | undefined, client: Dod
   try {
     const product = (await client.products.retrieve(productId)) as { metadata?: Record<string, unknown> };
     const metaPlan = product?.metadata?.plan;
-    if (metaPlan === "starter" || metaPlan === "pro" || metaPlan === "business") {
+    if (metaPlan === "starter" || metaPlan === "pro") {
       return planInfoFor(metaPlan);
     }
   } catch (err) {
@@ -55,7 +52,6 @@ async function resolvePlanFromProduct(productId: string | undefined, client: Dod
   }
 
   const lower = productId.toLowerCase();
-  if (lower.includes("business")) return planInfoFor("business");
   if (lower.includes("pro")) return planInfoFor("pro");
   if (lower.includes("starter")) return planInfoFor("starter");
 
@@ -179,7 +175,7 @@ export async function reconcilePlanAfterCheckout(userId: string): Promise<Reconc
     !planInfo &&
     pendingProductId &&
     productId === pendingProductId &&
-    (pendingPlan === "starter" || pendingPlan === "pro" || pendingPlan === "business")
+    (pendingPlan === "starter" || pendingPlan === "pro")
   ) {
     planInfo = planInfoFor(pendingPlan);
   }

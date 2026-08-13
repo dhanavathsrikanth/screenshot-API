@@ -9,30 +9,30 @@ interface StatsCardProps {
 export function StatsCard({ label, value, sublabel, icon, accent }: StatsCardProps) {
   return (
     <div
-      className={`card card-lift p-6 ${
+      className={`card card-lift p-6 flex flex-col justify-between ${
         accent
           ? "border-indigo-500/40 bg-indigo-50/50 dark:bg-indigo-950/30"
           : ""
       }`}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="eyebrow text-zinc-400">{label}</p>
-          <p className="text-3xl font-bold mt-2 tracking-tight">{value}</p>
-          {sublabel && (
-            <p className="text-xs text-zinc-500 mt-1">{sublabel}</p>
-          )}
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <p className="eyebrow text-zinc-400 leading-relaxed">{label}</p>
+          <div
+            className={`flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-xl ${
+              accent
+                ? "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
+            }`}
+          >
+            {icon}
+          </div>
         </div>
-        <div
-          className={`flex-shrink-0 p-2 rounded-lg ${
-            accent
-              ? "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
-              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
-          }`}
-        >
-          {icon}
-        </div>
+        <p className="text-3xl font-semibold mt-4 tracking-tight">{value}</p>
       </div>
+      {sublabel && (
+        <p className="text-xs text-zinc-500 mt-4">{sublabel}</p>
+      )}
     </div>
   );
 }

@@ -221,6 +221,7 @@ async function main() {
   }
 
   // 3) Create Subscription Products (recreated as UBB with credit-billed meters)
+  //    No free trials — customers are charged at checkout. Free plan never uses Dodo.
   const starter = await createSubscriptionProduct({
     name: "ScreenTool Starter (Monthly)",
     priceCents: 900, // $9.00
@@ -235,14 +236,6 @@ async function main() {
     monthlyCredits: 15000,
     overagePricePerUnitUSD: "0.003",
     planMeta: "pro",
-  });
-
-  const business = await createSubscriptionProduct({
-    name: "ScreenTool Business (Monthly)",
-    priceCents: 14900, // $149.00
-    monthlyCredits: 50000,
-    overagePricePerUnitUSD: "0.002",
-    planMeta: "business",
   });
 
   // 4) Create Top-Up Products (365-day validity)
@@ -274,7 +267,6 @@ async function main() {
   console.log(`DODO_METER_PDF_ID=${pdfMeterId}`);
   console.log(`DODO_PRODUCT_STARTER_ID=${starter.product_id}`);
   console.log(`DODO_PRODUCT_PRO_ID=${pro.product_id}`);
-  console.log(`DODO_PRODUCT_BUSINESS_ID=${business.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_500_ID=${topup500.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_2500_ID=${topup2500.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_10000_ID=${topup10000.product_id}`);

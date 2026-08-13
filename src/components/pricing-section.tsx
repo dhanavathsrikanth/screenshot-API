@@ -37,7 +37,7 @@ const plans = [
     name: "Starter",
     monthlyPrice: 9,
     description: "For developers building integrations",
-    cta: "Start Free Trial",
+    cta: "Get Started",
     href: "/sign-up",
     popular: false,
     overage: "$0.005 / extra",
@@ -57,7 +57,7 @@ const plans = [
       apiKeys: "5",
       rateLimit: "40 req/min",
       support: "Email",
-      sla: null,
+      sla: "99.9% uptime",
     },
   },
   {
@@ -65,7 +65,7 @@ const plans = [
     name: "Pro",
     monthlyPrice: 49,
     description: "For teams shipping production features",
-    cta: "Start Free Trial",
+    cta: "Get Started",
     href: "/sign-up",
     popular: true,
     overage: "$0.003 / extra",
@@ -86,34 +86,6 @@ const plans = [
       rateLimit: "120 req/min",
       support: "Priority email",
       sla: "99.9% uptime",
-    },
-  },
-  {
-    id: "business",
-    name: "Business",
-    monthlyPrice: 149,
-    description: "For growing companies with high volume",
-    cta: "Start Free Trial",
-    href: "/sign-up",
-    popular: false,
-    overage: "$0.002 / extra",
-    features: {
-      screenshots: "50,000 / month",
-      formats: "PNG, JPEG, WebP, PDF",
-      rendering: "Dedicated pool",
-      caching: "CDN caching",
-      storage: "1 year",
-      adBlocking: true,
-      cookieBlocking: true,
-      fullPage: true,
-      customViewport: true,
-      waitForSelector: true,
-      pdfExport: true,
-      cloudStorage: true,
-      apiKeys: "100",
-      rateLimit: "500 req/min",
-      support: "Phone + Slack",
-      sla: "99.95% uptime",
     },
   },
 ];
@@ -189,7 +161,7 @@ export function PricingSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {plans.map((plan) => {
             const price = plan.monthlyPrice;
 
@@ -263,7 +235,7 @@ export function PricingSection() {
                 {featureGroups.map((group) => (
                   <Fragment key={group.name}>
                     <tr>
-                      <td colSpan={5} className="pt-6 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <td colSpan={4} className="pt-6 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                         {group.name}
                       </td>
                     </tr>
@@ -302,16 +274,12 @@ export function PricingSection() {
                 a: "Yes. Upgrades take effect immediately and are prorated. Downgrades take effect at the start of your next billing cycle.",
               },
               {
-                q: "Is there a free trial for paid plans?",
-                a: "Yes. All paid plans include a 7-day free trial with full access to your chosen plan's features. No credit card required.",
-              },
-              {
                 q: "Do you offer annual billing?",
                 a: "Not yet. All plans are billed monthly, and you can upgrade or downgrade at any time.",
               },
               {
                 q: "What payment methods do you accept?",
-                a: "We accept all major credit cards (Visa, Mastercard, Amex) and offer wire transfer for Business and Enterprise plans.",
+                a: "We accept all major credit cards (Visa, Mastercard, Amex).",
               },
             ].map((faq) => (
               <div key={faq.q} className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
@@ -324,7 +292,7 @@ export function PricingSection() {
 
         {/* Enterprise CTA */}
         <div className="mt-20 rounded-2xl bg-slate-900 p-8 md:p-12 text-center max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-white">Need more than 50,000 screenshots?</h2>
+          <h2 className="text-2xl font-bold text-white">Need more than 15,000 screenshots?</h2>
           <p className="mt-3 text-slate-400 max-w-xl mx-auto">
             Custom plans with dedicated infrastructure, custom SLAs, volume discounts, and a dedicated account manager.
           </p>

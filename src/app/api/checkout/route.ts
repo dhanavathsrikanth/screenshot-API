@@ -11,8 +11,8 @@ type CheckoutBody = {
   metadata?: Record<string, string>;
 };
 
-const PLAN_PRICES: Record<string, number> = { free: 0, starter: 9, pro: 49, business: 149 };
-const PLAN_LIMITS: Record<string, number> = { starter: 2500, pro: 15000, business: 50000 };
+const PLAN_PRICES: Record<string, number> = { free: 0, starter: 9, pro: 49 };
+const PLAN_LIMITS: Record<string, number> = { starter: 2500, pro: 15000 };
 
 function resolvePlanFromProduct(
   productId: string | undefined,
@@ -26,7 +26,6 @@ function resolvePlanFromProduct(
   const mappings: [string, string][] = [
     [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID ?? "", "starter"],
     [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID ?? "", "pro"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_BUSINESS_ID ?? "", "business"],
   ];
 
   for (const [pid, plan] of mappings) {
@@ -41,7 +40,7 @@ function resolvePlanFromProduct(
       .retrieve(productId)
       .then((product: { metadata?: { plan?: string } }) => {
         const metaPlan = product?.metadata?.plan;
-        if (metaPlan === "starter" || metaPlan === "pro" || metaPlan === "business") {
+        if (metaPlan === "starter" || metaPlan === "pro") {
           return match(metaPlan);
         }
         return null;

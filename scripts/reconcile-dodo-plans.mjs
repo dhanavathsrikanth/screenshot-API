@@ -75,20 +75,17 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ── Plan resolution (mirrors src/app/api/webhooks/dodo/route.ts) ─────────
 
-const PLAN_IDS = ["starter", "pro", "business"];
+const PLAN_IDS = ["starter", "pro"];
 
 function planInfoFor(plan) {
-  return plan === "business"
-    ? { plan: "business", credits: 50000, monthlyLimit: 50000 }
-    : plan === "pro"
-      ? { plan: "pro", credits: 15000, monthlyLimit: 15000 }
-      : { plan: "starter", credits: 2500, monthlyLimit: 2500 };
+  return plan === "pro"
+    ? { plan: "pro", credits: 15000, monthlyLimit: 15000 }
+    : { plan: "starter", credits: 2500, monthlyLimit: 2500 };
 }
 
 const ENV_PLAN_MAP = [
   [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID, "starter"],
   [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID, "pro"],
-  [process.env.NEXT_PUBLIC_DODO_PRODUCT_BUSINESS_ID, "business"],
 ];
 
 async function resolvePlanFromProduct(productId) {
@@ -107,7 +104,6 @@ async function resolvePlanFromProduct(productId) {
   }
 
   const lower = productId.toLowerCase();
-  if (lower.includes("business")) return planInfoFor("business");
   if (lower.includes("pro")) return planInfoFor("pro");
   if (lower.includes("starter")) return planInfoFor("starter");
 

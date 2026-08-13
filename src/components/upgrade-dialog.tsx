@@ -26,17 +26,6 @@ const paidPlans = [
     color: "indigo",
     features: ["15,000 screenshots/mo", "PNG, JPEG, WebP, PDF", "Cloud storage (R2)", "25 API keys", "120 req/min", "Priority support + 99.9% SLA"],
   },
-  {
-    id: "business",
-    name: "Business",
-    monthlyPrice: 149,
-    description: "For growing companies with high volume",
-    screenshots: "50,000",
-    overage: "$0.002 / extra",
-    productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_BUSINESS_ID || "",
-    color: "purple",
-    features: ["50,000 screenshots/mo", "PNG, JPEG, WebP, PDF", "Cloud storage (R2)", "100 API keys", "500 req/min", "Phone + Slack support + 99.95% SLA"],
-  },
 ];
 
 export function UpgradeDialog({

@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "dodo:create:products": "node ./scripts/create-dodo-products.mjs",
-    "dodo:reconcile": "node ./scripts/reconcile-dodo-plans.mjs"
+    "dodo:reconcile": "node ./scripts/reconcile-dodo-plans.mjs",
+    "keepalive:setup": "node ./scripts/setup-keepalive.mjs",
+    "keepalive:list": "node ./scripts/setup-keepalive.mjs --list",
+    "keepalive:remove": "node ./scripts/setup-keepalive.mjs --remove"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
