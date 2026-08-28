@@ -137,10 +137,11 @@ export async function POST(request: NextRequest) {
       // Slow marketing sites routinely exceed the 10s schema default; give the
       // free tool the engine's full navigation budget (clamped to 20s anyway).
       timeout: 20_000,
-      // Don't gate navigation on every subresource ("load") — heavy sites then
-      // blow the nav budget and 504. Navigate on DOM ready; the readiness
-      // engine still waits (bounded) for fonts, images, and layout stability.
-      wait_until: "domcontentloaded",
+      // Fast readiness: navigate on DOM ready and skip fonts/images/stability
+      // waits. Heavy pages (stripe.com, Cloudflare-guarded sites) from a
+      // datacenter IP otherwise eat the whole 45s total budget in readiness
+      // and 504 — for a free trial, a snappy snapshot beats a perfect one.
+      readiness: "fast",
       quality: 85,
       ...(input.format === "pdf" ? { pdf_format: input.pdf_format, pdf_print_background: true } : {}),
     });

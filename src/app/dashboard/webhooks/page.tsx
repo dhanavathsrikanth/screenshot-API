@@ -23,7 +23,7 @@ export default async function WebhooksPage() {
         eyebrow="Webhooks"
         title="Webhook Endpoints"
         description="Deliver signed HTTP callbacks when screenshots complete or fail."
-        actions={<span className="text-xs text-zinc-400">{endpoints.length} endpoints</span>}
+        actions={<span className="text-xs text-[var(--dim)]">{endpoints.length} endpoints</span>}
       />
       <WebhooksManager initialEndpoints={endpoints} initialDeliveries={deliveries} />
     </div>

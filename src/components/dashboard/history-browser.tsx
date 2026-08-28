@@ -149,7 +149,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
         <select
           value={filters.format}
           onChange={(e) => setFilters((f) => ({ ...f, format: e.target.value }))}
-          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-orange-500"
           aria-label="Filter by format"
         >
           {formats.map((f) => (
@@ -162,7 +162,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
         <select
           value={filters.source}
           onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}
-          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-orange-500"
           aria-label="Filter by source"
         >
           <option value="all">All sources</option>
@@ -175,7 +175,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
           type="date"
           value={filters.from}
           onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value }))}
-          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-orange-500"
           aria-label="From date"
           title="From date"
         />
@@ -183,7 +183,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
           type="date"
           value={filters.to}
           onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
-          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-orange-500"
           aria-label="To date"
           title="To date"
         />
@@ -193,7 +193,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
           value={filters.query}
           onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
           placeholder="Search URL…"
-          className="min-w-[180px] flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          className="min-w-[180px] flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-orange-500"
           aria-label="Search by URL"
         />
 
@@ -205,7 +205,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
               setFilters(blank);
               applyFilters(blank);
             }}
-            className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            className="text-xs font-medium text-orange-600 hover:underline dark:text-orange-400"
           >
             Clear
           </button>
@@ -215,7 +215,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
           type="button"
           onClick={handleExport}
           disabled={actionPending}
-          className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors disabled:opacity-50"
+          className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-medium hover:bg-[var(--muted)] dark:hover:bg-[var(--card)] transition-colors disabled:opacity-50"
           title="Export current view as CSV"
         >
           Export CSV
@@ -239,14 +239,14 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
           <button
             type="button"
             onClick={clearSelection}
-            className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            className="text-xs font-medium text-[var(--dim)] hover:text-[var(--ink)] dark:hover:text-[var(--line)]"
           >
             Deselect all
           </button>
         </div>
       )}
 
-      <span className="text-xs text-zinc-400">
+      <span className="text-xs text-[var(--dim)]">
         {rows.length} loaded{selected.size > 0 ? ` · ${selected.size} selected` : ""}
       </span>
 
@@ -258,7 +258,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
 
       {rows.length === 0 ? (
         <div className="card border-dashed p-8 text-center">
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-[var(--dim)]">
             {hasActiveFilters ? "No captures match these filters." : "No captures yet."}
           </p>
         </div>
@@ -281,7 +281,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
               >
                 {isPending ? (
                   <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--dim)] border-t-transparent" />
                     Loading…
                   </>
                 ) : (

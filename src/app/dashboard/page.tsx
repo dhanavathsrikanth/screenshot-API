@@ -56,8 +56,8 @@ export default async function DashboardPage() {
           <>
             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
               isFree
-                ? "bg-zinc-100 text-zinc-600"
-                : "bg-indigo-100 text-indigo-700"
+                ? "bg-[var(--muted)] text-[var(--dim)]"
+                : "bg-orange-100 text-orange-700"
             }`}>
               {planLabels[stats.plan] ?? stats.plan} Plan
             </span>
@@ -69,17 +69,17 @@ export default async function DashboardPage() {
 
       {/* Upgrade Banner for Free Users */}
       {isFree && (
-        <div className="card card-lift border-indigo-500/30 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/20 p-5">
+        <div className="card card-lift border-orange-500/30 bg-gradient-to-r from-orange-50 to-purple-50 dark:from-orange-950/30 dark:to-purple-950/20 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex-shrink-0">
-                <svg className="h-5 w-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex-shrink-0">
+                <svg className="h-5 w-5 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Unlock the full power of ScreenshotAPI</h3>
-                <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-0.5">
+                <h3 className="text-sm font-semibold text-orange-900 dark:text-orange-200">Unlock the full power of ScreenshotAPI</h3>
+                <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
                   Upgrade to Starter for 2,500 screenshots/mo at just $9. That&apos;s 25x more than your free plan.
                 </p>
               </div>
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <h2 className="eyebrow text-zinc-400">Quick Actions</h2>
+          <h2 className="eyebrow text-[var(--dim)]">Quick Actions</h2>
           {[
             { href: "/dashboard/playground", label: "Playground", sub: "Try the screenshot API live", icon: <><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></> },
             { href: "/dashboard/api-keys", label: "API Keys", sub: "Manage your API keys", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" /> },
@@ -153,14 +153,14 @@ export default async function DashboardPage() {
               href={action.href}
               className="card card-lift flex items-center gap-3 p-4 group"
             >
-              <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
+              <div className="h-10 w-10 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400 flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">{action.icon}</svg>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--foreground)] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{action.label}</p>
-                <p className="text-xs text-zinc-500">{action.sub}</p>
+                <p className="text-sm font-medium text-[var(--foreground)] group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">{action.label}</p>
+                <p className="text-xs text-[var(--dim)]">{action.sub}</p>
               </div>
-              <svg className="h-4 w-4 text-zinc-300 group-hover:text-indigo-500 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+              <svg className="h-4 w-4 text-[var(--line)] group-hover:text-orange-500 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
             </Link>
           ))}
         </div>

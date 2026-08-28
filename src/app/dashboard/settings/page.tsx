@@ -20,9 +20,9 @@ export default async function SettingsPage() {
       <SettingsProfile />
 
       {/* Shortcuts to related areas (each has its own dedicated page) */}
-      <div className="rounded-xl border border-[var(--border)] bg-white p-6 dark:bg-slate-900">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Related settings</h2>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 dark:bg-[var(--card)]">
+        <h2 className="text-sm font-semibold text-[var(--ink)] dark:text-[var(--ink)]">Related settings</h2>
+        <p className="mt-1 text-xs text-[var(--dim)] dark:text-[var(--dim)]">
           These live on their own pages:
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -57,16 +57,16 @@ export default async function SettingsPage() {
               href={item.href}
               className="card card-lift flex items-start gap-3 p-4 group"
             >
-              <div className="h-9 w-9 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+              <div className="h-9 w-9 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400 flex items-center justify-center flex-shrink-0">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   {item.icon}
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-medium group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                <p className="text-sm font-medium group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                   {item.title}
                 </p>
-                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{item.desc}</p>
+                <p className="mt-0.5 text-xs text-[var(--dim)] dark:text-[var(--dim)]">{item.desc}</p>
               </div>
             </Link>
           ))}

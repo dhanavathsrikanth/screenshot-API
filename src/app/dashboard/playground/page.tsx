@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { isVideoCaptureAllowed, getUserPlan } from "@/lib/plans";
+import { getUserPlan } from "@/lib/plans";
 import { DashboardPlayground } from "@/components/dashboard/dashboard-playground";
 import { PageHeader } from "@/components/dashboard/page-header";
 
@@ -23,7 +23,7 @@ export default async function PlaygroundPage() {
         title="Try the Screenshot API"
         description="Render screenshots directly from the dashboard."
       />
-      <DashboardPlayground videoAllowed={isVideoCaptureAllowed(plan)} />
+      <DashboardPlayground plan={plan} />
     </div>
   );
 }

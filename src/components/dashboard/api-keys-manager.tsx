@@ -126,7 +126,7 @@ export function ApiKeysManager({ initialKeys, projects }: ApiKeysManagerProps) {
       )}
 
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-[var(--dim)]">
           {keys.length} key{keys.length !== 1 ? "s" : ""}
         </p>
         {!showCreateForm && (
@@ -146,13 +146,13 @@ export function ApiKeysManager({ initialKeys, projects }: ApiKeysManagerProps) {
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
             placeholder="Key name (e.g. production, staging)"
-            className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
             autoFocus
           />
           <select
             value={newKeyEnv}
             onChange={(e) => setNewKeyEnv(e.target.value as ApiKeyEnvironment)}
-            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
           >
             <option value="production">Live</option>
             <option value="test">Test</option>
@@ -161,7 +161,7 @@ export function ApiKeysManager({ initialKeys, projects }: ApiKeysManagerProps) {
             <select
               value={newKeyProject}
               onChange={(e) => setNewKeyProject(e.target.value)}
-              className="max-w-48 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="max-w-48 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="">Default project</option>
               {projects.map((p) => (
@@ -190,13 +190,13 @@ export function ApiKeysManager({ initialKeys, projects }: ApiKeysManagerProps) {
 
       {keys.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center">
-          <div className="text-zinc-400 mb-3">
+          <div className="text-[var(--dim)] mb-3">
             <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
             </svg>
           </div>
-          <p className="text-sm text-zinc-500 mb-1">No API keys yet</p>
-          <p className="text-xs text-zinc-400">Create a key to start using the API programmatically.</p>
+          <p className="text-sm text-[var(--dim)] mb-1">No API keys yet</p>
+          <p className="text-xs text-[var(--dim)]">Create a key to start using the API programmatically.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -221,15 +221,15 @@ export function ApiKeysManager({ initialKeys, projects }: ApiKeysManagerProps) {
                     className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full ${
                       key.is_active
                         ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                        : "bg-[var(--muted)] text-[var(--dim)] dark:bg-[var(--muted)] dark:text-[var(--dim)]"
                     }`}
                   >
                     {key.is_active ? "Active" : "Inactive"}
                   </span>
                 </div>
-                <p className="text-sm text-zinc-500 mt-0.5 font-mono">
+                <p className="text-sm text-[var(--dim)] mt-0.5 font-mono">
                   {key.key_prefix}...
-                  <span className="text-zinc-400 ml-2">
+                  <span className="text-[var(--dim)] ml-2">
                     Last used {key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : "never"}
                   </span>
                 </p>
@@ -240,8 +240,8 @@ export function ApiKeysManager({ initialKeys, projects }: ApiKeysManagerProps) {
                   disabled={isPending}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                     key.is_active
-                      ? "border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                      : "border-indigo-200 dark:border-indigo-800 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                      ? "border-[var(--line)] dark:border-[var(--line)] hover:bg-[var(--muted)] dark:hover:bg-[var(--muted)]"
+                      : "border-orange-200 dark:border-orange-800 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/50"
                   }`}
                 >
                   {key.is_active ? "Disable" : "Enable"}
@@ -257,7 +257,7 @@ export function ApiKeysManager({ initialKeys, projects }: ApiKeysManagerProps) {
                     </button>
                     <button
                       onClick={() => setRevokeConfirmId(null)}
-                      className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                      className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--muted)] dark:hover:bg-[var(--card)] transition-colors"
                     >
                       Cancel
                     </button>

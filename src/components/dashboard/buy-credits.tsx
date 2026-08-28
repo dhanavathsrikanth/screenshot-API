@@ -79,17 +79,17 @@ export function BuyCredits() {
             key={pack.id}
             className={`rounded-xl border p-5 flex flex-col ${
               pack.popular
-                ? "border-indigo-500/50 bg-indigo-50/50 dark:bg-indigo-950/30"
+                ? "border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/30"
                 : "border-[var(--border)]"
             }`}
           >
             {pack.popular && (
-              <span className="self-start mb-2 inline-flex items-center rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+              <span className="self-start mb-2 inline-flex items-center rounded-full bg-orange-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
                 Popular
               </span>
             )}
             <p className="text-lg font-semibold">{pack.name}</p>
-            <p className="text-sm text-zinc-500 mb-4">{pack.price}</p>
+            <p className="text-sm text-[var(--dim)] mb-4">{pack.price}</p>
             <button
               onClick={() => handleBuy(pack.productId, pack.id)}
               disabled={loading !== null}
@@ -100,7 +100,7 @@ export function BuyCredits() {
           </div>
         ))}
       </div>
-      <p className="text-xs text-zinc-400 mt-3">
+      <p className="text-xs text-[var(--dim)] mt-3">
         Credits are added instantly after payment and never expire for 12 months.
       </p>
     </div>

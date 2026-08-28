@@ -10,7 +10,7 @@ import { assertGeoRequestAllowed, GeoTargetingError } from "@/lib/browser/geo";
 import { ensureCredits } from "@/lib/credits";
 import { createJob, enqueueJob, getJob, newJobId, processJob, recordCacheHitJob } from "@/lib/jobs";
 import { v1Ok, v1Err, v1RateLimited } from "@/lib/v1-api";
-import { getRequestId, normalizeUrl, rateLimitHeaders } from "@/lib/api";
+import { getRequestId, httpStatusForErrorCode, normalizeUrl, rateLimitHeaders } from "@/lib/api";
 import { newRequestId } from "@/lib/request-id";
 import { validateTargetUrl, SsrfError } from "@/lib/security/ssrf";
 import { getCacheKey, getFromCache } from "@/lib/storage/cache";
@@ -334,7 +334,8 @@ export async function POST(request: NextRequest) {
           { status: 200, headers: rateLimitHeaders(rateLimitInfo), requestId }
         );
       }
-      return v1Err(500, final?.error_code ?? "render_failed", final?.error_message ?? "Render failed.", requestId);
+      const errorCode = (final?.error_code ?? "render_failed").toLowerCase();
+      return v1Err(httpStatusForErrorCode(errorCode), errorCode, final?.error_message ?? "Render failed.", requestId);
     }
 
     enqueueJob(id, { priority: getQueuePriority(plan) });

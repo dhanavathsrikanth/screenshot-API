@@ -92,7 +92,7 @@ const formatUrl = (url: string | null) => {
 function OptionBadge({ label, active }: { label: string; active: boolean }) {
   if (!active) return null;
   return (
-    <span className="inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 ring-1 ring-inset ring-indigo-500/20">
+    <span className="inline-flex items-center rounded-md bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-600 dark:bg-orange-950/50 dark:text-orange-400 ring-1 ring-inset ring-orange-500/20">
       {label}
     </span>
   );
@@ -131,7 +131,7 @@ function ShareModal({ screenshotId, onClose }: { screenshotId: string; onClose: 
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-sm font-semibold">Share screenshot</h3>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-[var(--dim)]">
           Create an expiring link that works without an account (7 days by default).
         </p>
 
@@ -143,26 +143,26 @@ function ShareModal({ screenshotId, onClose }: { screenshotId: string; onClose: 
 
         {shareUrl ? (
           <div className="mt-4">
-            <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-zinc-50 dark:bg-zinc-900 px-3 py-2">
-              <span className="flex-1 truncate font-mono text-xs text-zinc-600 dark:text-zinc-400">
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--muted)] dark:bg-[var(--card)] px-3 py-2">
+              <span className="flex-1 truncate font-mono text-xs text-[var(--dim)] dark:text-[var(--dim)]">
                 {typeof window !== "undefined" ? window.location.origin : ""}{shareUrl}
               </span>
               <button
                 type="button"
                 onClick={copyLink}
-                className="shrink-0 rounded-md bg-indigo-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 transition-colors"
+                className="shrink-0 rounded-md bg-orange-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-orange-700 transition-colors"
               >
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
-            <p className="mt-2 text-[11px] text-zinc-400">Link expires in 7 days.</p>
+            <p className="mt-2 text-[11px] text-[var(--dim)]">Link expires in 7 days.</p>
           </div>
         ) : (
           <button
             type="button"
             onClick={handleCreate}
             disabled={isPending}
-            className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="mt-4 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 transition-colors disabled:opacity-50"
           >
             {isPending ? "Creating…" : "Generate share link"}
           </button>
@@ -172,7 +172,7 @@ function ShareModal({ screenshotId, onClose }: { screenshotId: string; onClose: 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--muted)] dark:hover:bg-[var(--card)] transition-colors"
           >
             Close
           </button>
@@ -203,28 +203,28 @@ export function HistoryTable({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] bg-zinc-50 dark:bg-zinc-900">
+              <tr className="border-b border-[var(--border)] bg-[var(--muted)] dark:bg-[var(--card)]">
                 {hasSelection && (
                   <th className="px-4 py-3 w-[40px]">
                     <input
                       type="checkbox"
                       checked={allSelected}
                       onChange={onToggleAll}
-                      className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                      className="h-4 w-4 rounded border-[var(--line)] text-orange-600 focus:ring-orange-500"
                       aria-label="Select all"
                     />
                   </th>
                 )}
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">Preview</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">URL</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">Format</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[110px]">Viewport</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">Options</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[90px]">Size</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">Source</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[80px]">Credits</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[90px]">Time</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-[130px]">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] w-[80px]">Preview</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)]">URL</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] w-[80px]">Format</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] w-[110px]">Viewport</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)]">Options</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] w-[90px]">Size</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] w-[80px]">Source</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] w-[80px]">Credits</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] w-[90px]">Time</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] w-[130px]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -235,8 +235,8 @@ export function HistoryTable({
                 return (
                   <tr
                     key={s.id}
-                    className={`border-b border-[var(--border)] last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors ${
-                      hasSelection && selected.has(s.id) ? "bg-indigo-50 dark:bg-indigo-950/30" : ""
+                    className={`border-b border-[var(--border)] last:border-0 hover:bg-[var(--muted)] dark:hover:bg-[var(--card)]/50 transition-colors ${
+                      hasSelection && selected.has(s.id) ? "bg-orange-50 dark:bg-orange-950/30" : ""
                     }`}
                   >
                     {hasSelection && (
@@ -245,14 +245,14 @@ export function HistoryTable({
                           type="checkbox"
                           checked={selected.has(s.id)}
                           onChange={() => onToggle(s.id)}
-                          className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                          className="h-4 w-4 rounded border-[var(--line)] text-orange-600 focus:ring-orange-500"
                           aria-label={`Select screenshot ${s.id}`}
                         />
                       </td>
                     )}
                     {/* Thumbnail */}
                     <td className="px-4 py-3">
-                      <div className="w-16 h-12 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-[var(--border)]">
+                      <div className="w-16 h-12 rounded-md bg-[var(--muted)] dark:bg-[var(--muted)] flex items-center justify-center overflow-hidden border border-[var(--border)]">
                         <HistoryThumb src={s.storage_url} format={s.format} />
                       </div>
                     </td>
@@ -264,13 +264,13 @@ export function HistoryTable({
                           href={s.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline max-w-[280px] truncate block"
+                          className="text-sm font-medium text-[var(--ink)] dark:text-[var(--ink)] hover:text-orange-600 dark:hover:text-orange-400 hover:underline max-w-[280px] truncate block"
                           title={s.url}
                         >
                           {formatUrl(s.url)}
                         </a>
                       ) : (
-                        <span className="text-sm text-zinc-400">-</span>
+                        <span className="text-sm text-[var(--dim)]">-</span>
                       )}
                     </td>
 
@@ -291,11 +291,11 @@ export function HistoryTable({
 
                     {/* Viewport */}
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                      <span className="font-mono text-xs text-[var(--dim)] dark:text-[var(--dim)]">
                         {vpWidth}x{vpHeight}
                       </span>
                       {meta.full_page && (
-                        <span className="ml-1.5 text-[10px] text-zinc-400">full</span>
+                        <span className="ml-1.5 text-[10px] text-[var(--dim)]">full</span>
                       )}
                     </td>
 
@@ -307,17 +307,17 @@ export function HistoryTable({
                         <OptionBadge label="trackers" active={meta.block_trackers ?? false} />
                         <OptionBadge label="cookies" active={meta.block_cookie_banners ?? false} />
                         {meta.selector && (
-                          <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 ring-1 ring-inset ring-zinc-500/20" title={meta.selector}>
+                          <span className="inline-flex items-center rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--dim)] dark:bg-[var(--muted)] dark:text-[var(--dim)] ring-1 ring-inset ring-[var(--dim)]/20" title={meta.selector}>
                             selector
                           </span>
                         )}
                         {meta.wait_until && meta.wait_until !== "domcontentloaded" && (
-                          <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 ring-1 ring-inset ring-zinc-500/20">
+                          <span className="inline-flex items-center rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--dim)] dark:bg-[var(--muted)] dark:text-[var(--dim)] ring-1 ring-inset ring-[var(--dim)]/20">
                             {meta.wait_until}
                           </span>
                         )}
                         {meta.response_time_ms != null && (
-                          <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 ring-1 ring-inset ring-zinc-500/20">
+                          <span className="inline-flex items-center rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--dim)] dark:bg-[var(--muted)] dark:text-[var(--dim)] ring-1 ring-inset ring-[var(--dim)]/20">
                             {meta.response_time_ms}ms
                           </span>
                         )}
@@ -326,7 +326,7 @@ export function HistoryTable({
 
                     {/* File size */}
                     <td className="px-4 py-3 text-right">
-                      <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                      <span className="font-mono text-xs text-[var(--dim)] dark:text-[var(--dim)]">
                         {formatBytes(s.file_size_bytes)}
                       </span>
                     </td>
@@ -346,7 +346,7 @@ export function HistoryTable({
                           cached
                         </span>
                       ) : (
-                        <span className="text-[11px] text-zinc-400">-</span>
+                        <span className="text-[11px] text-[var(--dim)]">-</span>
                       )}
                     </td>
 
@@ -365,7 +365,7 @@ export function HistoryTable({
 
                     {/* Time */}
                     <td className="px-4 py-3 text-right">
-                      <span className="text-xs text-zinc-500" title={formatFullDate(s.created_at)}>
+                      <span className="text-xs text-[var(--dim)]" title={formatFullDate(s.created_at)}>
                         {formatDate(s.created_at)}
                       </span>
                     </td>
@@ -378,7 +378,7 @@ export function HistoryTable({
                             href={s.storage_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                            className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-[var(--dim)] dark:text-[var(--dim)] hover:bg-[var(--muted)] dark:hover:bg-[var(--muted)] transition-colors"
                             title="Open full image"
                           >
                             <ExternalLinkIcon />
@@ -389,7 +389,7 @@ export function HistoryTable({
                           <a
                             href={s.storage_url}
                             download={`screenshot.${s.format === "jpeg" ? "jpg" : s.format}`}
-                            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 transition-colors"
+                            className="inline-flex items-center gap-1 rounded-md bg-orange-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-orange-700 transition-colors"
                             title="Download"
                           >
                             <DownloadIcon />
@@ -398,7 +398,7 @@ export function HistoryTable({
                         <button
                           type="button"
                           onClick={() => setShareTarget(s.id)}
-                          className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                          className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-[var(--dim)] dark:text-[var(--dim)] hover:bg-[var(--muted)] dark:hover:bg-[var(--muted)] transition-colors"
                           title="Create share link"
                         >
                           <ShareIcon />

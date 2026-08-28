@@ -72,8 +72,8 @@ export function QuickStart({ apiKeyPrefix }: QuickStartProps) {
               onClick={() => setActiveTab(i)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 i === activeTab
-                  ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
-                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  ? "bg-[var(--card)] dark:bg-[var(--muted)] text-white dark:text-[var(--ink)]"
+                  : "text-[var(--dim)] hover:text-[var(--ink)] dark:hover:text-[var(--line)]"
               }`}
             >
               {snippet.label}
@@ -82,20 +82,20 @@ export function QuickStart({ apiKeyPrefix }: QuickStartProps) {
         </div>
         <button
           onClick={handleCopy}
-          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--muted)] dark:hover:bg-[var(--card)] transition-colors"
         >
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
 
-      <div className="rounded-lg bg-zinc-950 dark:bg-zinc-900 p-4 overflow-x-auto">
+      <div className="rounded-lg bg-zinc-950 dark:bg-[var(--card)] p-4 overflow-x-auto">
         <pre className="text-sm text-green-400 whitespace-pre">
           {code}
         </pre>
       </div>
 
       {apiKeyPrefix && (
-        <p className="text-xs text-zinc-500 mt-2">
+        <p className="text-xs text-[var(--dim)] mt-2">
           Using key <span className="font-mono">{displayKey}</span>
         </p>
       )}

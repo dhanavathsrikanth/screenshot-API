@@ -12,9 +12,9 @@ export function PageHeader({
   return (
     <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
-        <p className="eyebrow text-indigo-600 mb-2">{eyebrow}</p>
+        <p className="eyebrow text-orange-600 mb-2">{eyebrow}</p>
         <h1 className="text-3xl font-semibold tracking-[-0.02em]">{title}</h1>
-        <p className="text-sm text-zinc-500 mt-2">{description}</p>
+        <p className="text-sm text-[var(--dim)] mt-2">{description}</p>
       </div>
       {actions && (
         <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>

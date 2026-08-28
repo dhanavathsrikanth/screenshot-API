@@ -6,19 +6,19 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from "recharts";
 
-const COLORS = ["#6366f1", "#22d3ee", "#f59e0b", "#ef4444", "#10b981", "#a855f7"];
+const COLORS = ["#f97316", "#22d3ee", "#f59e0b", "#ef4444", "#10b981", "#a855f7"];
 
 function ChartCard({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={`card card-lift p-6 ${className}`}>
-      <h3 className="eyebrow text-zinc-400 mb-4">{title}</h3>
+      <h3 className="eyebrow text-[var(--dim)] mb-4">{title}</h3>
       {children}
     </div>
   );
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="flex items-center justify-center h-[200px] text-sm text-zinc-400">{text}</div>;
+  return <div className="flex items-center justify-center h-[200px] text-sm text-[var(--dim)]">{text}</div>;
 }
 
 // ─── Moving Average Usage Chart ─────────────────────────────────────────
@@ -31,8 +31,8 @@ export function UsageChart({ data }: { data: { date: string; count: number; ma7:
         <AreaChart data={data}>
           <defs>
             <linearGradient id="ug" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -40,7 +40,7 @@ export function UsageChart({ data }: { data: { date: string; count: number; ma7:
           <YAxis tick={{ fontSize: 11, fill: "#a1a1aa" }} allowDecimals={false} />
           <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)" }} />
           <Legend />
-          <Area type="monotone" dataKey="count" name="Actual" stroke="#6366f1" fill="url(#ug)" strokeWidth={1.5} />
+          <Area type="monotone" dataKey="count" name="Actual" stroke="#f97316" fill="url(#ug)" strokeWidth={1.5} />
           <Line type="monotone" dataKey="ma7" name="7-day avg" stroke="#f59e0b" strokeWidth={2} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
@@ -81,11 +81,11 @@ export function PeakHoursHeatmap({ data }: { data: { day: string; hour: number; 
 
   function intensity(count: number) {
     const ratio = count / maxCount;
-    if (ratio === 0) return "bg-zinc-100 dark:bg-zinc-800";
-    if (ratio < 0.25) return "bg-indigo-100 dark:bg-indigo-900/40";
-    if (ratio < 0.5) return "bg-indigo-200 dark:bg-indigo-800/50";
-    if (ratio < 0.75) return "bg-indigo-400 dark:bg-indigo-600/60";
-    return "bg-indigo-600 dark:bg-indigo-500";
+    if (ratio === 0) return "bg-[var(--muted)] dark:bg-[var(--muted)]";
+    if (ratio < 0.25) return "bg-orange-100 dark:bg-orange-900/40";
+    if (ratio < 0.5) return "bg-orange-200 dark:bg-orange-800/50";
+    if (ratio < 0.75) return "bg-orange-400 dark:bg-orange-600/60";
+    return "bg-orange-600 dark:bg-orange-500";
   }
 
   return (
@@ -94,12 +94,12 @@ export function PeakHoursHeatmap({ data }: { data: { day: string; hour: number; 
         <div className="min-w-[600px]">
           <div className="flex gap-0.5 mb-1 ml-10">
             {hours.map((h) => (
-              <div key={h} className="flex-1 text-center text-[9px] text-zinc-400">{h}</div>
+              <div key={h} className="flex-1 text-center text-[9px] text-[var(--dim)]">{h}</div>
             ))}
           </div>
           {days.map((day) => (
             <div key={day} className="flex gap-0.5 mb-0.5 items-center">
-              <div className="w-9 text-[10px] text-zinc-500 text-right pr-1">{day}</div>
+              <div className="w-9 text-[10px] text-[var(--dim)] text-right pr-1">{day}</div>
               {hours.map((h) => {
                 const cell = data.find((d) => d.day === day && d.hour === h);
                 const count = cell?.count ?? 0;
@@ -130,19 +130,19 @@ export function UsageForecast({ data }: { data: { forecast: { date: string; pred
     <ChartCard title="30-Day Usage Forecast">
       <div className="flex items-center gap-4 mb-3">
         <div className="text-sm">
-          <span className="text-zinc-500">Daily avg: </span>
+          <span className="text-[var(--dim)]">Daily avg: </span>
           <span className="font-semibold">{data.dailyAvg}</span>
         </div>
         {data.daysUntilLimit !== null && (
           <div className="text-sm">
-            <span className="text-zinc-500">Limit in: </span>
+            <span className="text-[var(--dim)]">Limit in: </span>
             <span className={`font-semibold ${data.daysUntilLimit <= 7 ? "text-red-500" : data.daysUntilLimit <= 14 ? "text-amber-500" : "text-green-500"}`}>
               ~{data.daysUntilLimit} days
             </span>
           </div>
         )}
         <div className="text-sm">
-          <span className="text-zinc-500">Used: </span>
+          <span className="text-[var(--dim)]">Used: </span>
           <span className="font-semibold">{usagePct}%</span>
         </div>
       </div>
@@ -174,19 +174,19 @@ export function CostEstimation({ data }: { data: { plan: string; monthlyPrice: n
     <ChartCard title="Cost Estimation">
       <div className="space-y-3">
         <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Current plan</span>
+          <span className="text-[var(--dim)]">Current plan</span>
           <span className="font-semibold capitalize">{data.plan}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Monthly subscription</span>
+          <span className="text-[var(--dim)]">Monthly subscription</span>
           <span className="font-medium">${data.monthlyPrice}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Compute cost ({data.monthlyUsed} calls)</span>
+          <span className="text-[var(--dim)]">Compute cost ({data.monthlyUsed} calls)</span>
           <span className="font-medium">${data.computeCost.toFixed(4)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Storage cost ({data.storageGB} GB)</span>
+          <span className="text-[var(--dim)]">Storage cost ({data.storageGB} GB)</span>
           <span className="font-medium">${data.storageCost.toFixed(4)}</span>
         </div>
         <div className="border-t border-[var(--border)] pt-2 flex justify-between text-sm font-semibold">
@@ -196,12 +196,12 @@ export function CostEstimation({ data }: { data: { plan: string; monthlyPrice: n
           </span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Cost per screenshot</span>
+          <span className="text-[var(--dim)]">Cost per screenshot</span>
           <span className="font-mono text-xs">${data.costPerScreenshot.toFixed(6)}</span>
         </div>
         {data.recommendedPlan && (
-          <div className="mt-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 p-3">
-            <p className="text-xs text-indigo-700 dark:text-indigo-300">
+          <div className="mt-3 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 p-3">
+            <p className="text-xs text-orange-700 dark:text-orange-300">
               Consider upgrading to <span className="font-semibold">{data.recommendedPlan}</span> for better value at your usage level.
             </p>
           </div>
@@ -219,20 +219,20 @@ export function PeriodComparison({ data }: { data: { thisWeek: number; lastWeek:
       <ChartCard title="Week over Week">
         <div className="flex items-baseline gap-3">
           <span className="text-2xl font-bold">{data.thisWeek.toLocaleString()}</span>
-          <span className={`text-sm font-medium ${data.weekDelta > 0 ? "text-green-500" : data.weekDelta < 0 ? "text-red-500" : "text-zinc-400"}`}>
+          <span className={`text-sm font-medium ${data.weekDelta > 0 ? "text-green-500" : data.weekDelta < 0 ? "text-red-500" : "text-[var(--dim)]"}`}>
             {data.weekDelta > 0 ? "+" : ""}{data.weekDelta}%
           </span>
         </div>
-        <p className="text-xs text-zinc-400 mt-1">vs {data.lastWeek.toLocaleString()} last week</p>
+        <p className="text-xs text-[var(--dim)] mt-1">vs {data.lastWeek.toLocaleString()} last week</p>
       </ChartCard>
       <ChartCard title="Month over Month">
         <div className="flex items-baseline gap-3">
           <span className="text-2xl font-bold">{data.thisMonth.toLocaleString()}</span>
-          <span className={`text-sm font-medium ${data.monthDelta > 0 ? "text-green-500" : data.monthDelta < 0 ? "text-red-500" : "text-zinc-400"}`}>
+          <span className={`text-sm font-medium ${data.monthDelta > 0 ? "text-green-500" : data.monthDelta < 0 ? "text-red-500" : "text-[var(--dim)]"}`}>
             {data.monthDelta > 0 ? "+" : ""}{data.monthDelta}%
           </span>
         </div>
-        <p className="text-xs text-zinc-400 mt-1">vs {data.lastMonth.toLocaleString()} last month</p>
+        <p className="text-xs text-[var(--dim)] mt-1">vs {data.lastMonth.toLocaleString()} last month</p>
       </ChartCard>
     </div>
   );
@@ -344,7 +344,7 @@ export function KeyHealthTable({ data }: { data: { id: string; name: string; pre
   const healthStyles: Record<string, string> = {
     healthy: "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     warning: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    inactive: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+    inactive: "bg-[var(--muted)] text-[var(--dim)] dark:bg-[var(--muted)] dark:text-[var(--dim)]",
   };
 
   return (
@@ -353,14 +353,14 @@ export function KeyHealthTable({ data }: { data: { id: string; name: string; pre
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)]">
-              <th className="text-left py-2 text-zinc-500 font-medium">Key</th>
-              <th className="text-center py-2 text-zinc-500 font-medium">Health</th>
-              <th className="text-right py-2 text-zinc-500 font-medium">Calls</th>
-              <th className="text-right py-2 text-zinc-500 font-medium">Errors</th>
-              <th className="text-right py-2 text-zinc-500 font-medium">Avg ms</th>
-              <th className="text-right py-2 text-zinc-500 font-medium">P95 ms</th>
-              <th className="text-right py-2 text-zinc-500 font-medium">Calls/day</th>
-              <th className="text-right py-2 text-zinc-500 font-medium">Last Used</th>
+              <th className="text-left py-2 text-[var(--dim)] font-medium">Key</th>
+              <th className="text-center py-2 text-[var(--dim)] font-medium">Health</th>
+              <th className="text-right py-2 text-[var(--dim)] font-medium">Calls</th>
+              <th className="text-right py-2 text-[var(--dim)] font-medium">Errors</th>
+              <th className="text-right py-2 text-[var(--dim)] font-medium">Avg ms</th>
+              <th className="text-right py-2 text-[var(--dim)] font-medium">P95 ms</th>
+              <th className="text-right py-2 text-[var(--dim)] font-medium">Calls/day</th>
+              <th className="text-right py-2 text-[var(--dim)] font-medium">Last Used</th>
             </tr>
           </thead>
           <tbody>
@@ -368,7 +368,7 @@ export function KeyHealthTable({ data }: { data: { id: string; name: string; pre
               <tr key={k.id} className="border-b border-[var(--border)] last:border-0">
                 <td className="py-2.5">
                   <span className="font-medium">{k.name}</span>
-                  <span className="ml-2 text-xs text-zinc-400 font-mono">{k.prefix}...</span>
+                  <span className="ml-2 text-xs text-[var(--dim)] font-mono">{k.prefix}...</span>
                 </td>
                 <td className="py-2.5 text-center">
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${healthStyles[k.health] ?? healthStyles.inactive}`}>
@@ -380,7 +380,7 @@ export function KeyHealthTable({ data }: { data: { id: string; name: string; pre
                 <td className="py-2.5 text-right font-mono">{k.avgLatency}</td>
                 <td className="py-2.5 text-right font-mono">{k.p95Latency}</td>
                 <td className="py-2.5 text-right font-mono">{k.callsPerDay}</td>
-                <td className="py-2.5 text-right text-zinc-400 text-xs">
+                <td className="py-2.5 text-right text-[var(--dim)] text-xs">
                   {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : "Never"}
                 </td>
               </tr>
@@ -429,19 +429,19 @@ export function SLAMonitor({ data }: { data: { uptime: number; totalRequests: nu
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
         <div className="text-center">
           <div className={`text-2xl font-bold ${data.uptimeMet ? "text-green-500" : "text-red-500"}`}>{data.uptime}%</div>
-          <div className="text-xs text-zinc-400">Uptime</div>
+          <div className="text-xs text-[var(--dim)]">Uptime</div>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold">{data.totalRequests.toLocaleString()}</div>
-          <div className="text-xs text-zinc-400">Total Requests</div>
+          <div className="text-xs text-[var(--dim)]">Total Requests</div>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold">{data.avgLatency}ms</div>
-          <div className="text-xs text-zinc-400">Avg Latency</div>
+          <div className="text-xs text-[var(--dim)]">Avg Latency</div>
         </div>
         <div className="text-center">
           <div className={`text-2xl font-bold ${data.latencyMet ? "text-green-500" : "text-red-500"}`}>{data.p99Latency}ms</div>
-          <div className="text-xs text-zinc-400">P99 Latency</div>
+          <div className="text-xs text-[var(--dim)]">P99 Latency</div>
         </div>
       </div>
       <div className="space-y-2">
@@ -462,12 +462,12 @@ export function SLAMonitor({ data }: { data: { uptime: number; totalRequests: nu
       </div>
       {data.incidents.length > 0 && (
         <div className="mt-4 border-t border-[var(--border)] pt-3">
-          <p className="text-xs font-medium text-zinc-500 mb-2">Recent Incidents</p>
+          <p className="text-xs font-medium text-[var(--dim)] mb-2">Recent Incidents</p>
           <div className="space-y-1.5 max-h-40 overflow-y-auto">
             {data.incidents.slice(0, 5).map((inc) => (
               <div key={inc.id} className="flex items-center gap-2 text-xs">
                 <div className={`w-1.5 h-1.5 rounded-full ${inc.resolved ? "bg-green-400" : "bg-red-400"}`} />
-                <span className="text-zinc-400">{new Date(inc.created_at).toLocaleDateString()}</span>
+                <span className="text-[var(--dim)]">{new Date(inc.created_at).toLocaleDateString()}</span>
                 <span className="truncate">{inc.message ?? inc.incident_type}</span>
               </div>
             ))}
@@ -489,18 +489,18 @@ export function UpgradePrompt({ data }: { data: { plan: string; monthlyUsed: num
   const planLimits: Record<string, string> = { starter: "2,500", pro: "15,000" };
 
   return (
-    <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-indigo-900/20 p-6">
+    <div className="rounded-xl border border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20 p-6">
       <div className="flex items-start gap-4">
-        <div className="p-2.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/50">
-          <svg className="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <div className="p-2.5 rounded-lg bg-orange-100 dark:bg-orange-900/50">
+          <svg className="h-6 w-6 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
           </svg>
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+          <h3 className="text-sm font-semibold text-orange-900 dark:text-orange-200">
             {usagePct >= 80 ? "You're growing fast!" : "Unlock more power"}
           </h3>
-          <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-1">
+          <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
             {usagePct >= 80
               ? `You've used ${usagePct}% of your ${data.plan} plan. Upgrade to keep scaling.`
               : `Upgrade to ${data.recommendedPlan ?? "pro"} for higher limits and lower per-screenshot costs.`
@@ -510,8 +510,8 @@ export function UpgradePrompt({ data }: { data: { plan: string; monthlyUsed: num
             <div className="mt-3 flex items-center gap-3">
               <div className="text-sm">
                 <span className="font-semibold capitalize">{data.recommendedPlan}</span>
-                <span className="text-zinc-500 ml-1">{planPrices[data.recommendedPlan]}</span>
-                <span className="text-zinc-400 ml-1">({planLimits[data.recommendedPlan]} screenshots/mo)</span>
+                <span className="text-[var(--dim)] ml-1">{planPrices[data.recommendedPlan]}</span>
+                <span className="text-[var(--dim)] ml-1">({planLimits[data.recommendedPlan]} screenshots/mo)</span>
               </div>
             </div>
           )}

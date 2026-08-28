@@ -42,7 +42,7 @@ const EVENT_LABELS: Record<string, string> = {
 const STATUS_STYLES: Record<string, string> = {
   succeeded: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   failed: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  pending: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  pending: "bg-[var(--muted)] text-[var(--dim)] dark:bg-[var(--muted)] dark:text-[var(--dim)]",
   delivering: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
 };
 
@@ -279,7 +279,7 @@ export function WebhooksManager({
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-[var(--dim)]">
           {endpoints.length} endpoint{endpoints.length !== 1 ? "s" : ""}
         </p>
         {!showCreateForm && (
@@ -292,7 +292,7 @@ export function WebhooksManager({
       {showCreateForm && (
         <form onSubmit={handleCreate} className="card p-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+            <label className="block text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] mb-1.5">
               Endpoint URL
             </label>
             <input
@@ -300,12 +300,12 @@ export function WebhooksManager({
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
               placeholder="https://your-app.example.com/webhooks/screenshot"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               autoFocus
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+            <label className="block text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)] mb-1.5">
               Events
             </label>
             <div className="flex flex-wrap gap-3">
@@ -315,7 +315,7 @@ export function WebhooksManager({
                     type="checkbox"
                     checked={newEvents.includes(event)}
                     onChange={() => toggleEvent(event)}
-                    className="h-4 w-4 rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500"
+                    className="h-4 w-4 rounded border-[var(--border)] text-orange-600 focus:ring-orange-500"
                   />
                   <span className="font-mono text-xs">{label}</span>
                 </label>
@@ -343,13 +343,13 @@ export function WebhooksManager({
 
       {endpoints.length === 0 ? (
         <div className="card border-dashed p-10 text-center">
-          <div className="text-zinc-400 mb-3">
+          <div className="text-[var(--dim)] mb-3">
             <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
           </div>
-          <p className="text-sm text-zinc-500 mb-1">No webhook endpoints yet</p>
-          <p className="text-xs text-zinc-400">
+          <p className="text-sm text-[var(--dim)] mb-1">No webhook endpoints yet</p>
+          <p className="text-xs text-[var(--dim)]">
             Receive a signed HTTP POST when screenshots complete or fail.
           </p>
         </div>
@@ -365,7 +365,7 @@ export function WebhooksManager({
                       className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full ${
                         endpoint.is_active
                           ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                          : "bg-[var(--muted)] text-[var(--dim)] dark:bg-[var(--muted)] dark:text-[var(--dim)]"
                       }`}
                     >
                       {endpoint.is_active ? "Active" : "Paused"}
@@ -375,7 +375,7 @@ export function WebhooksManager({
                     {endpoint.events.map((event) => (
                       <span
                         key={event}
-                        className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 ring-1 ring-inset ring-indigo-500/20"
+                        className="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-600 dark:bg-orange-950/50 dark:text-orange-400 ring-1 ring-inset ring-orange-500/20"
                       >
                         {event}
                       </span>
@@ -386,7 +386,7 @@ export function WebhooksManager({
                   <button
                     onClick={() => handleSendTest(endpoint.id)}
                     disabled={isPending}
-                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--muted)] dark:hover:bg-[var(--card)] transition-colors"
                     title="Send a signed test delivery to this endpoint"
                   >
                     Send Test
@@ -394,7 +394,7 @@ export function WebhooksManager({
                   <button
                     onClick={() => handleRotateSecret(endpoint.id)}
                     disabled={isPending}
-                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--muted)] dark:hover:bg-[var(--card)] transition-colors"
                     title="Rotate signing secret"
                   >
                     Rotate Secret
@@ -404,8 +404,8 @@ export function WebhooksManager({
                     disabled={isPending}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       endpoint.is_active
-                        ? "border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                        : "border-indigo-200 dark:border-indigo-800 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                        ? "border-[var(--line)] dark:border-[var(--line)] hover:bg-[var(--muted)] dark:hover:bg-[var(--muted)]"
+                        : "border-orange-200 dark:border-orange-800 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/50"
                     }`}
                   >
                     {endpoint.is_active ? "Pause" : "Resume"}
@@ -421,7 +421,7 @@ export function WebhooksManager({
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(null)}
-                        className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                        className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--muted)] dark:hover:bg-[var(--card)] transition-colors"
                       >
                         Cancel
                       </button>
@@ -447,36 +447,36 @@ export function WebhooksManager({
           <button
             onClick={() => refreshDeliveries()}
             disabled={isPending}
-            className="text-xs text-indigo-600 hover:underline"
+            className="text-xs text-orange-600 hover:underline"
           >
             Refresh
           </button>
         </div>
         <div className="overflow-x-auto">
           {deliveries.length === 0 ? (
-            <div className="p-6 text-center text-xs text-zinc-400">
+            <div className="p-6 text-center text-xs text-[var(--dim)]">
               No deliveries yet. Deliveries appear here when events fire.
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[var(--border)] bg-zinc-50 dark:bg-zinc-900">
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                <tr className="border-b border-[var(--border)] bg-[var(--muted)] dark:bg-[var(--card)]">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)]">
                     Event
                   </th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)]">
                     Status
                   </th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)]">
                     Attempts
                   </th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)]">
                     HTTP
                   </th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)]">
                     Error
                   </th>
-                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-[var(--dim)] dark:text-[var(--dim)]">
                     Time
                   </th>
                 </tr>
@@ -485,13 +485,13 @@ export function WebhooksManager({
                 {deliveries.map((delivery) => (
                   <tr
                     key={delivery.id}
-                    className="border-b border-[var(--border)] last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--muted)] dark:hover:bg-[var(--card)]/50 transition-colors"
                   >
                     <td className="px-4 py-2.5">
                       <code className="text-xs">{delivery.event}</code>
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ${STATUS_STYLES[delivery.status] ?? "bg-zinc-100 text-zinc-600"}`}>
+                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ${STATUS_STYLES[delivery.status] ?? "bg-[var(--muted)] text-[var(--dim)]"}`}>
                         {delivery.status}
                       </span>
                     </td>
@@ -504,22 +504,22 @@ export function WebhooksManager({
                           {delivery.http_status}
                         </span>
                       ) : (
-                        <span className="text-xs text-zinc-400">-</span>
+                        <span className="text-xs text-[var(--dim)]">-</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className="text-xs text-zinc-500 truncate block max-w-[280px]" title={delivery.error ?? undefined}>
+                      <span className="text-xs text-[var(--dim)] truncate block max-w-[280px]" title={delivery.error ?? undefined}>
                         {delivery.error ?? "-"}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-zinc-500">{formatDate(delivery.created_at)}</span>
+                        <span className="text-xs text-[var(--dim)]">{formatDate(delivery.created_at)}</span>
                         {delivery.status !== "delivering" && (
                           <button
                             onClick={() => handleReplay(delivery.id)}
                             disabled={isPending}
-                            className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                            className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] font-medium text-[var(--dim)] dark:text-[var(--dim)] hover:bg-[var(--muted)] dark:hover:bg-[var(--muted)] transition-colors"
                             title="Replay this delivery with the original payload"
                           >
                             Replay

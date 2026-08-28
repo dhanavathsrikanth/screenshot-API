@@ -27,7 +27,7 @@ const paidPlans = [
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID || "",
     annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID || "",
     popular: true,
-    color: "indigo",
+    color: "orange",
     features: ["15,000 screenshots/mo", "PNG, JPEG, WebP, PDF", "Geo-targeted rendering", "Cloud storage (R2)", "25 API keys", "120 req/min", "Priority support + 99.9% SLA"],
   },
   {
@@ -117,7 +117,7 @@ export function UpgradeDialog({
 
         {/* Header */}
         <div className="px-8 pt-8 pb-4 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-indigo-100 dark:bg-indigo-900/30 px-3 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-4">
+          <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 dark:bg-orange-900/30 px-3 py-1 text-xs font-semibold text-orange-600 dark:text-orange-400 mb-4">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
             </svg>
@@ -173,16 +173,16 @@ export function UpgradeDialog({
             const perMonth = Math.round((plan.annualPrice / 12) * 100) / 100;
             const colorClasses = {
               blue: {
-                border: plan.popular ? "border-indigo-500 ring-2 ring-indigo-500" : isCurrent ? "border-blue-500 ring-2 ring-blue-500/50" : "border-zinc-200 dark:border-zinc-800",
+                border: plan.popular ? "border-orange-500 ring-2 ring-orange-500" : isCurrent ? "border-blue-500 ring-2 ring-blue-500/50" : "border-zinc-200 dark:border-zinc-800",
                 badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
                 button: "bg-blue-600 hover:bg-blue-700 text-white",
                 check: "text-blue-500",
               },
-              indigo: {
-                border: "border-indigo-500 ring-2 ring-indigo-500",
-                badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
-                button: "bg-indigo-600 hover:bg-indigo-700 text-white",
-                check: "text-indigo-500",
+              orange: {
+                border: "border-orange-500 ring-2 ring-orange-500",
+                badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+                button: "bg-orange-600 hover:bg-orange-700 text-white",
+                check: "text-orange-500",
               },
               purple: {
                 border: isCurrent ? "border-purple-500 ring-2 ring-purple-500/50" : "border-zinc-200 dark:border-zinc-800",
@@ -197,11 +197,11 @@ export function UpgradeDialog({
               <div
                 key={plan.id}
                 className={`rounded-xl border p-5 flex flex-col relative transition-all ${colors.border} ${
-                  plan.popular ? "shadow-lg shadow-indigo-500/10" : ""
+                  plan.popular ? "shadow-lg shadow-orange-500/10" : ""
                 }`}
               >
                 {plan.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white whitespace-nowrap">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-orange-600 px-3 py-1 text-xs font-medium text-white whitespace-nowrap">
                     Most Popular
                   </span>
                 )}

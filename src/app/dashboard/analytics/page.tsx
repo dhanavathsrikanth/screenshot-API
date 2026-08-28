@@ -31,7 +31,7 @@ import {
 import { PageHeader } from "@/components/dashboard/page-header";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="eyebrow text-zinc-400 mb-4">{children}</h2>;
+  return <h2 className="eyebrow text-[var(--dim)] mb-4">{children}</h2>;
 }
 
 export default async function AnalyticsPage() {

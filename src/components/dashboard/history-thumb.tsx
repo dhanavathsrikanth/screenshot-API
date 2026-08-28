@@ -6,7 +6,7 @@ export function HistoryThumb({ src, format }: { src: string | null; format: stri
   const [failed, setFailed] = useState(false);
 
   if (!src || format === "pdf" || failed) {
-    return <span className="text-[9px] font-bold text-zinc-400 uppercase">{format}</span>;
+    return <span className="text-[9px] font-bold text-[var(--dim)] uppercase">{format}</span>;
   }
 
   return (

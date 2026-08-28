@@ -48,9 +48,9 @@ function fireQuotaExceeded(userId: string, projectId: string | null, plan: PlanI
   }).catch(() => {});
 }
 import {
-  featureUnavailable, getRequestId, insufficientCredits, internalError,
-  jsonError, missingTarget, normalizeUrl, rateLimited, rateLimitHeaders,
-  unauthorized, zodErrorResponse,
+  featureUnavailable, getRequestId, httpStatusForErrorCode, insufficientCredits,
+  internalError, jsonError, missingTarget, normalizeUrl, rateLimited,
+  rateLimitHeaders, unauthorized, zodErrorResponse,
 } from "@/lib/api";
 
 export const maxDuration = 90;
@@ -439,8 +439,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof SsrfError) return ssrfErrorResponse(error, requestId);
-    if (error instanceof RenderError && error.code === "SSRF_BLOCKED") {
-      return jsonError(403, "ssrf_blocked", error.message, requestId);
+    if (error instanceof RenderError) {
+      return jsonError(
+        httpStatusForErrorCode(error.code),
+        error.code.toLowerCase(),
+        error.message,
+        requestId
+      );
     }
     return internalError(error, requestId);
   }
@@ -738,6 +743,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof SsrfError) return ssrfErrorResponse(error, requestId);
+    if (error instanceof RenderError) {
+      return jsonError(
+        httpStatusForErrorCode(error.code),
+        error.code.toLowerCase(),
+        error.message,
+        requestId
+      );
+    }
     return internalError(error, requestId);
   }
 }

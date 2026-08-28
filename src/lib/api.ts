@@ -114,6 +114,28 @@ export function internalError(error: unknown, requestId?: string): NextResponse 
   return jsonError(500, "internal_error", message, requestId);
 }
 
+/**
+ * HTTP status for known render / job error codes. Unknown codes fall back to
+ * 500 so genuine internal failures are never masked as client errors.
+ */
+const ERROR_STATUS_BY_CODE: Record<string, number> = {
+  INVALID_URL: 400,
+  INVALID_COUNTRY: 400,
+  UNSUPPORTED_COUNTRY: 400,
+  TOO_MANY_REDIRECTS: 400,
+  NAVIGATION_FAILED: 400,
+  NAVIGATION_TIMEOUT: 400,
+  RENDER_TIMEOUT: 400,
+  FORMAT_NOT_SUPPORTED: 400,
+  SSRF_BLOCKED: 403,
+  GEO_UNAVAILABLE: 503,
+};
+
+export function httpStatusForErrorCode(code: string | null | undefined): number {
+  if (!code) return 500;
+  return ERROR_STATUS_BY_CODE[code.toUpperCase()] ?? 500;
+}
+
 export interface RateLimitInfo {
   limit: number;
   remaining: number;

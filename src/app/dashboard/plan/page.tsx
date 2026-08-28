@@ -211,7 +211,7 @@ export default async function PlanPage({
       </Suspense>
 
       <div>
-        <h2 className="eyebrow text-zinc-400 mb-4">Current Plan</h2>
+        <h2 className="eyebrow text-[var(--dim)] mb-4">Current Plan</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <StatsCard
@@ -244,7 +244,7 @@ export default async function PlanPage({
             icon={<CreditIcon />}
           />
           <div className="flex items-center">
-            <span className="inline-flex items-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 px-4 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300">
+            <span className="inline-flex items-center rounded-full bg-orange-100 dark:bg-orange-900/30 px-4 py-2 text-sm font-medium text-orange-700 dark:text-orange-300">
               {planLabels[stats.plan] ?? stats.plan} Plan
             </span>
           </div>
@@ -252,25 +252,25 @@ export default async function PlanPage({
       </div>
 
       <div>
-        <h2 className="eyebrow text-zinc-400 mb-4">Usage Alerts</h2>
+        <h2 className="eyebrow text-[var(--dim)] mb-4">Usage Alerts</h2>
         <UsageAlerts data={alerts} />
       </div>
 
       <div>
-        <h2 className="eyebrow text-zinc-400 mb-4">Upgrade</h2>
+        <h2 className="eyebrow text-[var(--dim)] mb-4">Upgrade</h2>
         <UpgradePrompt data={{ plan: stats.plan, monthlyUsed: stats.monthlyUsed, monthlyLimit: stats.monthlyLimit, recommendedPlan: costEst.recommendedPlan }} />
       </div>
 
       <div>
-        <h2 className="eyebrow text-zinc-400 mb-4">Buy Credit Top-Ups</h2>
+        <h2 className="eyebrow text-[var(--dim)] mb-4">Buy Credit Top-Ups</h2>
         <BuyCredits />
       </div>
 
       <div>
-        <h2 className="eyebrow text-zinc-400 mb-4">Billing History</h2>
+        <h2 className="eyebrow text-[var(--dim)] mb-4">Billing History</h2>
         {!customerId && (
-          <div className="card card-lift border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/30 p-4 mb-4">
-            <p className="text-sm text-indigo-800 dark:text-indigo-200">
+          <div className="card card-lift border-orange-500/30 bg-orange-50/50 dark:bg-orange-950/30 p-4 mb-4">
+            <p className="text-sm text-orange-800 dark:text-orange-200">
               No billing profile yet. Complete a checkout to create one — invoices will appear here.
             </p>
           </div>
@@ -278,7 +278,7 @@ export default async function PlanPage({
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] text-zinc-500 uppercase text-xs">
+              <tr className="border-b border-[var(--border)] text-[var(--dim)] uppercase text-xs">
                 <th className="text-left py-3 px-4 font-medium">Date</th>
                 <th className="text-left py-3 px-4 font-medium">Amount</th>
                 <th className="text-left py-3 px-4 font-medium">Status</th>
@@ -289,7 +289,7 @@ export default async function PlanPage({
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td className="py-6 px-4 text-zinc-500" colSpan={5}>
+                  <td className="py-6 px-4 text-[var(--dim)]" colSpan={5}>
                     {customerId ? "No payments found." : "Billing history will appear here after your first purchase."}
                   </td>
                 </tr>
@@ -306,12 +306,12 @@ export default async function PlanPage({
                           href={p.invoice_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+                          className="inline-flex items-center gap-1 text-orange-600 dark:text-orange-400 hover:underline"
                         >
                           Download
                         </a>
                       ) : (
-                        <span className="text-zinc-400">N/A</span>
+                        <span className="text-[var(--dim)]">N/A</span>
                       )}
                     </td>
                   </tr>
@@ -323,24 +323,24 @@ export default async function PlanPage({
       </div>
 
       <div>
-        <h2 className="eyebrow text-zinc-400 mb-4">Plan Comparison</h2>
+        <h2 className="eyebrow text-[var(--dim)] mb-4">Plan Comparison</h2>
         <div className="rounded-xl border border-[var(--border)] p-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)]">
-                <th className="text-left py-3 pr-4 text-zinc-500 font-medium">Feature</th>
+                <th className="text-left py-3 pr-4 text-[var(--dim)] font-medium">Feature</th>
                 {planIds.map((pid) => (
                   <th
                     key={pid}
                     className={`text-center py-3 px-4 font-medium ${
                       pid === currentPlan
-                        ? "text-indigo-600 dark:text-indigo-400 border-2 border-indigo-500/50 rounded-lg"
-                        : "text-zinc-500"
+                        ? "text-orange-600 dark:text-orange-400 border-2 border-orange-500/50 rounded-lg"
+                        : "text-[var(--dim)]"
                     }`}
                   >
                     {planLabels[pid]}
                     {pid === currentPlan && (
-                      <span className="ml-1 text-[10px] text-indigo-500">(current)</span>
+                      <span className="ml-1 text-[10px] text-orange-500">(current)</span>
                     )}
                   </th>
                 ))}
@@ -349,7 +349,7 @@ export default async function PlanPage({
             <tbody>
               {comparisonRows.map((row) => (
                 <tr key={row.key} className="border-b border-[var(--border)] last:border-0">
-                  <td className="py-3 pr-4 text-zinc-500">{row.label}</td>
+                  <td className="py-3 pr-4 text-[var(--dim)]">{row.label}</td>
                   {planIds.map((pid) => {
                     const val = row.format(planLimitsMap[pid]);
                     const isCurrent = pid === currentPlan;
@@ -357,14 +357,14 @@ export default async function PlanPage({
                       <td
                         key={pid}
                         className={`text-center py-3 px-4 ${
-                          isCurrent ? "border-2 border-indigo-500/50 rounded-lg" : ""
+                          isCurrent ? "border-2 border-orange-500/50 rounded-lg" : ""
                         }`}
                       >
                         {typeof val === "boolean" ? (
                           val ? (
                             <span className="text-green-500 font-semibold">✓</span>
                           ) : (
-                            <span className="text-zinc-300 dark:text-zinc-600">✗</span>
+                            <span className="text-[var(--line)] dark:text-[var(--dim)]">✗</span>
                           )
                         ) : (
                           <span className={isCurrent ? "font-medium" : ""}>{String(val)}</span>

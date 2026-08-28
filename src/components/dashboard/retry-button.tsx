@@ -47,11 +47,11 @@ export function RetryButton({ screenshotId }: { screenshotId: string }) {
         type="button"
         onClick={handleRetry}
         disabled={isPending || state === "retrying"}
-        className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+        className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-[var(--dim)] dark:text-[var(--dim)] hover:bg-[var(--muted)] dark:hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
         title={state === "error" && error ? error : "Re-capture this screenshot"}
       >
         {state === "retrying" ? (
-          <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-zinc-400 border-t-transparent" />
+          <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-[var(--dim)] border-t-transparent" />
         ) : (
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
