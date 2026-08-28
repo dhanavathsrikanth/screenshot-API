@@ -5,17 +5,27 @@ import { createServiceClient } from "@/lib/supabase/server";
 export type AuthContext = {
   userId: string;
   apiKeyId: string | null;
+  projectId: string | null;
   source: "app" | "api";
+  /** Per-key requests/min override from api_keys.rate_limit; null = plan default. */
+  apiKeyRateLimit?: number | null;
 };
 
 type VerifyApiKeyRow = {
   valid: boolean;
   api_key_id: string | null;
   user_id: string | null;
+  project_id: string | null;
   error: string | null;
+  rate_limit: number | null;
 };
 
-async function verifyApiKey(apiKey: string): Promise<{ userId: string; apiKeyId: string } | null> {
+async function verifyApiKey(apiKey: string): Promise<{
+  userId: string;
+  apiKeyId: string;
+  projectId: string | null;
+  rateLimit: number | null;
+} | null> {
   try {
     const supabase = createServiceClient();
     const { data, error } = await supabase.rpc("verify_api_key", { p_api_key: apiKey });
@@ -23,7 +33,12 @@ async function verifyApiKey(apiKey: string): Promise<{ userId: string; apiKeyId:
 
     const row = Array.isArray(data) ? (data[0] as VerifyApiKeyRow | undefined) : (data as VerifyApiKeyRow | null);
     if (row?.valid && row.user_id) {
-      return { userId: row.user_id, apiKeyId: row.api_key_id ?? "" };
+      return {
+        userId: row.user_id,
+        apiKeyId: row.api_key_id ?? "",
+        projectId: row.project_id ?? null,
+        rateLimit: row.rate_limit ?? null,
+      };
     }
     return null;
   } catch {
@@ -52,12 +67,18 @@ export async function resolveAuth(request: NextRequest): Promise<AuthContext | n
   if (apiKey) {
     const verified = await verifyApiKey(apiKey);
     if (!verified) return null;
-    return { userId: verified.userId, apiKeyId: verified.apiKeyId, source: "api" };
+    return {
+      userId: verified.userId,
+      apiKeyId: verified.apiKeyId,
+      projectId: verified.projectId,
+      source: "api",
+      apiKeyRateLimit: verified.rateLimit,
+    };
   }
 
   try {
     const { userId } = await auth();
-    if (userId) return { userId, apiKeyId: null, source: "app" };
+    if (userId) return { userId, apiKeyId: null, projectId: null, source: "app" };
   } catch {
     // no active session
   }

@@ -380,7 +380,7 @@ export async function getUsageForecast(userId: string) {
   const totalLogs = counts.reduce((a, b) => a + b, 0);
 
   if (totalLogs < 7) {
-    return { forecast: [], daysUntilLimit: null, ...limits };
+    return { forecast: [], daysUntilLimit: null, dailyAvg: 0, ...limits };
   }
 
   const regression = linearRegression(dates.map((_, i) => ({ x: i, y: counts[i] })));

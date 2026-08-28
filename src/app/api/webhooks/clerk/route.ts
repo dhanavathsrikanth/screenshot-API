@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { createServiceClient } from "@/lib/supabase/server";
+import { trackServerEvent } from "@/lib/posthog";
 
 const supabase = createServiceClient();
 
@@ -56,6 +57,36 @@ interface ClerkExternalAccount {
 }
 
 async function handleEvent(type: string, data: Record<string, unknown>) {
+  if (type === "user.deleted") {
+    const { id, deleted } = data as { id: string; deleted?: boolean };
+    // Clerk sends `deleted: false` for some intermediate states; only act on
+    // an actual deletion.
+    if (deleted === false) return;
+
+    const { error: userError } = await supabase
+      .from("users")
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (userError) {
+      console.error("[Clerk Webhook] Failed to mark user deleted:", userError.message);
+      throw userError;
+    }
+
+    // Revoke every API key immediately so a deleted account can't keep
+    // authenticating against the public API.
+    const { error: keysError } = await supabase
+      .from("api_keys")
+      .update({ is_active: false, revoked_at: new Date().toISOString() })
+      .eq("user_id", id)
+      .is("revoked_at", null);
+    if (keysError) {
+      console.error("[Clerk Webhook] Failed to revoke API keys for deleted user:", keysError.message);
+    }
+
+    console.log(`[Clerk Webhook] User deleted: ${id} (API keys revoked)`);
+    return;
+  }
+
   if (type === "user.created" || type === "user.updated") {
     const user = data as {
       id: string;
@@ -122,5 +153,13 @@ async function handleEvent(type: string, data: Record<string, unknown>) {
     }
 
     console.log(`[Clerk Webhook] User ${type}: ${user.id}`);
+
+    if (type === "user.created") {
+      // Activation funnel: mark the signup step (blueprint §16).
+      await trackServerEvent({
+        userId: user.id,
+        event: "signup_completed",
+      }).catch(() => {});
+    }
   }
 }

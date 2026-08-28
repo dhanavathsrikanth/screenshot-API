@@ -1,9 +1,18 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { rpcRows } from "@/app/actions/analytics";
+import { trackRenderMilestones } from "@/lib/analytics-events";
+import { createHash } from "node:crypto";
+
+/** Store a hash of the caller IP, never the raw address. */
+export function ipHash(ip: string): string {
+  return createHash("sha256").update(ip).digest("hex");
+}
 
 export async function logScreenshotUsage(params: {
   userId: string;
+  projectId?: string | null;
   apiKeyId?: string;
+  requestId?: string | null;
   endpoint: string;
   method: string;
   statusCode: number;
@@ -12,10 +21,13 @@ export async function logScreenshotUsage(params: {
   responseTimeMs: number;
   creditsUsed?: number;
   source?: "app" | "api";
+  ipHash?: string;
+  userAgent?: string;
 }) {
   const supabase = createServiceClient();
   const { error: logError } = await supabase.from("api_key_logs").insert({
     user_id: params.userId,
+    project_id: params.projectId ?? null,
     api_key_id: params.apiKeyId ?? null,
     endpoint: params.endpoint,
     method: params.method,
@@ -31,10 +43,50 @@ export async function logScreenshotUsage(params: {
     console.error("[logScreenshotUsage] insert failed:", logError.message, logError.details);
   }
 
+  // Best-effort audit rows — never block a successful response on these.
+  supabase
+    .from("usage_events")
+    .insert({
+      user_id: params.userId,
+      project_id: params.projectId ?? null,
+      api_key_id: params.apiKeyId ?? null,
+      event_type: params.endpoint.startsWith("/api/v1") ? "screenshot_created" : "screenshot",
+      units: params.creditsUsed ?? 0,
+      duration_ms: params.responseTimeMs,
+      metadata: { cached: params.cached, method: params.method, request_id: params.requestId },
+    })
+    .then(() => {}, () => {});
+
+  supabase
+    .from("api_requests")
+    .insert({
+      user_id: params.userId,
+      project_id: params.projectId ?? null,
+      api_key_id: params.apiKeyId ?? null,
+      request_id: params.requestId ?? null,
+      endpoint: params.endpoint,
+      method: params.method,
+      status_code: params.statusCode,
+      latency_ms: params.responseTimeMs,
+      ip_hash: params.ipHash ?? null,
+      user_agent: params.userAgent ?? null,
+      cached: params.cached,
+    })
+    .then(() => {}, () => {});
+
   const { error: usageError } = await supabase.rpc("increment_usage", { p_user_id: params.userId });
 
   if (usageError) {
     console.error("[logScreenshotUsage] increment_usage failed:", usageError.message);
+  }
+
+  // Activation funnel: fire first_api_request / first_screenshot_completed /
+  // 10th_screenshot exactly once at the stored totals.
+  if (!params.cached && params.statusCode === 200 && (params.creditsUsed ?? 0) > 0) {
+    trackRenderMilestones({
+      userId: params.userId,
+      endpoint: params.endpoint,
+    }).catch(() => {});
   }
 }
 
@@ -107,17 +159,131 @@ export async function getUsageStats(userId: string) {
   };
 }
 
-export async function getScreenshotHistory(userId: string, limit = 20) {
+import type { ScreenshotRow } from "@/lib/history-types";
+
+/** Server-side history filters — applied in SQL, not over loaded pages. */
+export type HistoryFilterParams = {
+  /** "all" or a lowercase format (png, jpeg, webp, pdf…). */
+  format?: string;
+  /** "all" | "api" | "playground" | "cached". */
+  source?: string;
+  /** URL substring (case-insensitive). */
+  query?: string;
+  /** ISO timestamp — only rows created at/after this time. */
+  from?: string;
+  /** ISO timestamp — only rows created at/before this time. */
+  to?: string;
+};
+
+function applyHistoryFilters(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  filters: HistoryFilterParams | undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (!filters) return query;
+  if (filters.format && filters.format !== "all") {
+    query = query.eq("format", filters.format.toLowerCase());
+  }
+  if (filters.source === "api") {
+    query = query.not("metadata->>method", "is", null);
+  } else if (filters.source === "playground") {
+    query = query.is("metadata->>method", null);
+  } else if (filters.source === "cached") {
+    query = query.eq("cached", true);
+  }
+  if (filters.query) {
+    query = query.ilike("url", `%${filters.query}%`);
+  }
+  if (filters.from) {
+    const from = new Date(filters.from);
+    if (!Number.isNaN(from.getTime())) query = query.gte("created_at", from.toISOString());
+  }
+  if (filters.to) {
+    const to = new Date(filters.to);
+    if (!Number.isNaN(to.getTime())) {
+      // Include the whole end day when a bare date is supplied.
+      const end = new Date(to);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(filters.to)) end.setHours(23, 59, 59, 999);
+      query = query.lte("created_at", end.toISOString());
+    }
+  }
+  return query;
+}
+
+/**
+ * Cursor-paginated screenshot history, newest first. Pass `before` (an ISO
+ * timestamp from the previous page's last row) to fetch the next older page,
+ * optionally narrowed by server-side filters.
+ */
+export async function getScreenshotHistory(
+  userId: string,
+  options: { limit?: number; before?: string; filters?: HistoryFilterParams } = {}
+): Promise<ScreenshotRow[]> {
+  const limit = Math.min(Math.max(1, options.limit ?? 50), 100);
   const supabase = await createClient();
-  const { data, error } = await supabase
+
+  let query = supabase
     .from("screenshots")
     .select("id, url, storage_url, format, width, height, file_size_bytes, cached, created_at, metadata")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  query = applyHistoryFilters(query, options.filters);
+
+  if (options.before) {
+    query = query.lt("created_at", options.before);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
-  return data;
+  return (data ?? []) as ScreenshotRow[];
+}
+
+/** Aggregate stats for the history summary strip. Uses a SQL aggregate RPC so
+ * the query never loads every row into memory; falls back to the old JS scan
+ * when the RPC is unavailable (pre-migration databases). */
+export async function getScreenshotHistoryStats(userId: string): Promise<{
+  total: number;
+  totalBytes: number;
+  viaApi: number;
+  cachedCount: number;
+}> {
+  const supabase = await createClient();
+
+  const { data: rpcData, error: rpcError } = await supabase
+    .rpc("get_screenshot_history_stats", { p_user_id: userId });
+
+  const row = Array.isArray(rpcData) ? rpcData[0] : (rpcData as Record<string, number> | null);
+  if (!rpcError && row) {
+    return {
+      total: Number(row.total ?? 0),
+      totalBytes: Number(row.total_bytes ?? 0),
+      viaApi: Number(row.via_api ?? 0),
+      cachedCount: Number(row.cached_count ?? 0),
+    };
+  }
+
+  // Fallback: legacy full scan.
+  const { data, error } = await supabase
+    .from("screenshots")
+    .select("file_size_bytes, cached, metadata")
+    .eq("user_id", userId);
+
+  if (error) throw error;
+
+  let totalBytes = 0;
+  let viaApi = 0;
+  let cachedCount = 0;
+  for (const row of data ?? []) {
+    totalBytes += row.file_size_bytes ?? 0;
+    if (row.cached) cachedCount++;
+    const meta = (row.metadata ?? {}) as { method?: string };
+    if (meta.method) viaApi++;
+  }
+
+  return { total: data?.length ?? 0, totalBytes, viaApi, cachedCount };
 }
 
 export async function getUserProfile(userId: string) {

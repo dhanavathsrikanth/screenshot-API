@@ -12,13 +12,6 @@ dotenv.config();
 // Env: UPSTASH_QSTASH_TOKEN (required), RENDER_URL or KEEPALIVE_URL (required for setup)
 
 const CRON_EVERY_5_MIN = "*/5 * * * *";
-const SCHEDULE_LABEL = "screenshotapi-render-keepalive";
-
-function requireEnv(name) {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing required env: ${name}`);
-  return v;
-}
 
 function requireAnyEnv(names) {
   for (const n of names) {

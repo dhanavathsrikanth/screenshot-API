@@ -47,7 +47,7 @@ export function TryIt() {
   function curlCommand(targetUrl: string): string {
     const params = buildQuery(targetUrl);
     const auth = apiKey.trim() ? `  -H "Authorization: Bearer ${apiKey.trim()}" \\\n` : "";
-    return `curl \\\n${auth}  "${siteConfig.url}/api/take?${params.toString()}" \\
+    return `curl \\\n${auth}  "${siteConfig.apiUrl}/api/take?${params.toString()}" \\
   --output screenshot.${format === "jpeg" ? "jpg" : format}`;
   }
 

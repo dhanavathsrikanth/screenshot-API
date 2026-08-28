@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConsentManager } from "@/components/consent-manager";
+import { PostHogProvider } from "@/components/providers/posthog-provider";
+import { PostHogPageView } from "@/components/providers/posthog-page-view";
+import { JsonLd } from "@/components/json-ld";
 import { siteConfig } from "@/lib/site";
 
 const geistSans = Geist({
@@ -40,30 +43,6 @@ export const metadata: Metadata = {
   },
 };
 
-const websiteJsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      "@id": `${siteConfig.url}/#organization`,
-      name: siteConfig.name,
-      url: siteConfig.url,
-      description: siteConfig.description,
-      email: siteConfig.email,
-    },
-    {
-      "@type": "WebSite",
-      "@id": `${siteConfig.url}/#website`,
-      url: siteConfig.url,
-      name: siteConfig.name,
-      description: siteConfig.description,
-      publisher: {
-        "@id": `${siteConfig.url}/#organization`,
-      },
-    },
-  ],
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -71,19 +50,27 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html
-        lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      >
-        <body className="min-h-full flex flex-col">
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
-          />
-          {children}
-          <ConsentManager />
-        </body>
-      </html>
+      <PostHogProvider>
+        <html
+          lang="en"
+          suppressHydrationWarning
+          className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+        >
+          <head>
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;if(d)document.documentElement.classList.add("dark");}catch(e){}})();`,
+              }}
+            />
+          </head>
+          <body className="min-h-full flex flex-col">
+            {children}
+            <PostHogPageView />
+            <ConsentManager />
+            <JsonLd />
+          </body>
+        </html>
+      </PostHogProvider>
     </ClerkProvider>
   );
 }

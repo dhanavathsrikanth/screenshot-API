@@ -4,14 +4,6 @@ dotenv.config();
 
 import DodoPayments from "dodopayments";
 
-function requireEnv(name, fallback = undefined) {
-  const v = process.env[name] ?? fallback;
-  if (v === undefined || v === null || v === "") {
-    throw new Error(`Missing required env: ${name}`);
-  }
-  return v;
-}
-
 function requireAnyEnv(names, fallback = undefined) {
   for (const n of names) {
     const v = process.env[n];
@@ -134,7 +126,7 @@ async function main() {
   });
 
   // Helpers
-  async function createSubscriptionProduct({ name, priceCents, monthlyCredits, overagePricePerUnitUSD, planMeta }) {
+  async function createSubscriptionProduct({ name, priceCents, monthlyCredits, overagePricePerUnitUSD, planMeta, frequency = "Month" }) {
     // UBB (usage-based) price so Dodo can meter consumption against the
     // credit entitlement: in-balance usage auto-deducts credits FIFO, and
     // usage past zero becomes billable overage (overage_behavior set below).
@@ -147,9 +139,9 @@ async function main() {
         discount: 0,
         purchasing_power_parity: true,
         payment_frequency_count: 1,
-        payment_frequency_interval: "Month",
+        payment_frequency_interval: frequency,
         subscription_period_count: 1,
-        subscription_period_interval: "Month",
+        subscription_period_interval: frequency,
         tax_inclusive: false,
         meters: [
           {
@@ -238,6 +230,25 @@ async function main() {
     planMeta: "pro",
   });
 
+  // Annual variants (billed once per year; credits granted per year).
+  const starterAnnual = await createSubscriptionProduct({
+    name: "ScreenTool Starter (Annual)",
+    priceCents: 9000, // $90.00 (~2 months free vs monthly)
+    monthlyCredits: 30000, // 2,500/mo × 12
+    overagePricePerUnitUSD: "0.005",
+    planMeta: "starter",
+    frequency: "Year",
+  });
+
+  const proAnnual = await createSubscriptionProduct({
+    name: "ScreenTool Pro (Annual)",
+    priceCents: 49000, // $490.00 (~2 months free vs monthly)
+    monthlyCredits: 180000, // 15,000/mo × 12
+    overagePricePerUnitUSD: "0.003",
+    planMeta: "pro",
+    frequency: "Year",
+  });
+
   // 4) Create Top-Up Products (365-day validity)
   const topup500 = await createTopupProduct({
     name: "ScreenTool Top-up 500",
@@ -267,6 +278,8 @@ async function main() {
   console.log(`DODO_METER_PDF_ID=${pdfMeterId}`);
   console.log(`DODO_PRODUCT_STARTER_ID=${starter.product_id}`);
   console.log(`DODO_PRODUCT_PRO_ID=${pro.product_id}`);
+  console.log(`DODO_PRODUCT_STARTER_ANNUAL_ID=${starterAnnual.product_id}`);
+  console.log(`DODO_PRODUCT_PRO_ANNUAL_ID=${proAnnual.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_500_ID=${topup500.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_2500_ID=${topup2500.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_10000_ID=${topup10000.product_id}`);

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { siteConfig } from "@/lib/site";
 import { Hero } from "@/components/home/Hero";
+import { StackStrip } from "@/components/home/StackStrip";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { FormatsSection } from "@/components/home/FormatsSection";
 import { Features } from "@/components/features";
@@ -19,10 +21,47 @@ export const metadata: Metadata = {
   },
 };
 
+const softwareAppJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: siteConfig.name,
+  url: siteConfig.url,
+  description: siteConfig.description,
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web",
+  email: siteConfig.email,
+  publisher: { "@id": `${siteConfig.url}/#organization` },
+  offers: [
+    {
+      "@type": "Offer",
+      name: "Free",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    {
+      "@type": "Offer",
+      name: "Starter",
+      price: "9",
+      priceCurrency: "USD",
+    },
+    {
+      "@type": "Offer",
+      name: "Pro",
+      price: "49",
+      priceCurrency: "USD",
+    },
+  ],
+};
+
 export default function Home() {
   return (
-    <div className="min-h-screen">
+    <div className="scroll-smooth">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
+      />
       <Hero />
+      <StackStrip />
       <HowItWorks />
       <FormatsSection />
       <Features />

@@ -7,8 +7,60 @@ import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/server";
 import { cacheInvalidate } from "@/lib/redis";
+import { trackServerEvent } from "@/lib/posthog";
+import {
+  resolvePlanFromDodoProduct,
+  planInfoFor,
+  type PaidPlanId,
+  type ResolvedPlan as PlanInfo,
+} from "@/lib/plans";
 
-type AnyRecord = Record<string, any>;
+/** Loose shape for Dodo webhook event `data`. */
+interface DodoDataRecord {
+  id?: string;
+  payment_id?: string | null;
+  subscription_id?: string | null;
+  refund_id?: string;
+  dispute_id?: string;
+  license_key_id?: string;
+  customer_id?: string;
+  product_id?: string;
+  entitlement_id?: string;
+  credit_entitlement_id?: string;
+  status?: string | null;
+  balance_after?: number | string;
+  available_balance?: number | string;
+  credit_balance?: number | string;
+  balance?: number | string;
+  threshold_percent?: number;
+  email?: string;
+  metadata?: Record<string, unknown>;
+  customer?: { customer_id?: string; email?: string };
+  subscription?: {
+    customer_id?: string;
+    id?: string;
+    product_id?: string;
+    metadata?: Record<string, unknown>;
+    customer?: { email?: string };
+  };
+  payment?: { customer_id?: string; id?: string; metadata?: Record<string, unknown>; customer?: { email?: string } };
+  items?: Array<{ product_id?: string }>;
+  line_items?: Array<{ product_id?: string }>;
+  product_cart?: Array<{ product_id?: string; quantity?: number }> | null;
+  [key: string]: unknown;
+}
+
+/** Loose shape for any webhook payload or fetched Dodo resource. */
+type AnyRecord = {
+  type?: string;
+  id?: string;
+  timestamp?: string | Date;
+  product_id?: string;
+  data?: DodoDataRecord;
+  metadata?: Record<string, unknown>;
+  balance?: number | string;
+  [key: string]: unknown;
+};
 
 /** Extract the Dodo customer id from any webhook payload shape. */
 function getCustomerId(payload: AnyRecord): string | undefined {
@@ -55,15 +107,6 @@ async function invalidateUserCaches(userId: string): Promise<void> {
 
 // ── Plan mapping from Dodo product IDs ──────────────────────────────────
 
-type PlanId = "starter" | "pro";
-type PlanInfo = { plan: PlanId; credits: number; monthlyLimit: number };
-
-function planInfoFor(plan: PlanId): PlanInfo {
-  return plan === "pro"
-    ? { plan: "pro", credits: 15000, monthlyLimit: 15000 }
-    : { plan: "starter", credits: 2500, monthlyLimit: 2500 };
-}
-
 function getDodoClient() {
   const dodoConfig = getDodoConfig();
   return new DodoPayments({
@@ -73,37 +116,15 @@ function getDodoClient() {
 }
 
 async function resolvePlanFromProduct(productId: string | undefined, client: DodoPayments): Promise<PlanInfo | null> {
-  if (!productId) return null;
-
-  // 1) Env-configured product IDs (fast path)
-  const mappings: [string, PlanId][] = [
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID ?? "", "starter"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID ?? "", "pro"],
-  ];
-
-  for (const [pid, plan] of mappings) {
-    if (pid && pid === productId) return planInfoFor(plan);
-  }
-
-  // 2) Authoritative fallback: read `metadata.plan` from the Dodo product.
-  //    Product IDs are opaque and products may be recreated (new IDs), so the
-  //    env map above can miss the product that was actually purchased.
-  try {
-    const product = (await client.products.retrieve(productId)) as AnyRecord;
-    const metaPlan = product?.metadata?.plan;
-    if (metaPlan === "starter" || metaPlan === "pro") {
-      return planInfoFor(metaPlan);
+  return resolvePlanFromDodoProduct(productId, async (id) => {
+    try {
+      const product = (await client.products.retrieve(id)) as unknown as AnyRecord;
+      return { metadata: product?.metadata };
+    } catch (err) {
+      console.error(`[Dodo Webhook] Failed to fetch product ${id}:`, (err as Error)?.message ?? err);
+      return null;
     }
-  } catch (err) {
-    console.error(`[Dodo Webhook] Failed to fetch product ${productId}:`, (err as Error)?.message ?? err);
-  }
-
-  // 3) Fallback: try matching by plan name in product ID string
-  const lower = productId.toLowerCase();
-  if (lower.includes("pro")) return planInfoFor("pro");
-  if (lower.includes("starter")) return planInfoFor("starter");
-
-  return null;
+  });
 }
 
 // ── User resolution ─────────────────────────────────────────────────────
@@ -114,12 +135,12 @@ async function resolveUserIdFromPayload(payload: AnyRecord): Promise<string | nu
   const customerId: string | undefined = getCustomerId(payload);
 
   // 1) Prefer explicit user_id metadata from checkout
-  const metaUserId: string | undefined =
+  const metaUserId: unknown =
     payload?.data?.metadata?.user_id ??
     payload?.data?.subscription?.metadata?.user_id ??
     payload?.data?.payment?.metadata?.user_id;
 
-  if (metaUserId) return metaUserId;
+  if (typeof metaUserId === "string") return metaUserId;
 
   // 2) Fallback: dodo_customer_id mapping
   if (customerId) {
@@ -267,7 +288,7 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
   // subscription when a subscription_id is present.
   if (!productId && subscriptionId) {
     try {
-      const sub = (await client.subscriptions.retrieve(subscriptionId)) as AnyRecord;
+      const sub = (await client.subscriptions.retrieve(subscriptionId)) as unknown as AnyRecord;
       productId = sub?.product_id ?? undefined;
     } catch (err) {
       console.error(`[Dodo Webhook] Failed to fetch subscription ${subscriptionId}:`, (err as Error)?.message ?? err);
@@ -292,9 +313,10 @@ async function upgradePlan(payload: AnyRecord): Promise<void> {
         pendingQuota?.pending_plan &&
         pendingQuota?.pending_product_id === productId &&
         (pendingQuota.pending_plan === "starter" ||
-          pendingQuota.pending_plan === "pro")
+          pendingQuota.pending_plan === "pro" ||
+          pendingQuota.pending_plan === "scale")
       ) {
-        planInfo = planInfoFor(pendingQuota.pending_plan);
+        planInfo = planInfoFor(pendingQuota.pending_plan as PaidPlanId);
         console.log(`[Dodo Webhook] Using pending plan ${pendingQuota.pending_plan} for user ${userId}`);
       }
     } catch (pendingErr) {
@@ -398,7 +420,7 @@ async function syncCreditBalance(payload: AnyRecord): Promise<void> {
         { credit_entitlement_id: creditEntitlementId }
       );
 
-      const newBalance = toCredits((balance as AnyRecord).balance);
+      const newBalance = toCredits((balance as unknown as AnyRecord).balance);
       if (newBalance !== null) {
         await supabase
           .from("user_quotas")
@@ -547,6 +569,32 @@ async function recordLowBalanceAlert(payload: AnyRecord): Promise<void> {
   });
 }
 
+// ── Paid-conversion funnel ──────────────────────────────────────────────
+
+function productIdFromPayload(payload: AnyRecord): string | null {
+  return (
+    payload?.data?.product_id ??
+    payload?.data?.subscription?.product_id ??
+    payload?.data?.items?.find((item) => item.product_id)?.product_id ??
+    payload?.data?.line_items?.find((item) => item.product_id)?.product_id ??
+    null
+  );
+}
+
+async function trackPaymentSucceededFunnel(payload: AnyRecord): Promise<void> {
+  try {
+    const userId = await resolveUserIdFromPayload(payload);
+    if (!userId) return;
+    await trackServerEvent({
+      userId,
+      event: "payment_succeeded",
+      properties: { product_id: productIdFromPayload(payload), event_type: payload?.type ?? null },
+    });
+  } catch {
+    // Analytics must never break webhook processing.
+  }
+}
+
 // ── Webhook handler factory ─────────────────────────────────────────────
 
 let _handler: ReturnType<typeof Webhooks> | null = null;
@@ -575,6 +623,7 @@ function getWebhookHandler() {
         // If this payment activated a replacement subscription, retire the old
         // one so the user isn't left with parallel subscriptions.
         await cancelSupersededSubscription(payload);
+        await trackPaymentSucceededFunnel(payload);
       },
 
       onPaymentProcessing: async (payload: AnyRecord) => {
@@ -614,6 +663,25 @@ function getWebhookHandler() {
         console.log("[Dodo Webhook] Subscription active");
         await upsertCustomerMapping(payload);
         await upgradePlan(payload);
+
+        // Conversion funnel: subscription_created (blueprint §16).
+        const userId = await resolveUserIdFromPayload(payload);
+        if (userId) {
+          await trackServerEvent({
+            userId,
+            event: "subscription_created",
+            properties: {
+              subscription_id:
+                payload?.data?.subscription_id ??
+                payload?.data?.subscription?.id ??
+                null,
+              product_id:
+                payload?.data?.product_id ??
+                payload?.data?.subscription?.product_id ??
+                null,
+            },
+          }).catch(() => {});
+        }
       },
 
       onSubscriptionOnHold: async (payload: AnyRecord) => {

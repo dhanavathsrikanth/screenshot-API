@@ -2,11 +2,14 @@
 
 import { useState, useTransition, useCallback } from "react";
 import { generateApiKey, revokeApiKey, toggleApiKey } from "@/app/actions/api-keys";
+import type { ApiKeyEnvironment } from "@/app/actions/api-keys";
+import type { ProjectRow } from "@/app/actions/projects";
 
 type ApiKey = {
   id: string;
   name: string;
   key_prefix: string;
+  environment: ApiKeyEnvironment;
   is_active: boolean;
   last_used_at: string | null;
   created_at: string;
@@ -14,11 +17,14 @@ type ApiKey = {
 
 interface ApiKeysManagerProps {
   initialKeys: ApiKey[];
+  projects: ProjectRow[];
 }
 
-export function ApiKeysManager({ initialKeys }: ApiKeysManagerProps) {
+export function ApiKeysManager({ initialKeys, projects }: ApiKeysManagerProps) {
   const [keys, setKeys] = useState(initialKeys);
   const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyEnv, setNewKeyEnv] = useState<ApiKeyEnvironment>("production");
+  const [newKeyProject, setNewKeyProject] = useState<string>("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [revokeConfirmId, setRevokeConfirmId] = useState<string | null>(null);
@@ -32,10 +38,14 @@ export function ApiKeysManager({ initialKeys }: ApiKeysManagerProps) {
     setError(null);
 
     try {
-      const result = await generateApiKey(newKeyName.trim());
+      const result = await generateApiKey(
+        newKeyName.trim(),
+        newKeyEnv,
+        newKeyProject || undefined
+      );
       setCreatedKey(result.rawKey);
       setKeys((prev) => [
-        { id: result.id, name: result.name, key_prefix: result.key_prefix, is_active: true, last_used_at: null, created_at: result.created_at },
+        { id: result.id, name: result.name, key_prefix: result.key_prefix, environment: newKeyEnv, is_active: true, last_used_at: null, created_at: result.created_at },
         ...prev,
       ]);
       setNewKeyName("");
@@ -43,7 +53,7 @@ export function ApiKeysManager({ initialKeys }: ApiKeysManagerProps) {
     } catch {
       setError("Failed to create API key. Please try again.");
     }
-  }, [newKeyName]);
+  }, [newKeyName, newKeyEnv, newKeyProject]);
 
   const handleToggle = useCallback(async (keyId: string, currentActive: boolean) => {
     setError(null);
@@ -139,6 +149,28 @@ export function ApiKeysManager({ initialKeys }: ApiKeysManagerProps) {
             className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             autoFocus
           />
+          <select
+            value={newKeyEnv}
+            onChange={(e) => setNewKeyEnv(e.target.value as ApiKeyEnvironment)}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="production">Live</option>
+            <option value="test">Test</option>
+          </select>
+          {projects.length > 1 && (
+            <select
+              value={newKeyProject}
+              onChange={(e) => setNewKeyProject(e.target.value)}
+              className="max-w-48 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Default project</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             type="submit"
             disabled={isPending || !newKeyName.trim()}
@@ -176,6 +208,15 @@ export function ApiKeysManager({ initialKeys }: ApiKeysManagerProps) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="font-medium truncate">{key.name}</p>
+                  <span
+                    className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full ${
+                      key.environment === "test"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                        : "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
+                    }`}
+                  >
+                    {key.environment === "test" ? "Test" : "Live"}
+                  </span>
                   <span
                     className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full ${
                       key.is_active

@@ -7,10 +7,12 @@ const paidPlans = [
     id: "starter",
     name: "Starter",
     monthlyPrice: 9,
+    annualPrice: 90,
     description: "For developers building integrations",
     screenshots: "2,500",
     overage: "$0.005 / extra",
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID || "",
+    annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID || "",
     color: "blue",
     features: ["2,500 screenshots/mo", "PNG, JPEG, WebP, PDF", "Ad & cookie blocking", "5 API keys", "40 req/min", "Email support"],
   },
@@ -18,15 +20,32 @@ const paidPlans = [
     id: "pro",
     name: "Pro",
     monthlyPrice: 49,
+    annualPrice: 490,
     description: "For teams shipping production features",
     screenshots: "15,000",
     overage: "$0.003 / extra",
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID || "",
+    annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID || "",
     popular: true,
     color: "indigo",
-    features: ["15,000 screenshots/mo", "PNG, JPEG, WebP, PDF", "Cloud storage (R2)", "25 API keys", "120 req/min", "Priority support + 99.9% SLA"],
+    features: ["15,000 screenshots/mo", "PNG, JPEG, WebP, PDF", "Geo-targeted rendering", "Cloud storage (R2)", "25 API keys", "120 req/min", "Priority support + 99.9% SLA"],
+  },
+  {
+    id: "scale",
+    name: "Scale",
+    monthlyPrice: 79,
+    annualPrice: 790,
+    description: "Premium capture capabilities at volume",
+    screenshots: "50,000",
+    overage: "$0.002 / extra",
+    productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_SCALE_ID || "",
+    annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID || "",
+    color: "purple",
+    features: ["50,000 screenshots/mo", "Everything in Pro", "Video / GIF capture (MP4, GIF, WebM)", "Geo-targeted rendering", "Highest queue priority", "50 API keys · 240 req/min", "Priority support + 99.9% SLA"],
   },
 ];
+
+const hasAnnual = paidPlans.some((p) => p.annualProductId);
 
 export function UpgradeDialog({
   open,
@@ -39,6 +58,7 @@ export function UpgradeDialog({
 }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [annual, setAnnual] = useState(false);
 
   async function handleCheckout(productId: string, planId: string) {
     if (!productId) {
@@ -68,7 +88,7 @@ export function UpgradeDialog({
       }
 
       if (data.checkout_url) {
-        window.location.href = data.checkout_url;
+        window.location.assign(data.checkout_url);
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -120,11 +140,37 @@ export function UpgradeDialog({
         )}
 
         {/* Plans */}
-        <div className="px-8 pb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="px-8 pb-8">
+          {hasAnnual && (
+            <div className="flex justify-center mb-6">
+              <div className="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800 p-1 text-sm">
+                <button
+                  onClick={() => setAnnual(false)}
+                  className={`rounded-full px-4 py-1.5 font-medium transition-colors ${
+                    !annual ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500"
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setAnnual(true)}
+                  className={`rounded-full px-4 py-1.5 font-medium transition-colors ${
+                    annual ? "bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100" : "text-zinc-500"
+                  }`}
+                >
+                  Annual
+                  <span className="ml-1 text-[11px] font-bold text-green-500">-17%</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {paidPlans.map((plan) => {
-            const price = plan.monthlyPrice;
+            const price = annual ? plan.annualPrice : plan.monthlyPrice;
             const isCurrent = currentPlan === plan.id;
             const isLoading = loading === plan.id;
+            const perMonth = Math.round((plan.annualPrice / 12) * 100) / 100;
             const colorClasses = {
               blue: {
                 border: plan.popular ? "border-indigo-500 ring-2 ring-indigo-500" : isCurrent ? "border-blue-500 ring-2 ring-blue-500/50" : "border-zinc-200 dark:border-zinc-800",
@@ -174,9 +220,11 @@ export function UpgradeDialog({
 
                 <div className="mt-4 flex items-baseline gap-1">
                   <span className="text-3xl font-bold">${price}</span>
-                  <span className="text-sm text-zinc-500">/mo</span>
+                  <span className="text-sm text-zinc-500">{annual ? "/yr" : "/mo"}</span>
                 </div>
-                <p className="text-[11px] text-zinc-400 mt-1">Overage: {plan.overage}</p>
+                <p className="text-[11px] text-zinc-400 mt-1">
+                  {annual ? `$${perMonth}/mo billed yearly · ` : ""}Overage: {plan.overage}
+                </p>
 
                 <ul className="mt-4 space-y-2 flex-1">
                   {plan.features.map((f) => (
@@ -190,7 +238,7 @@ export function UpgradeDialog({
                 </ul>
 
                 <button
-                  onClick={() => handleCheckout(plan.productId, plan.id)}
+                  onClick={() => handleCheckout(annual ? plan.annualProductId : plan.productId, plan.id)}
                   disabled={isLoading || isCurrent}
                   className={`mt-5 w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                     isCurrent
@@ -220,6 +268,7 @@ export function UpgradeDialog({
               </div>
             );
           })}
+          </div>
         </div>
 
         {/* Footer */}

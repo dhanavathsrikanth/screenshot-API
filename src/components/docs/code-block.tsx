@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { captureClientFunnel, FUNNEL_EVENTS } from "@/lib/funnel";
 
 export function CodeBlock({
   code,
@@ -16,6 +17,7 @@ export function CodeBlock({
       await navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
+      captureClientFunnel(FUNNEL_EVENTS.codeCopied, { label: label ?? "bash", source: "docs" });
     } catch {
       setCopied(false);
     }

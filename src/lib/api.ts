@@ -24,6 +24,32 @@ export function getRequestId(request: NextRequest): string | undefined {
   return request.headers.get("x-request-id") ?? undefined;
 }
 
+/**
+ * Best-effort client IP for anonymous rate limiting (guest tools).
+ *
+ * `X-Forwarded-For` is built left-to-right as a request passes through
+ * proxies: each hop appends the address it saw the connection from. A
+ * client can freely set their own `X-Forwarded-For` header, which becomes
+ * the *leftmost* entry — so trusting the first entry lets anyone spoof their
+ * IP and defeat IP-based rate limiting. The rightmost entry is the one
+ * appended by our own trusted edge (Render's load balancer), which a client
+ * cannot forge, so that's the one we trust here. This assumes exactly one
+ * trusted proxy hop in front of the app (true for a Render web service).
+ */
+export function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const parts = forwarded.split(",").map((p) => p.trim()).filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last) return last;
+  }
+  return request.headers.get("x-real-ip")?.trim() || "unknown";
+}
+
+function requestIdHeaders(requestId?: string): Record<string, string> {
+  return requestId ? { "x-request-id": requestId } : {};
+}
+
 export function jsonError(
   status: number,
   code: string,
@@ -40,7 +66,7 @@ export function jsonError(
         ...(requestId ? { requestId } : {}),
       },
     },
-    { status }
+    { status, headers: requestIdHeaders(requestId) }
   );
 }
 
@@ -123,6 +149,7 @@ export function rateLimited(
       headers: {
         "Retry-After": String(Math.ceil(retryAfterMs / 1000)),
         ...(info ? rateLimitHeaders(info) : {}),
+        ...requestIdHeaders(requestId),
       },
     }
   );

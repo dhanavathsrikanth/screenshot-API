@@ -23,9 +23,11 @@ const planLabels: Record<string, string> = { free: "Free", starter: "Starter", p
 
 export default async function DashboardPage() {
   const { userId } = await auth();
-  if (!userId) redirect("/");
+  if (!userId) redirect("/sign-in");
 
-  let stats: Stats; let profile: UserProfile; let periodComparison: any; let alerts: any[];
+  let stats: Stats; let profile: UserProfile;
+  let periodComparison: { thisWeek: number; lastWeek: number; weekDelta: number; thisMonth: number; lastMonth: number; monthDelta: number };
+  let alerts: { id: string; alert_type: string; threshold_pct: number; triggered_at: string; acknowledged: boolean }[];
 
   try {
     [stats, profile, periodComparison, alerts] = await Promise.all([
@@ -60,7 +62,7 @@ export default async function DashboardPage() {
               {planLabels[stats.plan] ?? stats.plan} Plan
             </span>
             {isFree && <UpgradeButton />}
-            {!isFree && stats.plan === "starter" && <UpgradeButton variant="secondary" />}
+            {!isFree && stats.plan !== "scale" && <UpgradeButton variant="secondary" />}
           </>
         }
       />
@@ -140,11 +142,10 @@ export default async function DashboardPage() {
         <div className="flex flex-col gap-3">
           <h2 className="eyebrow text-zinc-400">Quick Actions</h2>
           {[
-            { href: "/dashboard/analytics", label: "Analytics", sub: "Usage trends and performance", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /> },
-            { href: "/dashboard/tracking", label: "API Tracking", sub: "Request logs and breakdowns", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.808-3.808-9.98 0-13.788m13.788 0c3.808 3.808 3.808 9.98 0 13.788M12 12h.008v.007H12V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /> },
-            { href: "/dashboard/quickstart", label: "Quick Start", sub: "Code snippets to get started", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /> },
             { href: "/dashboard/playground", label: "Playground", sub: "Try the screenshot API live", icon: <><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></> },
             { href: "/dashboard/api-keys", label: "API Keys", sub: "Manage your API keys", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" /> },
+            { href: "/dashboard/analytics", label: "Analytics", sub: "Usage, reliability, and cost", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /> },
+            { href: "/dashboard/plan", label: "Plan & Billing", sub: "Credits, invoices, upgrade", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 7.5h6M9 10.5h6M8.25 3.75h7.5A2.25 2.25 0 0 1 18 6v12.75l-3-1.5-3 1.5-3-1.5-3 1.5V6a2.25 2.25 0 0 1 2.25-2.25Z" /> },
             { href: "/dashboard/history", label: "History", sub: "View recent screenshots", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /> },
           ].map((action) => (
             <Link

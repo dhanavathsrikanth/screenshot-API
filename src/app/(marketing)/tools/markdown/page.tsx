@@ -14,6 +14,7 @@ export default function MarkdownTool() {
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,20 +27,39 @@ export default function MarkdownTool() {
     setSubmittedUrl(targetUrl);
 
     try {
-      const response = await fetch(
-        `/api/take?url=${encodeURIComponent(targetUrl)}&format=png`
-      );
+      const response = await fetch("/api/tools/markdown", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl }),
+      });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to convert");
+        throw new Error(err.error?.message ?? err.error ?? "Failed to convert");
       }
-      const blob = await response.blob();
-      setResult(URL.createObjectURL(blob));
+      setResult(await response.text());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyResult() {
+    if (!result) return;
+    await navigator.clipboard.writeText(result);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  }
+
+  async function downloadResult() {
+    if (!result) return;
+    const blob = new Blob([result], { type: "text/markdown" });
+    const urlObj = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = urlObj;
+    a.download = "page.md";
+    a.click();
+    URL.revokeObjectURL(urlObj);
   }
 
   return (
@@ -112,16 +132,34 @@ export default function MarkdownTool() {
                 {submittedUrl || "Converting…"}
               </span>
             </div>
+            {result && (
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={copyResult}
+                  className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
+                <button
+                  onClick={downloadResult}
+                  className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Download
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="relative flex min-h-[320px] items-center justify-center bg-slate-100 p-2 dark:bg-slate-900/50 sm:min-h-[380px]">
+          <div className="relative min-h-[320px] bg-slate-50 dark:bg-slate-900/50">
             {loading ? (
               <div className="flex flex-col items-center gap-4 py-20 text-slate-500">
                 <span className="h-10 w-10 animate-spin rounded-full border-[3px] border-indigo-500/25 border-t-indigo-500" />
                 <p className="text-sm">Converting {submittedUrl}…</p>
               </div>
             ) : result ? (
-              <img src={result} alt="Screenshot" className="max-h-[560px] w-full rounded-lg object-cover" />
+              <pre className="max-h-[560px] overflow-auto p-5 font-mono text-xs leading-6 text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                {result}
+              </pre>
             ) : error ? (
               <div className="w-full px-6 py-16 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400">

@@ -12,10 +12,13 @@ type CreditState = {
 };
 
 type EnsureResult =
-  | { allowed: true; mode: "deducted" | "overage"; units: number }
+  | { allowed: true; mode: "deducted" | "overage"; units: number; localDeducted: number }
   | { allowed: false; mode: "blocked"; reason: string };
 
 const CACHE_TTL_SECONDS = 10;
+
+/** Formats that produce an animated capture (Phase 2: video pipeline). */
+export const VIDEO_FORMATS = new Set(["mp4", "webm", "gif"]);
 
 function creditsCacheKey(userId: string) {
   return `cache:credits:${userId}`;
@@ -129,19 +132,31 @@ export async function meterUsageToDodo(
  *  - single image screenshot => 1 unit
  *  - bulk => 1 unit per URL (and per page for PDFs)
  *  - pdf => 5 units per page (defaults to 5 when page count is unknown)
+ *  - video (mp4/gif/webm) => max(5, duration in seconds) units per URL
+ *  - geo-targeted renders => x2 multiplier (residential proxy cost)
  */
 export function computeUnits(params: {
   cached: boolean;
   format: string;
   bulkCount?: number;
   pdfPages?: number;
+  videoSeconds?: number;
+  geoTargeted?: boolean;
 }): { units: number; kind: "screenshot" | "pdf" } {
   const count = Math.max(1, params.bulkCount ?? 1);
+  let perItem: number;
   if (params.format === "pdf") {
     const pages = Math.max(1, params.pdfPages ?? 1);
     return { units: count * pages * 5, kind: "pdf" };
   }
-  return { units: count, kind: "screenshot" };
+  if (VIDEO_FORMATS.has(params.format.toLowerCase())) {
+    // Animated capture is billed by recording time; floor of 5 covers encode overhead.
+    perItem = Math.max(5, Math.ceil(params.videoSeconds ?? 0));
+  } else {
+    perItem = 1;
+  }
+  if (params.geoTargeted) perItem *= 2;
+  return { units: count * perItem, kind: "screenshot" };
 }
 
 /**
@@ -199,6 +214,8 @@ export async function ensureCredits(userId: string, params: {
   format: string;
   bulkCount?: number;
   pdfPages?: number;
+  videoSeconds?: number;
+  geoTargeted?: boolean;
   meterMetadata?: Record<string, unknown>;
   /** Disable Dodo metering so the caller meters successes individually (bulk). Defaults to true. */
   meter?: boolean;
@@ -215,7 +232,7 @@ export async function ensureCredits(userId: string, params: {
 
   const { units, kind } = computeUnits(params);
   if (units === 0) {
-    return { allowed: true, mode: "deducted", units: 0 };
+    return { allowed: true, mode: "deducted", units: 0, localDeducted: 0 };
   }
 
   const isPaidPlan = state.plan !== "free";
@@ -235,7 +252,7 @@ export async function ensureCredits(userId: string, params: {
     const ok = await deductCredits(userId, units);
     if (!ok) return { allowed: false, mode: "blocked", reason: "no_credits" };
     if (shouldMeter) await meterUsageToDodo(userId, units, kind, params.meterMetadata ?? {});
-    return { allowed: true, mode: "deducted", units };
+    return { allowed: true, mode: "deducted", units, localDeducted: units };
   }
 
   // Not enough local credits
@@ -247,7 +264,7 @@ export async function ensureCredits(userId: string, params: {
       const ok = await deductCredits(userId, covered);
       if (!ok) return { allowed: false, mode: "blocked", reason: "no_credits" };
     }
-    return { allowed: true, mode: "overage", units };
+    return { allowed: true, mode: "overage", units, localDeducted: covered };
   }
 
   // Block for Free plan or when overage disabled

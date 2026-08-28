@@ -1,24 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BulkScreenshotSchema } from "@/lib/schema";
-import { bulkRender } from "@/screenshot-engine/bulk";
-import { uploadToStorage } from "@/screenshot-engine/uploader";
+import { bulkRender } from "@/lib/screenshot/bulk";
+import { uploadToStorage } from "@/lib/storage/uploader";
+import { artifactContentType } from "@/lib/mime";
 import { saveScreenshot } from "@/app/actions/screenshots";
 import { logScreenshotUsage } from "@/app/actions/usage";
 import { logRequest } from "@/lib/redis";
 import { getFilename } from "@/lib/utils";
 import {
-  getUserPlan, checkRateLimit,
-  isFormatAllowed, isAdBlockingAllowed, isCookieBlockingAllowed,
+  getUserPlan, checkRateLimit, checkApiKeyRateLimit,
+  checkRenderFeatureGates,
   type PlanId,
 } from "@/lib/plans";
 import { ensureCredits, refundCredits, computeUnits, meterUsageToDodo } from "@/lib/credits";
 import { resolveAuth, type AuthContext } from "@/lib/api-auth";
+import { assertGeoRequestAllowed, GeoTargetingError } from "@/lib/browser/geo";
+import { fireWebhookEvent } from "@/lib/webhooks";
 import {
   featureUnavailable, getRequestId, insufficientCredits, internalError,
-  normalizeUrl, rateLimited, rateLimitHeaders, unauthorized, zodErrorResponse,
+  jsonError, normalizeUrl, rateLimited, rateLimitHeaders, unauthorized,
+  zodErrorResponse,
 } from "@/lib/api";
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 function uniqueKey(url: string, format: string): string {
   const ts = Date.now().toString(36);
@@ -61,13 +65,37 @@ export async function POST(request: NextRequest) {
     if (!rateLimitInfo.allowed) {
       return rateLimited(rateLimitInfo.retryAfterMs, rateLimitInfo, requestId);
     }
-
-    if (!isFormatAllowed(renderOptions.format, plan)) {
-      return featureUnavailable(`Format "${renderOptions.format}" requires a paid plan. Upgrade at /dashboard/settings`, requestId);
+    // Per-key limit (api_keys.rate_limit) on top of the user-wide plan window.
+    if (authCtx.source === "api" && authCtx.apiKeyId && authCtx.apiKeyRateLimit) {
+      const keyLimit = await checkApiKeyRateLimit(authCtx.apiKeyId, authCtx.apiKeyRateLimit);
+      if (keyLimit && !keyLimit.allowed) {
+        return rateLimited(keyLimit.retryAfterMs, keyLimit, requestId);
+      }
     }
 
-    if (!isAdBlockingAllowed(plan)) renderOptions.block_ads = false;
-    if (!isCookieBlockingAllowed(plan)) renderOptions.block_cookie_banners = false;
+    const gateFailure = checkRenderFeatureGates(plan, {
+      format: renderOptions.format,
+      full_page: renderOptions.full_page,
+      selector: renderOptions.selector,
+      country: renderOptions.country,
+    });
+    if (gateFailure) {
+      return featureUnavailable(`${gateFailure.message} Upgrade at /dashboard/plan`, requestId);
+    }
+
+    // ── Geo availability (fail fast before credits) ─────────────────
+    if (renderOptions.country) {
+      try {
+        await assertGeoRequestAllowed(renderOptions.country);
+      } catch (err) {
+        if (err instanceof GeoTargetingError) {
+          return err.code === "GEO_NOT_CONFIGURED"
+            ? jsonError(503, "geo_unavailable", err.message, requestId)
+            : jsonError(400, err.code.toLowerCase(), err.message, requestId);
+        }
+        throw err;
+      }
+    }
 
     // Deduct credits upfront for the whole batch (bulkCount covers per-URL + per-page pricing).
     // Metering is deferred (meter: false) so Dodo only charges for renders that succeed —
@@ -76,10 +104,18 @@ export async function POST(request: NextRequest) {
       cached: false,
       format: renderOptions.format,
       bulkCount: urls.length,
+      videoSeconds: renderOptions.video_seconds,
+      geoTargeted: Boolean(renderOptions.country),
       meterMetadata: { endpoint: "/api/take/bulk", method: "POST", requested: urls.length },
       meter: false,
     });
     if (!ensure.allowed) {
+      fireWebhookEvent({
+        userId,
+        projectId: authCtx.projectId,
+        event: "quota.exceeded",
+        data: { reason: "insufficient_credits", plan },
+      }).catch(() => {});
       return insufficientCredits(requestId);
     }
 
@@ -88,7 +124,19 @@ export async function POST(request: NextRequest) {
       maxRetries: max_retries,
     });
 
-    const { units: unitCost, kind } = computeUnits({ cached: false, format: renderOptions.format });
+    const { units: unitCost, kind } = computeUnits({
+      cached: false,
+      format: renderOptions.format,
+      videoSeconds: renderOptions.video_seconds,
+      geoTargeted: Boolean(renderOptions.country),
+    });
+
+    // Cap total refunds at what was actually deducted from the local balance.
+    // In overage mode, only `ensure.localDeducted` (which can be less than
+    // `ensure.units`) was ever taken from credit_balance/top_up_balance — the
+    // rest was covered via Dodo metering, not locally, so refunding a full
+    // `unitCost` per failed URL could refund more than was ever deducted.
+    let refundableRemaining = ensure.localDeducted;
 
     for (const r of results) {
       if (r.success && r.renderResult) {
@@ -98,13 +146,14 @@ export async function POST(request: NextRequest) {
           publicUrl = await uploadToStorage(
             r.renderResult.buffer,
             key,
-            `image/${r.renderResult.format}`
+            artifactContentType(r.renderResult.format)
           );
         } catch {}
 
         saveScreenshot({
           userId,
           apiKeyId: apiKeyId ?? undefined,
+          sourceUrl: r.url,
           storageUrl: publicUrl,
           format: r.renderResult.format,
           width: r.renderResult.width,
@@ -125,9 +174,12 @@ export async function POST(request: NextRequest) {
           creditsUsed: unitCost,
           source,
         }).catch(() => {});
-      } else {
-        // Refund the unit cost for failed URLs so the user isn't charged for failures
-        await refundCredits(userId, unitCost);
+      } else if (refundableRemaining > 0) {
+        // Refund the unit cost for failed URLs so the user isn't charged for
+        // failures, capped at what was actually deducted locally.
+        const refundAmount = Math.min(unitCost, refundableRemaining);
+        await refundCredits(userId, refundAmount);
+        refundableRemaining -= refundAmount;
       }
     }
 
@@ -156,11 +208,13 @@ export async function POST(request: NextRequest) {
       url: urls[0],
     }).catch(() => {});
 
+    const totalRefunded = ensure.localDeducted - refundableRemaining;
+
     return NextResponse.json({
       total: results.length,
       successful,
       failed,
-      creditsUsed: ensure.mode === "overage" ? ensure.units : ensure.units - failed * unitCost,
+      creditsUsed: ensure.units - totalRefunded,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       results: results.map(({ renderResult, ...rest }) => rest),
     }, {

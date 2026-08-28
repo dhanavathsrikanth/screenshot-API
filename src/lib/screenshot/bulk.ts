@@ -1,6 +1,7 @@
 import type { ScreenshotOptions } from "@/lib/schema";
-import { render } from "./renderer";
+import { render } from "@/lib/browser/engine";
 import { sleep } from "@/lib/utils";
+import { validateTargetUrl, SsrfError } from "@/lib/security/ssrf";
 
 export interface BulkConfig {
   concurrency: number;
@@ -30,6 +31,18 @@ async function renderWithRetry(
   options: ScreenshotOptions & { url: string },
   maxRetries: number
 ): Promise<BulkItemResult> {
+  // Reject SSRF-blocked URLs before ever acquiring a browser page slot, so a
+  // batch of malicious URLs can't exhaust the shared render pool with
+  // requests that were always going to be rejected anyway.
+  try {
+    await validateTargetUrl(options.url);
+  } catch (err) {
+    if (err instanceof SsrfError) {
+      return { url: options.url, success: false, error: err.message, attempts: 0 };
+    }
+    throw err;
+  }
+
   let lastError: unknown;
   let attempts = 0;
 

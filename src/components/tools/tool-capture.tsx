@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { TOOL_GUEST_DAILY_LIMIT } from "@/lib/tool-limits";
+import { captureClientFunnel, FUNNEL_EVENTS } from "@/lib/funnel";
 
 type ToolMode = "screenshot" | "fullpage" | "pdf";
 
@@ -114,6 +115,11 @@ export function ToolCapture({ mode }: { mode: ToolMode }) {
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
       setResult({ objectUrl, kind: mode === "pdf" ? "pdf" : "image" });
+      captureClientFunnel(FUNNEL_EVENTS.freeToolCaptured, {
+        mode,
+        format: mode === "pdf" ? "pdf" : format,
+        signed_in: !isGuest,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

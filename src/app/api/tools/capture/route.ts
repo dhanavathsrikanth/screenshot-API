@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ScreenshotOptionsSchema } from "@/lib/schema";
-import { render } from "@/screenshot-engine/renderer";
+import { render } from "@/lib/browser/engine";
 import { getFilename } from "@/lib/utils";
 import { resolveAuth } from "@/lib/api-auth";
 import { ensureCredits } from "@/lib/credits";
@@ -9,9 +9,12 @@ import { checkRateLimit, getUserPlan } from "@/lib/plans";
 import { checkGuestToolLimit } from "@/lib/tools";
 import { TOOL_GUEST_DAILY_LIMIT } from "@/lib/tool-limits";
 import { logScreenshotUsage } from "@/app/actions/usage";
+import { trackQuotaReached } from "@/lib/analytics-events";
 import { logRequest } from "@/lib/redis";
+import { validateTargetUrl, SsrfError } from "@/lib/security/ssrf";
+import { RenderError } from "@/lib/screenshot/types";
 import {
-  getRequestId, internalError, invalidUrl, jsonError,
+  getClientIp, getRequestId, internalError, invalidUrl, jsonError,
   normalizeUrl, rateLimited, rateLimitHeaders, zodErrorResponse,
 } from "@/lib/api";
 
@@ -30,15 +33,6 @@ const ToolRequestSchema = z.object({
   pdf_format: z.enum(["a4", "a3", "letter", "legal"]).default("a4"),
   client_id: z.string().min(8).max(128).optional(),
 });
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return request.headers.get("x-real-ip")?.trim() || "unknown";
-}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -65,6 +59,18 @@ export async function POST(request: NextRequest) {
       }
     } catch {
       return invalidUrl("Invalid URL.", requestId);
+    }
+
+    // Full SSRF guard (private-IP / DNS-rebinding check) up front, before
+    // acquiring a browser page slot — this is a public, unauthenticated
+    // endpoint, so a malicious URL must be rejected as cheaply as possible.
+    try {
+      await validateTargetUrl(input.url);
+    } catch (err) {
+      if (err instanceof SsrfError) {
+        return jsonError(err.code === "INVALID_URL" ? 400 : 403, err.code.toLowerCase(), err.message, requestId);
+      }
+      throw err;
     }
 
     const authCtx = await resolveAuth(request);
@@ -112,6 +118,7 @@ export async function POST(request: NextRequest) {
         meterMetadata: { endpoint: "/api/tools/capture", method: "POST" },
       });
       if (!ensure.allowed) {
+        trackQuotaReached(userId, "insufficient_credits").catch(() => {});
         return jsonError(402, "insufficient_credits", "No credits remaining. Upgrade or buy credits from the dashboard.", requestId);
       }
       creditsUsed = ensure.units;
@@ -127,6 +134,13 @@ export async function POST(request: NextRequest) {
       dark_mode: input.dark_mode,
       block_ads: input.block_ads,
       block_cookie_banners: input.block_cookie_banners,
+      // Slow marketing sites routinely exceed the 10s schema default; give the
+      // free tool the engine's full navigation budget (clamped to 20s anyway).
+      timeout: 20_000,
+      // Don't gate navigation on every subresource ("load") — heavy sites then
+      // blow the nav budget and 504. Navigate on DOM ready; the readiness
+      // engine still waits (bounded) for fonts, images, and layout stability.
+      wait_until: "domcontentloaded",
       quality: 85,
       ...(input.format === "pdf" ? { pdf_format: input.pdf_format, pdf_print_background: true } : {}),
     });
@@ -171,6 +185,15 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof RenderError) {
+      if (error.code === "SSRF_BLOCKED") {
+        return jsonError(403, "ssrf_blocked", error.message, requestId);
+      }
+      if (error.code === "NAVIGATION_TIMEOUT" || error.code === "RENDER_TIMEOUT") {
+        return jsonError(504, "render_timeout", error.message, requestId);
+      }
+      return jsonError(502, error.code.toLowerCase(), error.message, requestId);
+    }
     return internalError(error, requestId);
   }
 }

@@ -1,6 +1,7 @@
 export const siteConfig = {
   name: "ScreenshotAPI",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://screenshotapi.tech",
+  apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "https://api.screenshotapi.tech",
   description:
     "Render website screenshots in one simple API call. Block cookie banners, ads, and chat widgets. Full-page, high-resolution, dark mode, and more.",
   email: "hello@screenshotapi.tech",

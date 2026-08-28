@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function QuickStartPage() {
   const { userId } = await auth();
-  if (!userId) redirect("/");
+  if (!userId) redirect("/sign-in");
 
   let firstKeyPrefix: string | null = null;
   try {

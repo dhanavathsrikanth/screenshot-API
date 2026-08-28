@@ -7,6 +7,12 @@ import {
   getUsageForecast,
   getBandwidthStats,
   getCostEstimation,
+  getEndpointBreakdown,
+  getFormatDistribution,
+  getStatusBreakdown,
+  getCacheTrend,
+  getKeyUsageStats,
+  getSLAStats,
 } from "@/app/actions/analytics";
 import {
   UsageChart,
@@ -15,6 +21,12 @@ import {
   UsageForecast,
   BandwidthChart,
   CostEstimation,
+  EndpointPie,
+  FormatPie,
+  StatusPie,
+  CacheTrendChart,
+  KeyHealthTable,
+  SLAMonitor,
 } from "@/components/dashboard/charts";
 import { PageHeader } from "@/components/dashboard/page-header";
 
@@ -24,41 +36,80 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default async function AnalyticsPage() {
   const { userId } = await auth();
-  if (!userId) redirect("/");
+  if (!userId) redirect("/sign-in");
 
-  let dailyUsage: any[];
-  let latencyStats: any[];
-  let peakHours: any[];
-  let usageForecast: any;
-  let bandwidthStats: any[];
-  let costEstimation: any;
+  type KeyStat = Awaited<ReturnType<typeof getKeyUsageStats>>[number];
+  type Sla = Awaited<ReturnType<typeof getSLAStats>>;
 
-  try {
-    [dailyUsage, latencyStats, peakHours, usageForecast, bandwidthStats, costEstimation] =
-      await Promise.all([
-        getDailyUsage(userId),
-        getLatencyStats(userId),
-        getPeakHours(userId),
-        getUsageForecast(userId),
-        getBandwidthStats(userId),
-        getCostEstimation(userId),
-      ]);
-  } catch {
-    dailyUsage = [];
-    latencyStats = [];
-    peakHours = [];
-    usageForecast = { forecast: [], dailyAvg: 0, monthlyUsed: 0, monthlyLimit: 100, daysUntilLimit: null };
-    bandwidthStats = [];
-    costEstimation = { plan: "free", monthlyPrice: 0, monthlyUsed: 0, monthlyLimit: 100, computeCost: 0, storageCost: 0, totalEstimatedCost: 0, storageGB: 0, costPerScreenshot: 0, recommendedPlan: null };
-  }
+  // Each section degrades independently: a failure in one data source shows
+  // that chart's built-in empty state instead of blanking the whole page.
+  const safe = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await fn();
+    } catch {
+      return fallback;
+    }
+  };
+
+  const [dailyUsage, latencyStats, peakHours, usageForecast, bandwidthStats, costEstimation, endpointBreakdown, formatDistribution, statusBreakdown, cacheTrend, keyStats, sla] =
+    await Promise.all([
+      safe(() => getDailyUsage(userId), [] as { date: string; count: number; ma7: number }[]),
+      safe(() => getLatencyStats(userId), [] as { date: string; avg: number; p50: number; p95: number; p99: number }[]),
+      safe(() => getPeakHours(userId), [] as { day: string; hour: number; count: number }[]),
+      safe(() => getUsageForecast(userId), {
+        forecast: [],
+        dailyAvg: 0,
+        monthlyUsed: 0,
+        monthlyLimit: 100,
+        daysUntilLimit: null,
+      }),
+      safe(() => getBandwidthStats(userId), [] as { date: string; mb: number }[]),
+      safe(() => getCostEstimation(userId), {
+        plan: "free",
+        monthlyPrice: 0,
+        monthlyUsed: 0,
+        monthlyLimit: 100,
+        computeCost: 0,
+        storageCost: 0,
+        totalEstimatedCost: 0,
+        storageGB: 0,
+        costPerScreenshot: 0,
+        recommendedPlan: null,
+      }),
+      safe(() => getEndpointBreakdown(userId), [] as { name: string; value: number }[]),
+      safe(() => getFormatDistribution(userId), [] as { name: string; value: number }[]),
+      safe(() => getStatusBreakdown(userId), [] as { name: string; value: number }[]),
+      safe(() => getCacheTrend(userId), [] as { date: string; rate: number }[]),
+      safe(() => getKeyUsageStats(userId), [] as KeyStat[]),
+      safe(
+        () => getSLAStats(userId, 30),
+        {
+          uptime: 100,
+          totalRequests: 0,
+          errors: 0,
+          avgLatency: 0,
+          p99Latency: 0,
+          slaTarget: 99.9,
+          uptimeMet: true,
+          latencyMet: true,
+          incidents: [],
+          unresolvedIncidents: 0,
+        } as Sla
+      ),
+    ]);
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Analytics"
         title="Usage & Performance"
-        description="Usage insights and performance metrics across your account"
+        description="Usage trends, request logs, reliability, and cost across your account"
       />
+
+      <section>
+        <SectionTitle>Reliability (SLA)</SectionTitle>
+        <SLAMonitor data={sla} />
+      </section>
 
       <section>
         <SectionTitle>Usage Trends</SectionTitle>
@@ -74,6 +125,36 @@ export default async function AnalyticsPage() {
           <PeakHoursHeatmap data={peakHours} />
           <UsageForecast data={usageForecast} />
         </div>
+      </section>
+
+      <section>
+        <SectionTitle>Request Breakdowns</SectionTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <EndpointPie data={endpointBreakdown} />
+          <StatusPie data={statusBreakdown} />
+          <FormatPie data={formatDistribution} />
+          <CacheTrendChart data={cacheTrend} />
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle>API Key Health</SectionTitle>
+        <KeyHealthTable
+          data={keyStats.map((k) => ({
+            id: k.id,
+            name: k.name,
+            prefix: k.prefix,
+            isActive: k.isActive,
+            calls: k.calls,
+            errors: k.errors,
+            errorRate: k.errorRate,
+            avgLatency: k.avgLatency,
+            p95Latency: k.p95Latency,
+            health: k.health,
+            lastUsedAt: k.lastUsedAt,
+            callsPerDay: k.callsPerDay,
+          }))}
+        />
       </section>
 
       <section>

@@ -1,0 +1,142 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# ScreenshotAPI runs as a single persistent Node.js web service on Render.
+# There's no separate worker service: the BullMQ job worker starts in-process
+# on first request (see src/lib/jobs.ts `ensureWorkerStarted`) and survives
+# for the life of the dyno, which is why Render (not a serverless platform
+# like Vercel) is the target here.
+#
+# Usage:
+#   1. Push this file to your repo, then create a Blueprint in the Render
+#      Dashboard pointing at this repo.
+#   2. After the first sync, open the service's Environment tab and fill in
+#      every variable marked `sync: false` below — these are secrets and are
+#      intentionally not stored in this file.
+#   3. If you don't want a Render Key Value instance (e.g. you already run
+#      Redis elsewhere for BullMQ), delete the `keyvalue` service below and
+#      set REDIS_URL manually instead.
+
+services:
+  - type: web
+    name: screenshotapi
+    runtime: node
+    plan: free # bump to `starter`+ to avoid the free plan's 15-min idle sleep
+    region: oregon
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+      - key: NODE_ENV
+        value: production
+
+      # ── Public site config ────────────────────────────────────────────
+      # DNS: api.screenshotapi.tech must CNAME to screenshotapi.onrender.com
+      # (Cloudflare proxied). Render provisions TLS automatically.
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://screenshotapi.tech
+      - key: NEXT_PUBLIC_API_URL
+        value: https://api.screenshotapi.tech
+      - key: NEXT_PUBLIC_APP_ENV
+        value: production
+
+      # ── Supabase ───────────────────────────────────────────────────────
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # ── Clerk (auth) ───────────────────────────────────────────────────
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_WEBHOOK_SIGNING_SECRET
+        sync: false
+
+      # ── Cloudflare R2 (screenshot/PDF storage) ──────────────────────────
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+
+      # ── Upstash Redis REST (cache, rate limiting, request logs) ────────
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+
+      # ── BullMQ queue transport (RESP Redis) ─────────────────────────────
+      # Wired to the Render Key Value instance defined below. Falls back to
+      # the legacy Upstash-REST-backed queue if unset.
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: screenshotapi-queue
+          property: connectionString
+
+      # ── Dodo Payments (billing) ─────────────────────────────────────────
+      - key: DODO_PAYMENTS_API_KEY
+        sync: false
+      - key: DODO_PAYMENTS_WEBHOOK_SECRET
+        sync: false
+      - key: DODO_PAYMENTS_ENVIRONMENT
+        value: live_mode
+      - key: DODO_CREDIT_ENTITLEMENT_ID
+        sync: false
+      - key: DODO_RETURN_URL_SUCCESS
+        value: https://screenshotapi.tech/dashboard/plan
+      - key: DODO_RETURN_URL_CANCEL
+        value: https://screenshotapi.tech/dashboard/plan
+      - key: NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID
+        sync: false
+      - key: NEXT_PUBLIC_DODO_PRODUCT_PRO_ID
+        sync: false
+      - key: NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID
+        sync: false
+      - key: NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID
+        sync: false
+
+      # ── Observability ────────────────────────────────────────────────────
+      - key: NEXT_PUBLIC_SENTRY_DSN
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ORG
+        sync: false
+      - key: SENTRY_PROJECT
+        sync: false
+      - key: SENTRY_AUTH_TOKEN
+        sync: false
+      - key: NEXT_PUBLIC_POSTHOG_KEY
+        sync: false
+      - key: POSTHOG_HOST
+        value: https://us.i.posthog.com
+
+      # ── Admin access ──────────────────────────────────────────────────
+      # /dashboard/admin is unreachable until at least one of these is set.
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: ADMIN_USER_IDS
+        sync: false
+
+      # ── Keep-alive cron (only relevant on the free plan) ────────────────
+      # Used by `npm run keepalive:setup`, not read by the app itself.
+      - key: UPSTASH_QSTASH_TOKEN
+        sync: false
+
+  - type: keyvalue
+    name: screenshotapi-queue
+    plan: free
+    maxmemoryPolicy: noeviction
+    ipAllowList: []

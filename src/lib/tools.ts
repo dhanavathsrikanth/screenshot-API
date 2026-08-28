@@ -37,19 +37,26 @@ export type GuestLimitResult = {
 /**
  * Enforce free-tool limits for anonymous users:
  *  - burst cap per browser (client id)
+ *  - burst cap per IP address (so a spoofed/rotated client id can't bypass
+ *    the browser-level burst cap entirely)
  *  - daily cap per IP address (so clearing storage can't reset it)
  */
 export async function checkGuestToolLimit(clientId: string, ip: string): Promise<GuestLimitResult> {
   ensureLimiters();
-  const burst = await minuteLimiter!.limit(clientId);
-  const daily = await dailyLimiter!.limit(`ip:${ip}`);
-  const allowed = burst.success && daily.success;
-  const retryAfterMs = allowed ? 0 : Math.max(0, Math.max(burst.reset, daily.reset) - Date.now());
+  const [burstByClient, burstByIp, daily] = await Promise.all([
+    minuteLimiter!.limit(clientId),
+    minuteLimiter!.limit(`ip:${ip}`),
+    dailyLimiter!.limit(`ip:${ip}`),
+  ]);
+  const allowed = burstByClient.success && burstByIp.success && daily.success;
+  const retryAfterMs = allowed
+    ? 0
+    : Math.max(0, Math.max(burstByClient.reset, burstByIp.reset, daily.reset) - Date.now());
   return {
     allowed,
     retryAfterMs,
     limit: daily.limit,
-    remaining: Math.min(burst.remaining, daily.remaining),
-    reset: Math.min(burst.reset, daily.reset),
+    remaining: Math.min(burstByClient.remaining, burstByIp.remaining, daily.remaining),
+    reset: Math.min(burstByClient.reset, burstByIp.reset, daily.reset),
   };
 }

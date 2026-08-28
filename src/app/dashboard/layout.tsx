@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { DashboardLayoutClient } from "./dashboard-client";
 import { ensureWelcomeCredits } from "@/lib/credits";
 import { getUserPlan } from "@/lib/plans";
@@ -10,6 +11,12 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { userId } = await auth();
+
+  // Defense-in-depth: proxy.ts already redirects signed-out visitors away
+  // from /dashboard, but the layout shouldn't rely solely on the middleware
+  // matcher never changing. Every page under /dashboard also checks this
+  // independently before rendering any data.
+  if (!userId) redirect("/sign-in");
 
   let plan = "free";
   let isAdmin = false;

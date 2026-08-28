@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { captureClientFunnel } from "@/lib/funnel";
 
 const inputClass =
   "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40";
@@ -37,6 +38,7 @@ export function ContactForm() {
         return;
       }
       setStatus("success");
+      captureClientFunnel("contact_form_submitted");
       form.reset();
     } catch {
       setStatus("error");

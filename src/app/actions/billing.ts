@@ -2,16 +2,13 @@ import { createServiceClient } from "@/lib/supabase/server";
 import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
 import { cacheInvalidate } from "@/lib/redis";
+import {
+  resolvePlanFromDodoProduct,
+  planInfoFor,
+  type PaidPlanId,
+  type ResolvedPlan as PlanInfo,
+} from "@/lib/plans";
 import type { SubscriptionListParams, SubscriptionListResponse } from "dodopayments/resources/subscriptions";
-
-type PlanId = "starter" | "pro";
-type PlanInfo = { plan: PlanId; monthlyLimit: number };
-
-function planInfoFor(plan: PlanId): PlanInfo {
-  return plan === "pro"
-    ? { plan: "pro", monthlyLimit: 15000 }
-    : { plan: "starter", monthlyLimit: 2500 };
-}
 
 function toCredits(value: unknown): number | null {
   if (value === undefined || value === null || value === "") return null;
@@ -28,34 +25,16 @@ function getDodoClient() {
   });
 }
 
-// Mirrors resolvePlanFromProduct() in src/app/api/webhooks/dodo/route.ts.
+// Shared resolver lives in lib/plans.ts; this wrapper adapts the Dodo client.
 async function resolvePlanFromProduct(productId: string | undefined, client: DodoPayments): Promise<PlanInfo | null> {
-  if (!productId) return null;
-
-  const mappings: [string, PlanId][] = [
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID ?? "", "starter"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID ?? "", "pro"],
-  ];
-
-  for (const [pid, plan] of mappings) {
-    if (pid && pid === productId) return planInfoFor(plan);
-  }
-
-  try {
-    const product = (await client.products.retrieve(productId)) as { metadata?: Record<string, unknown> };
-    const metaPlan = product?.metadata?.plan;
-    if (metaPlan === "starter" || metaPlan === "pro") {
-      return planInfoFor(metaPlan);
+  return resolvePlanFromDodoProduct(productId, async (id) => {
+    try {
+      return await client.products.retrieve(id) as { metadata?: Record<string, unknown> };
+    } catch (err) {
+      console.error(`[billing] Failed to fetch product ${id}:`, (err as Error)?.message ?? err);
+      return null;
     }
-  } catch (err) {
-    console.error(`[billing] Failed to fetch product ${productId}:`, (err as Error)?.message ?? err);
-  }
-
-  const lower = productId.toLowerCase();
-  if (lower.includes("pro")) return planInfoFor("pro");
-  if (lower.includes("starter")) return planInfoFor("starter");
-
-  return null;
+  });
 }
 
 // Only `active` subscriptions entitle a plan. `pending` (payment not collected)
@@ -175,9 +154,11 @@ export async function reconcilePlanAfterCheckout(userId: string): Promise<Reconc
     !planInfo &&
     pendingProductId &&
     productId === pendingProductId &&
-    (pendingPlan === "starter" || pendingPlan === "pro")
+    (pendingPlan === "starter" ||
+      pendingPlan === "pro" ||
+      pendingPlan === "scale")
   ) {
-    planInfo = planInfoFor(pendingPlan);
+    planInfo = planInfoFor(pendingPlan as PaidPlanId);
   }
 
   if (!planInfo) {

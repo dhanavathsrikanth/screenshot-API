@@ -2,24 +2,36 @@
 
 import { useState, useCallback } from "react";
 
-const CREDIT_COSTS: Record<string, number> = { png: 1, jpg: 1, jpeg: 1, webp: 1, pdf: 5 };
+const VIDEO_FORMATS = new Set(["mp4", "webm", "gif"]);
 
-function getCreditCost(format: string): number {
-  return CREDIT_COSTS[format] ?? 1;
+function getCreditCost(format: string, videoSeconds?: number): number {
+  if (VIDEO_FORMATS.has(format) && videoSeconds && videoSeconds > 0) {
+    return Math.max(5, Math.ceil(videoSeconds));
+  }
+  if (format === "pdf") return 5;
+  return 1;
 }
 
-export function DashboardPlayground() {
+export function DashboardPlayground({ videoAllowed = false }: { videoAllowed?: boolean }) {
   const [url, setUrl] = useState("https://example.com");
-  const [format, setFormat] = useState<"png" | "jpeg" | "webp" | "pdf">("png");
+  const [format, setFormat] = useState<"png" | "jpeg" | "webp" | "pdf" | "gif" | "mp4" | "webm">("png");
   const [fullPage, setFullPage] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [width, setWidth] = useState(1280);
+  const [videoSeconds, setVideoSeconds] = useState(5);
   const [result, setResult] = useState<string | null>(null);
   const [storageUrl, setStorageUrl] = useState<string | null>(null);
   const [resultType, setResultType] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [creditsUsed, setCreditsUsed] = useState<number | null>(null);
+
+  const isVideoFormat = format === "mp4" || format === "webm";
+  const isAnimatedGif = format === "gif";
+  const isVideoMode = isVideoFormat || isAnimatedGif;
+  // GIF is delivered as image/gif and plays in an <img>; only mp4/webm are
+  // real video streams rendered in a <video> element.
+  const isRealVideo = isVideoFormat;
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,21 +43,26 @@ export function DashboardPlayground() {
     setCreditsUsed(null);
 
     try {
+      const body: Record<string, unknown> = {
+        url,
+        format,
+        viewport_width: width,
+        full_page: fullPage,
+        dark_mode: darkMode,
+      };
+      if (isVideoMode) {
+        body.video_seconds = videoSeconds;
+      }
+
       const response = await fetch("/api/take", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          url,
-          format,
-          viewport_width: width,
-          full_page: fullPage,
-          dark_mode: darkMode,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
-        let message = "Failed to render screenshot";
+        let message = "Failed to render";
         try {
           const err = await response.json();
           message = typeof err.error === "string" ? err.error : err.error?.message ?? message;
@@ -57,35 +74,38 @@ export function DashboardPlayground() {
 
       const data = await response.json();
       const headerCost = response.headers.get("X-Credits-Used");
-      setCreditsUsed(headerCost != null ? Number(headerCost) : getCreditCost(format));
+      setCreditsUsed(headerCost != null ? Number(headerCost) : getCreditCost(format, isVideoMode ? videoSeconds : undefined));
 
       if (data.url) {
         setStorageUrl(data.url);
         setResult(data.url);
-        setResultType(format === "pdf" ? "pdf" : "image");
+        setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : format === "pdf" ? "pdf" : "image");
       } else {
         const blob = await response.blob();
         const objectUrl = URL.createObjectURL(blob);
         setResult(objectUrl);
-        setResultType(format === "pdf" ? "pdf" : "image");
+        setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : format === "pdf" ? "pdf" : "image");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
-  }, [url, format, fullPage, darkMode, width]);
+  }, [url, format, fullPage, darkMode, width, videoSeconds, isVideoMode, isRealVideo, isAnimatedGif]);
 
   const handleDownload = useCallback(() => {
     const href = storageUrl ?? result;
     if (!href) return;
     const a = document.createElement("a");
     a.href = href;
-    a.download = `screenshot.${format === "jpeg" ? "jpg" : format}`;
+    const ext = format === "jpeg" ? "jpg" : format;
+    a.download = `screenshot.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   }, [result, storageUrl, format]);
+
+  const creditCost = getCreditCost(format, isVideoMode ? videoSeconds : undefined);
 
   return (
     <div>
@@ -104,7 +124,7 @@ export function DashboardPlayground() {
             disabled={loading}
             className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap"
           >
-            {loading ? "Capturing..." : "Take Screenshot"}
+            {loading ? (isVideoMode ? "Recording..." : "Capturing...") : (isVideoMode ? "Record Video" : "Take Screenshot")}
           </button>
         </div>
 
@@ -120,8 +140,31 @@ export function DashboardPlayground() {
               <option value="jpeg">JPEG</option>
               <option value="webp">WebP</option>
               <option value="pdf">PDF</option>
+              {videoAllowed && (
+                <optgroup label="Video / Animated (Scale)">
+                  <option value="gif">GIF (animated)</option>
+                  <option value="mp4">MP4 (video)</option>
+                  <option value="webm">WebM (video)</option>
+                </optgroup>
+              )}
             </select>
           </div>
+
+          {isVideoMode && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-zinc-500">Duration</label>
+              <input
+                type="range"
+                min={1}
+                max={30}
+                value={videoSeconds}
+                onChange={(e) => setVideoSeconds(Number(e.target.value))}
+                className="w-24 accent-indigo-600"
+              />
+              <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400 w-8">{videoSeconds}s</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <label className="text-xs text-zinc-500">Width</label>
             <input
@@ -152,7 +195,7 @@ export function DashboardPlayground() {
             <span className="text-xs text-zinc-500">Dark mode</span>
           </label>
           <span className="text-xs text-zinc-400 ml-auto">
-            Cost: <span className="font-semibold text-amber-600 dark:text-amber-400">{getCreditCost(format)} credit{getCreditCost(format) !== 1 ? "s" : ""}</span>
+            Cost: <span className="font-semibold text-amber-600 dark:text-amber-400">{creditCost} credit{creditCost !== 1 ? "s" : ""}</span>
           </span>
         </div>
       </form>
@@ -186,7 +229,25 @@ export function DashboardPlayground() {
               Download
             </button>
           </div>
-          {resultType === "pdf" ? (
+          {resultType === "video" ? (
+            <div className="bg-zinc-900 flex items-center justify-center">
+              <video
+                src={result ?? undefined}
+                controls
+                autoPlay
+                className="w-full max-h-[500px] object-contain"
+              />
+            </div>
+          ) : resultType === "image" && isAnimatedGif ? (
+            <div className="bg-zinc-900 flex items-center justify-center">
+              {/* Animated GIF plays in an <img>, not a <video> element. */}
+              <img
+                src={result ?? undefined}
+                alt="Animated GIF preview"
+                className="w-full max-h-[500px] object-contain"
+              />
+            </div>
+          ) : resultType === "pdf" ? (
             <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900">
               <svg className="mx-auto h-12 w-12 text-zinc-400 mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />

@@ -3,7 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
-import { isAdminUser } from "@/lib/admin";
+import { isAdminUser, promoteToAdmin, demoteFromAdmin } from "@/lib/admin";
 
 async function assertAdmin(): Promise<string> {
   const { userId } = await auth();
@@ -104,5 +104,61 @@ export async function markContactMessageRead(messageId: string) {
   await assertAdmin();
   const supabase = createServiceClient();
   await supabase.from("contact_messages").update({ status: "read" }).eq("id", messageId);
+  revalidatePath("/dashboard/admin");
+}
+
+// ── Admin role management ────────────────────────────────────────────────
+
+export type AdminUserRow = {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string;
+  created_at: string;
+};
+
+export async function listUsersWithRoles(query?: string): Promise<AdminUserRow[]> {
+  await assertAdmin();
+  const supabase = createServiceClient();
+
+  let req = supabase
+    .from("users")
+    .select("id, email, first_name, last_name, role, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (query && query.trim()) {
+    req = req.ilike("email", `%${query.trim()}%`);
+  }
+
+  const { data, error } = await req;
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+/** Promote a user to admin. Refuses to let the last admin demote themselves. */
+export async function setUserRole(targetUserId: string, role: "admin" | "user") {
+  const adminId = await assertAdmin();
+
+  // Safety: an admin cannot demote themselves if they are the only admin,
+  // otherwise admin access could be irrecoverably lost from the UI.
+  if (role === "user" && targetUserId === adminId) {
+    const supabase = createServiceClient();
+    const { count } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin");
+    if ((count ?? 0) <= 1) {
+      throw new Error("Cannot demote yourself — you are the only DB admin.");
+    }
+  }
+
+  if (role === "admin") {
+    await promoteToAdmin(targetUserId);
+  } else {
+    await demoteFromAdmin(targetUserId);
+  }
+
   revalidatePath("/dashboard/admin");
 }

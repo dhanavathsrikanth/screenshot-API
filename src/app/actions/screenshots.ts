@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 export async function saveScreenshot(params: {
   userId: string;
+  projectId?: string | null;
   apiKeyId?: string;
   sourceUrl?: string;
   storageUrl: string | null;
@@ -17,6 +18,7 @@ export async function saveScreenshot(params: {
     .from("screenshots")
     .insert({
       user_id: params.userId,
+      project_id: params.projectId ?? null,
       api_key_id: params.apiKeyId ?? null,
       url: params.sourceUrl ?? null,
       storage_url: params.storageUrl,

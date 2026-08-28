@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { siteConfig } from "@/lib/site";
 
 const examples = [
   {
     lang: "cURL",
-    code: `curl "https://screenshotapi.tech/api/take?url=https://example.com&format=png" \\
+    code: `curl "${siteConfig.apiUrl}/api/take?url=https://example.com&format=png" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -o screenshot.png`,
   },
@@ -14,7 +15,7 @@ const examples = [
     code: `import fs from "node:fs";
 
 const response = await fetch(
-  "https://screenshotapi.tech/api/take?url=https://example.com&format=png",
+  "${siteConfig.apiUrl}/api/take?url=https://example.com&format=png",
   { headers: { Authorization: "Bearer YOUR_API_KEY" } }
 );
 
@@ -25,7 +26,7 @@ fs.writeFileSync("screenshot.png", Buffer.from(await response.arrayBuffer()));`,
     code: `import requests
 
 response = requests.get(
-    "https://screenshotapi.tech/api/take",
+    "${siteConfig.apiUrl}/api/take",
     params={"url": "https://example.com", "format": "png"},
     headers={"Authorization": "Bearer YOUR_API_KEY"},
 )
@@ -45,7 +46,7 @@ import (
 
 func main() {
     req, err := http.NewRequest(
-        "GET", "https://screenshotapi.tech/api/take?url=https://example.com&format=png", nil)
+        "GET", "${siteConfig.apiUrl}/api/take?url=https://example.com&format=png", nil)
     if err != nil {
         panic(err)
     }
@@ -81,61 +82,17 @@ export function CodeExamples() {
   };
 
   return (
-    <section className="border-b border-[var(--border)] py-20 lg:py-24">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
-            Get started in 30 seconds
-          </p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
-            Works with any HTTP client
-          </h2>
-          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
-            No SDK required. No browser setup. Just an authenticated GET request.
-          </p>
+    <section className="mb-16 px-6">
+      <div className="mx-auto max-w-3xl">
+        <h2 className="mb-[18px] font-mono text-xs tracking-[0.08em] text-[var(--dim)] uppercase">
+          works with any HTTP client
+        </h2>
+        <p className="mb-6 text-[13px] leading-[1.55] text-[var(--dim)]">
+          No SDK required. No browser setup. Just an authenticated GET request.
+        </p>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            {["No SDK", "No browser setup", "Authenticated GET", "Free API key"].map(
-              (feature) => (
-                <span
-                  key={feature}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300"
-                >
-                  <svg className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                  {feature}
-                </span>
-              )
-            )}
-          </div>
-        </div>
-
-        <div className="mx-auto mt-10 flex max-w-3xl items-start justify-center gap-4 sm:gap-8">
-          {[
-            { step: "1", title: "Copy your API key", desc: "Grab it from the dashboard" },
-            { step: "2", title: "Pick your language", desc: "cURL, Node, Python, Go and more" },
-            { step: "3", title: "Run it", desc: "Get your screenshot in seconds" },
-          ].map((s, i) => (
-            <div key={s.step} className="flex flex-1 flex-col items-center gap-2 sm:flex-row sm:items-start sm:gap-3">
-              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                {s.step}
-              </span>
-              <div className="text-center sm:text-left">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{s.title}</p>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{s.desc}</p>
-              </div>
-              {i < 2 && (
-                <svg className="hidden h-4 w-4 flex-shrink-0 text-slate-300 sm:block dark:text-slate-600 mt-1" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                </svg>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-12 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-900/20">
-          <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/60 pl-4 pr-2">
+        <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white dark:bg-[var(--card)]">
+          <div className="flex items-center justify-between border-b border-[var(--line)] bg-[var(--muted)] pl-3 pr-2">
             <div className="flex flex-wrap">
               {examples.map((ex, i) => (
                 <button
@@ -144,26 +101,26 @@ export function CodeExamples() {
                     setActive(i);
                     setCopied(false);
                   }}
-                  className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`relative px-3 py-2.5 text-sm font-medium transition-colors ${
                     i === active
-                      ? "text-white"
-                      : "text-slate-500 hover:text-slate-300"
+                      ? "text-[var(--ink)]"
+                      : "text-[var(--dim)] hover:text-[var(--ink)]"
                   }`}
                 >
                   {ex.lang}
                   {i === active && (
-                    <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-indigo-500" />
+                    <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-[var(--accent)]" />
                   )}
                 </button>
               ))}
             </div>
             <button
               onClick={copy}
-              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-xs font-medium text-[var(--dim)] transition-colors hover:text-[var(--ink)]"
             >
               {copied ? (
                 <>
-                  <svg className="h-3.5 w-3.5 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg className="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                   </svg>
                   Copied!
@@ -178,17 +135,17 @@ export function CodeExamples() {
               )}
             </button>
           </div>
-          <pre className="overflow-x-auto p-5">
-            <code className="font-mono text-[13px] leading-relaxed text-green-400">{examples[active].code}</code>
+          <pre className="overflow-x-auto p-4">
+            <code className="font-mono text-[13px] leading-relaxed text-[var(--ink)]">{examples[active].code}</code>
           </pre>
         </div>
 
-        <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-4 text-[13px] text-[var(--dim)]">
           Copy your API key from the{" "}
-          <a href="/dashboard/api-keys" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+          <a href="/dashboard/api-keys" className="font-medium underline underline-offset-2 hover:text-[var(--ink)]">
             dashboard
           </a>{" "}
-          and replace <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800">YOUR_API_KEY</code>.
+          and replace <code className="rounded bg-[var(--muted)] px-1 py-0.5 font-mono text-[12px]">YOUR_API_KEY</code>.
         </p>
       </div>
     </section>

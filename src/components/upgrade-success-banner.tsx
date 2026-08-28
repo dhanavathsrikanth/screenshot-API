@@ -1,17 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
 
 export function UpgradeSuccessBanner() {
   const searchParams = useSearchParams();
   const upgraded = searchParams.get("upgraded");
   const cancelled = searchParams.get("cancelled");
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (upgraded) setVisible(true);
-  }, [upgraded]);
 
   if (cancelled) {
     return (
@@ -34,7 +28,7 @@ export function UpgradeSuccessBanner() {
     );
   }
 
-  if (!visible || !upgraded) return null;
+  if (!upgraded) return null;
 
   return (
     <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 p-4 flex items-center justify-between">
@@ -54,7 +48,6 @@ export function UpgradeSuccessBanner() {
       <button
         onClick={() => {
           window.history.replaceState({}, "", "/dashboard/plan");
-          setVisible(false);
           window.location.reload();
         }}
         className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
