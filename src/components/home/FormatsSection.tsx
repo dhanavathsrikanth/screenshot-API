@@ -13,7 +13,7 @@ const formats = [
 export function FormatsSection() {
   return (
     <section className="mb-16 px-6">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-6xl">
         <h2 className="mb-[18px] font-mono text-xs tracking-[0.08em] text-[var(--dim)] uppercase">
           9 output formats
         </h2>

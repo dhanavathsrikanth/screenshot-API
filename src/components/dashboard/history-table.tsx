@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { HistoryThumb } from "@/components/dashboard/history-thumb";
 import { RetryButton } from "@/components/dashboard/retry-button";
 import { createHistoryShare } from "@/app/actions/shares";
@@ -18,6 +18,7 @@ type ScreenshotMetadata = {
   wait_until?: string;
   quality?: number;
   method?: string;
+  source?: string;
   response_time_ms?: number;
   cached?: boolean;
   credits_used?: number;
@@ -39,10 +40,11 @@ function DownloadIcon() {
   );
 }
 
-function ExternalLinkIcon() {
+function EyeIcon() {
   return (
     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
     </svg>
   );
 }
@@ -74,10 +76,10 @@ const formatDate = (dateStr: string) => {
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString();
+  return d.toLocaleDateString("en-US");
 };
 
-const formatFullDate = (dateStr: string) => new Date(dateStr).toLocaleString();
+const formatFullDate = (dateStr: string) => new Date(dateStr).toLocaleString("en-US");
 
 const formatUrl = (url: string | null) => {
   if (!url) return "(no URL)";
@@ -130,7 +132,7 @@ function ShareModal({ screenshotId, onClose }: { screenshotId: string; onClose: 
         className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold">Share screenshot</h3>
+        <h3 className="panel-heading">Share screenshot</h3>
         <p className="mt-1 text-xs text-[var(--dim)]">
           Create an expiring link that works without an account (7 days by default).
         </p>
@@ -182,6 +184,109 @@ function ShareModal({ screenshotId, onClose }: { screenshotId: string; onClose: 
   );
 }
 
+function PreviewModal({ screenshot, onClose }: { screenshot: ScreenshotRow; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const meta = (screenshot.metadata ?? {}) as ScreenshotMetadata;
+  const format = screenshot.format === "jpeg" ? "jpg" : screenshot.format;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  const copyUrl = useCallback(() => {
+    if (!screenshot.storage_url) return;
+    navigator.clipboard.writeText(screenshot.storage_url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [screenshot.storage_url]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--background)] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="panel-heading truncate" title={screenshot.url ?? ""}>
+              {screenshot.url ? formatUrl(screenshot.url) : "Screenshot preview"}
+            </h3>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[var(--dim)]">
+              <span className="font-mono uppercase">{screenshot.format}</span>
+              <span className="font-mono">{screenshot.width}x{screenshot.height}</span>
+              {meta.full_page && <span>full page</span>}
+              <span>{formatDate(screenshot.created_at)}</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-[var(--dim)] hover:bg-[var(--muted)] hover:text-[var(--ink)] dark:hover:bg-[var(--muted)] transition-colors"
+            aria-label="Close preview"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto bg-[var(--muted)] dark:bg-black/40 p-4">
+          {screenshot.storage_url ? (
+            <img
+              src={screenshot.storage_url}
+              alt={screenshot.url ?? "Screenshot"}
+              className="mx-auto max-w-full rounded-lg bg-white shadow-lg"
+            />
+          ) : (
+            <p className="py-16 text-center text-sm text-[var(--dim)]">No image available for this capture.</p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border)] px-4 py-3">
+          {screenshot.storage_url && (
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--muted)] dark:bg-[var(--card)] px-3 py-1.5">
+              <span className="truncate font-mono text-xs text-[var(--dim)]">{screenshot.storage_url}</span>
+              <button
+                type="button"
+                onClick={copyUrl}
+                className="shrink-0 rounded-md bg-orange-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-orange-700 transition-colors"
+              >
+                {copied ? "Copied!" : "Copy URL"}
+              </button>
+            </div>
+          )}
+          <div className="flex shrink-0 items-center gap-2">
+            <a
+              href={screenshot.storage_url ?? "#"}
+              download={`screenshot.${format}`}
+              className="inline-flex items-center gap-1 rounded-md bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700 transition-colors"
+            >
+              <DownloadIcon />
+              Download
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--muted)] dark:hover:bg-[var(--card)] transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function HistoryTable({
   rows,
   selected,
@@ -194,6 +299,7 @@ export function HistoryTable({
   onToggleAll?: () => void;
 }) {
   const [shareTarget, setShareTarget] = useState<string | null>(null);
+  const [previewRow, setPreviewRow] = useState<ScreenshotRow | null>(null);
   const hasSelection = selected && onToggle && onToggleAll;
   const allSelected = hasSelection && selected.size === rows.length && rows.length > 0;
 
@@ -250,10 +356,18 @@ export function HistoryTable({
                         />
                       </td>
                     )}
-                    {/* Thumbnail */}
+                    {/* Thumbnail — opens the in-app preview popup */}
                     <td className="px-4 py-3">
-                      <div className="w-16 h-12 rounded-md bg-[var(--muted)] dark:bg-[var(--muted)] flex items-center justify-center overflow-hidden border border-[var(--border)]">
-                        <HistoryThumb src={s.storage_url} format={s.format} />
+                      <div className="group relative block h-12 w-16 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--muted)] dark:bg-[var(--muted)]">
+                        <HistoryThumb src={s.storage_url} format={s.format} onOpen={() => setPreviewRow(s)} />
+                        {(s.storage_url && s.format !== "pdf") && (
+                          <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
+                            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                          </span>
+                        )}
                       </div>
                     </td>
 
@@ -339,10 +453,14 @@ export function HistoryTable({
                             ? "bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/50 dark:text-violet-400"
                             : "bg-cyan-50 text-cyan-700 ring-cyan-600/20 dark:bg-cyan-950/50 dark:text-cyan-400"
                         }`}>
-                          {meta.method}
+                          API · {meta.method}
+                        </span>
+                      ) : meta.source === "app" ? (
+                        <span className="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-700 ring-1 ring-inset ring-orange-500/20 dark:bg-orange-950/50 dark:text-orange-400">
+                          Playground
                         </span>
                       ) : s.cached ? (
-                        <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-950/50 dark:text-green-400">
+                        <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-[10px] font-bold uppercase text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-950/50 dark:text-green-400">
                           cached
                         </span>
                       ) : (
@@ -374,16 +492,15 @@ export function HistoryTable({
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {s.storage_url && (
-                          <a
-                            href={s.storage_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => setPreviewRow(s)}
                             className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-[var(--dim)] dark:text-[var(--dim)] hover:bg-[var(--muted)] dark:hover:bg-[var(--muted)] transition-colors"
-                            title="Open full image"
+                            title="Preview in popup"
                           >
-                            <ExternalLinkIcon />
-                            Open
-                          </a>
+                            <EyeIcon />
+                            Preview
+                          </button>
                         )}
                         {s.storage_url && (
                           <a
@@ -416,6 +533,9 @@ export function HistoryTable({
 
       {shareTarget && (
         <ShareModal screenshotId={shareTarget} onClose={() => setShareTarget(null)} />
+      )}
+      {previewRow && (
+        <PreviewModal screenshot={previewRow} onClose={() => setPreviewRow(null)} />
       )}
     </>
   );

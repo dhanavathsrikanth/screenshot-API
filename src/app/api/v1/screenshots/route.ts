@@ -2,9 +2,8 @@ import { NextRequest } from "next/server";
 import { V1ScreenshotRequestSchema, buildRenderOptions } from "@/lib/v1-schema";
 import { resolveAuth } from "@/lib/api-auth";
 import {
-  getUserPlan, checkRateLimit, isFormatAllowed,
-  isFullPageAllowed, isGeoTargetingAllowed, getQueuePriority,
-  checkApiKeyRateLimit,
+  getUserPlan, checkRateLimit, getQueuePriority,
+  checkApiKeyRateLimit, checkRenderFeatureGates, planGateDetails,
 } from "@/lib/plans";
 import { assertGeoRequestAllowed, GeoTargetingError } from "@/lib/browser/geo";
 import { ensureCredits } from "@/lib/credits";
@@ -18,6 +17,7 @@ import { logScreenshotUsage, ipHash } from "@/app/actions/usage";
 import { createServiceClient } from "@/lib/supabase/server";
 import { trackQuotaReached } from "@/lib/analytics-events";
 import { fireWebhookEvent } from "@/lib/webhooks";
+import { renderPhase } from "@/lib/screenshot/types";
 
 export const maxDuration = 90;
 
@@ -183,15 +183,15 @@ export async function POST(request: NextRequest) {
         return v1RateLimited(keyLimit.retryAfterMs, keyLimit, requestId);
       }
     }
-    if (!isFormatAllowed(input.format, plan)) {
-      return v1Err(403, "plan_feature", `Format "${input.format}" requires a paid plan.`, requestId);
-    }
-    // Per-plan feature gates: full-page (blueprint §32).
-    if (input.full_page && !isFullPageAllowed(plan)) {
-      return v1Err(403, "plan_feature", 'Full-page captures require the Starter plan or above.', requestId);
-    }
-    if (input.country && !isGeoTargetingAllowed(plan)) {
-      return v1Err(403, "plan_feature", "Geo-targeted rendering requires the Pro plan or above.", requestId);
+    const gateFailure = checkRenderFeatureGates(plan, {
+      format: input.format,
+      full_page: input.full_page,
+      selector: input.selector,
+      country: input.country,
+      video_seconds: input.video_seconds,
+    });
+    if (gateFailure) {
+      return v1Err(403, "plan_feature", gateFailure.message, requestId, planGateDetails(gateFailure));
     }
     // Geo availability: fail fast (before credits/job) when the country is
     // invalid or not served by the configured proxy gateway.
@@ -263,6 +263,30 @@ export async function POST(request: NextRequest) {
         userAgent: request.headers.get("user-agent") ?? undefined,
       }).catch(() => {});
 
+      fireWebhookEvent({
+        userId,
+        projectId,
+        event: "screenshot.completed",
+        data: {
+          id: hit.id,
+          status: "completed",
+          cached: true,
+          status_url: `/api/v1/screenshots/${hit.id}`,
+          screenshot: {
+            id: hit.screenshotId,
+            url: cached.storageUrl,
+            format: cached.format,
+            width: cached.width,
+            height: cached.height,
+            size: cached.sizeBytes,
+            created_at: hit.completedAt,
+          },
+          error: null,
+          created_at: hit.completedAt,
+          updated_at: hit.completedAt,
+        },
+      }).catch(() => {});
+
       return v1Ok(
         {
           id: hit.id,
@@ -306,7 +330,9 @@ export async function POST(request: NextRequest) {
         event: "quota.exceeded",
         data: { reason: "insufficient_credits", plan },
       }).catch(() => {});
-      return v1Err(402, "insufficient_credits", "No credits remaining. Upgrade or buy credits.", requestId);
+      return v1Err(402, "insufficient_credits", "No credits remaining. Upgrade or buy credits.", requestId, {
+        upgrade_url: "/dashboard/plan",
+      });
     }
 
     const id = newJobId();
@@ -335,7 +361,13 @@ export async function POST(request: NextRequest) {
         );
       }
       const errorCode = (final?.error_code ?? "render_failed").toLowerCase();
-      return v1Err(httpStatusForErrorCode(errorCode), errorCode, final?.error_message ?? "Render failed.", requestId);
+      return v1Err(
+        httpStatusForErrorCode(errorCode),
+        errorCode,
+        final?.error_message ?? "Render failed.",
+        requestId,
+        { phase: renderPhase(errorCode) }
+      );
     }
 
     enqueueJob(id, { priority: getQueuePriority(plan) });

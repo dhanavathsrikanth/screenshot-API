@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { deleteFromStorage, storageKeyFromUrl } from "@/lib/storage/uploader";
+import { deleteStorageObjectByUrl } from "@/lib/storage/fallback";
 import { getUserPlan, getPlanLimits, RETENTION_TIERS_DAYS } from "@/lib/plans";
 import { logger } from "@/lib/logger";
 
@@ -51,10 +51,9 @@ export async function purgeExpiredScreenshots(): Promise<{ deleted: number }> {
       if (doomed.length > 0) {
         await Promise.all(
           doomed.map(async (row) => {
-            const key = row.storage_url ? storageKeyFromUrl(row.storage_url) : null;
-            if (!key) return;
+            if (!row.storage_url) return;
             try {
-              await deleteFromStorage(key);
+              await deleteStorageObjectByUrl(row.storage_url);
             } catch (e) {
               logger.error({ event: "retention_storage_delete_failed", screenshotId: row.id, error: e instanceof Error ? e.message : e });
             }

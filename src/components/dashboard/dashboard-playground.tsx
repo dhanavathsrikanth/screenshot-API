@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import type { PlanId } from "@/lib/plans";
+import { PlanUpsellBanner } from "@/components/dashboard/plan-upsell-banner";
+import { UpgradeButton } from "@/components/upgrade-button";
 
 const VIDEO_FORMATS = new Set(["mp4", "webm", "gif"]);
 
@@ -71,7 +73,50 @@ function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: st
   );
 }
 
-export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
+type PlaygroundMode = "sync" | "async" | "bulk";
+
+type BulkResultItem = {
+  url: string;
+  success: boolean;
+  error?: string;
+  attempts: number;
+  storage_url?: string | null;
+};
+
+const PLAYGROUND_MODES: { id: PlaygroundMode; label: string; hint: string }[] = [
+  { id: "sync", label: "Sync", hint: "/api/take" },
+  { id: "async", label: "Async v1", hint: "Job + poll" },
+  { id: "bulk", label: "Bulk", hint: "Up to 100 URLs" },
+];
+
+async function pollV1Job(jobId: string): Promise<{
+  url: string;
+  format: string;
+  creditsUsed?: number;
+}> {
+  const maxAttempts = 60;
+  for (let i = 0; i < maxAttempts; i++) {
+    const response = await fetch(`/api/v1/screenshots/${jobId}`, { credentials: "include" });
+    const payload = await response.json();
+    if (!response.ok || !payload.success) {
+      throw new Error(payload.error?.message ?? "Failed to poll job status");
+    }
+    const data = payload.data;
+    if (data.status === "completed" && data.screenshot?.url) {
+      return {
+        url: data.screenshot.url,
+        format: data.screenshot.format ?? "png",
+      };
+    }
+    if (data.status === "failed") {
+      throw new Error(data.error?.message ?? "Render failed");
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  throw new Error("Timed out waiting for the screenshot job to complete.");
+}
+
+export function DashboardPlayground({ plan = "free", showUpsell = false }: { plan?: PlanId; showUpsell?: boolean }) {
   const allowedFormats = FORMATS_BY_PLAN[plan] ?? FORMATS_BY_PLAN.free;
   const elementaryFormats = allowedFormats.filter((f) => !VIDEO_FORMATS.has(f));
   const videoFormats = allowedFormats.filter((f) => VIDEO_FORMATS.has(f));
@@ -79,6 +124,16 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
   const fullPageAllowed = plan !== "free";
 
   const [url, setUrl] = useState("https://example.com");
+  const [bulkUrls, setBulkUrls] = useState("https://example.com\nhttps://example.org");
+  const [mode, setMode] = useState<PlaygroundMode>("sync");
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [bulkResults, setBulkResults] = useState<{
+    total: number;
+    successful: number;
+    failed: number;
+    creditsUsed: number;
+    results: BulkResultItem[];
+  } | null>(null);
   const [format, setFormat] = useState<string>("png");
   const [fullPage, setFullPage] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -90,6 +145,7 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
   const [resultType, setResultType] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
   const [creditsUsed, setCreditsUsed] = useState<number | null>(null);
 
   // Advanced options (subset of the full ScreenshotOptionsSchema).
@@ -130,23 +186,57 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setUpgradeRequired(false);
     setResult(null);
     setStorageUrl(null);
     setResultType(null);
     setCreditsUsed(null);
+    setJobStatus(null);
+    setBulkResults(null);
 
     const f = allowedFormats.includes(format) ? format : "png";
 
-    try {
+    if (plan === "free" && fullPage) {
+      setError("Full-page captures require Starter ($9/mo). Viewport captures work on Free.");
+      setUpgradeRequired(true);
+      setLoading(false);
+      return;
+    }
+    if (plan === "free" && f === "pdf") {
+      setError("PDF export requires Starter ($9/mo). Try PNG, JPEG, or WebP on Free.");
+      setUpgradeRequired(true);
+      setLoading(false);
+      return;
+    }
+    if ((plan === "free" || plan === "starter" || plan === "pro") && VIDEO_FORMATS.has(f)) {
+      setError("Video and GIF capture require the Scale plan ($79/mo).");
+      setUpgradeRequired(true);
+      setLoading(false);
+      return;
+    }
+    if ((plan === "free" || plan === "starter") && country.trim()) {
+      setError("Geo-targeted rendering requires Pro ($49/mo) or above.");
+      setUpgradeRequired(true);
+      setLoading(false);
+      return;
+    }
+    if (mode === "bulk" && isVideoMode) {
+      setError("Bulk capture supports PNG, JPEG, WebP, and PDF only.");
+      setLoading(false);
+      return;
+    }
+
+    const buildTakeBody = (targetUrl: string): Record<string, unknown> => {
       const body: Record<string, unknown> = {
-        url,
+        url: targetUrl,
         format: f,
         viewport_width: width,
         viewport_height: viewportHeight,
         device_scale_factor: deviceScaleFactor,
-        full_page: fullPage && fullPageAllowed,
+        full_page: fullPage,
         dark_mode: darkMode,
-        timeout: 20000,
+        timeout: 30000,
+        readiness: waitUntil === "networkidle0" || waitUntil === "networkidle2" ? "complete" : "fast",
         quality,
         omit_background: omitBackground,
         reduced_motion: reducedMotion,
@@ -174,22 +264,146 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
         body.auth_username = authUsername.trim();
         if (authPassword) body.auth_password = authPassword;
       }
+      return body;
+    };
+
+    const buildV1Body = (targetUrl: string): Record<string, unknown> => {
+      const body: Record<string, unknown> = {
+        url: targetUrl,
+        format: f,
+        width,
+        height: viewportHeight,
+        device_scale_factor: deviceScaleFactor,
+        full_page: fullPage,
+        dark_mode: darkMode,
+        timeout: 30000,
+        readiness: waitUntil === "networkidle0" || waitUntil === "networkidle2" ? "complete" : "fast",
+        quality,
+        block_ads: blockAds,
+        block_cookie_banners: blockCookieBanners,
+        block_trackers: blockTrackers,
+        block_images: blockImages,
+        is_mobile: isMobile,
+        has_touch: hasTouch,
+      };
+      if (isVideoMode) {
+        body.video_seconds = videoSeconds;
+        body.video_speed = videoSpeed;
+      }
+      if (selector.trim()) body.selector = selector.trim();
+      if (waitUntil) body.wait_for = waitUntil;
+      if (waitForSelector.trim()) body.wait_for_selector = waitForSelector.trim();
+      if (delay > 0) body.delay = delay;
+      if (userAgent.trim()) body.user_agent = userAgent.trim();
+      if (country.trim() && geoAllowed) body.country = country.trim().toUpperCase();
+      if (authUsername.trim()) {
+        body.auth_username = authUsername.trim();
+        if (authPassword) body.auth_password = authPassword;
+      }
+      return body;
+    };
+
+    try {
+      if (mode === "bulk") {
+        const urls = bulkUrls
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (urls.length === 0) {
+          throw new Error("Enter at least one URL (one per line).");
+        }
+        if (urls.length > 100) {
+          throw new Error("Bulk capture supports up to 100 URLs per request.");
+        }
+
+        const { url: _singleUrl, ...renderOptions } = buildTakeBody(urls[0]);
+        const response = await fetch("/api/take/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ urls, ...renderOptions }),
+        });
+
+        if (!response.ok) {
+          let message = "Bulk capture failed";
+          let needsUpgrade = false;
+          try {
+            const err = await response.json();
+            message = typeof err.error === "string" ? err.error : err.error?.message ?? message;
+            needsUpgrade = err.error?.code === "plan_feature" || response.status === 403;
+          } catch {
+            message = `Server error (${response.status})`;
+          }
+          setUpgradeRequired(needsUpgrade);
+          throw new Error(message);
+        }
+
+        const data = await response.json();
+        const headerCost = response.headers.get("X-Credits-Used");
+        setCreditsUsed(headerCost != null ? Number(headerCost) : data.creditsUsed ?? null);
+        setBulkResults({
+          total: data.total,
+          successful: data.successful,
+          failed: data.failed,
+          creditsUsed: data.creditsUsed,
+          results: data.results ?? [],
+        });
+        return;
+      }
+
+      if (mode === "async") {
+        setJobStatus("Creating job…");
+        const createResponse = await fetch("/api/v1/screenshots", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(buildV1Body(url)),
+        });
+        const createPayload = await createResponse.json();
+        if (!createResponse.ok || !createPayload.success) {
+          const needsUpgrade =
+            createPayload.error?.code === "plan_feature" || createResponse.status === 403;
+          setUpgradeRequired(needsUpgrade);
+          throw new Error(createPayload.error?.message ?? "Failed to create screenshot job");
+        }
+
+        const job = createPayload.data;
+        if (job.status === "completed" && job.screenshot?.url) {
+          setStorageUrl(job.screenshot.url);
+          setResult(job.screenshot.url);
+          setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : f === "pdf" ? "pdf" : "image");
+          setCreditsUsed(job.cached ? 0 : getCreditCost(f, isVideoMode ? videoSeconds : undefined));
+          return;
+        }
+
+        setJobStatus(`Job ${job.id} queued — polling…`);
+        const completed = await pollV1Job(job.id);
+        setStorageUrl(completed.url);
+        setResult(completed.url);
+        setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : f === "pdf" ? "pdf" : "image");
+        setCreditsUsed(getCreditCost(f, isVideoMode ? videoSeconds : undefined));
+        setJobStatus(null);
+        return;
+      }
 
       const response = await fetch("/api/take", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(body),
+        body: JSON.stringify(buildTakeBody(url)),
       });
 
       if (!response.ok) {
         let message = "Failed to render";
+        let needsUpgrade = false;
         try {
           const err = await response.json();
           message = typeof err.error === "string" ? err.error : err.error?.message ?? message;
+          needsUpgrade = err.error?.code === "plan_feature" || response.status === 403;
         } catch {
           message = `Server error (${response.status})`;
         }
+        setUpgradeRequired(needsUpgrade);
         throw new Error(message);
       }
 
@@ -209,10 +423,11 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setJobStatus(null);
     } finally {
       setLoading(false);
     }
-  }, [url, format, allowedFormats, fullPage, fullPageAllowed, darkMode, width, videoSeconds, videoSpeed, isVideoMode, isRealVideo, isAnimatedGif, quality, viewportHeight, deviceScaleFactor, omitBackground, reducedMotion, selector, waitUntil, waitForSelector, delay, blockAds, blockCookieBanners, blockChats, blockTrackers, blockImages, userAgent, isMobile, hasTouch, country, geoAllowed, pdfFormat, pdfPrintBackground, authUsername, authPassword]);
+  }, [url, bulkUrls, mode, format, allowedFormats, fullPage, plan, darkMode, width, videoSeconds, videoSpeed, isVideoMode, isRealVideo, isAnimatedGif, quality, viewportHeight, deviceScaleFactor, omitBackground, reducedMotion, selector, waitUntil, waitForSelector, delay, blockAds, blockCookieBanners, blockChats, blockTrackers, blockImages, userAgent, isMobile, hasTouch, country, geoAllowed, pdfFormat, pdfPrintBackground, authUsername, authPassword]);
 
   const handleDownload = useCallback(() => {
     const href = storageUrl ?? result;
@@ -227,26 +442,85 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
   }, [result, storageUrl, effectiveFormat]);
 
   const creditCost = getCreditCost(effectiveFormat, isVideoMode ? videoSeconds : undefined);
+  const submitLabel =
+    mode === "bulk"
+      ? loading
+        ? "Running bulk…"
+        : "Run bulk"
+      : mode === "async"
+        ? loading
+          ? jobStatus ?? "Working…"
+          : "Capture (async)"
+        : loading
+          ? isVideoMode
+            ? "Recording..."
+            : "Capturing..."
+          : isVideoMode
+            ? "Record Video"
+            : "Take Screenshot";
 
   return (
-    <div>
+    <div className="space-y-4">
+      {showUpsell && <PlanUpsellBanner plan={plan} />}
+      <div className="flex flex-wrap gap-2">
+        {PLAYGROUND_MODES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => {
+              setMode(m.id);
+              setError(null);
+              setResult(null);
+              setBulkResults(null);
+              setJobStatus(null);
+            }}
+            className={`rounded-lg px-3 py-2 text-left border transition-colors ${
+              mode === m.id
+                ? "border-orange-500/50 bg-orange-50 dark:bg-orange-950/30"
+                : "border-[var(--border)] hover:bg-[var(--muted)]"
+            }`}
+          >
+            <span className="block text-xs font-semibold">{m.label}</span>
+            <span className="block text-[10px] text-[var(--dim)] mt-0.5">{m.hint}</span>
+          </button>
+        ))}
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {mode === "bulk" ? (
+          <div className="space-y-2">
+            <label className="text-xs text-[var(--dim)]">URLs (one per line, max 100)</label>
+            <textarea
+              value={bulkUrls}
+              onChange={(e) => setBulkUrls(e.target.value)}
+              rows={4}
+              placeholder={"https://example.com\nhttps://example.org"}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+              required
+            />
+          </div>
+        ) : (
+          <div className="flex gap-3">
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              required
+            />
+          </div>
+        )}
         <div className="flex gap-3">
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com"
-            className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-            required
-          />
           <button
             type="submit"
             disabled={loading}
             className="rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50 transition-colors whitespace-nowrap"
           >
-            {loading ? (isVideoMode ? "Recording..." : "Capturing...") : (isVideoMode ? "Record Video" : "Take Screenshot")}
+            {submitLabel}
           </button>
+          {jobStatus && (
+            <span className="self-center text-xs text-[var(--dim)]">{jobStatus}</span>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -309,15 +583,17 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
               className="w-20 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
-          <label className="flex items-center gap-1.5 text-sm cursor-pointer" title={fullPageAllowed ? undefined : "Full-page captures require the Starter plan or above."}>
+          <label className="flex items-center gap-1.5 text-sm cursor-pointer">
             <input
               type="checkbox"
-              checked={fullPage && fullPageAllowed}
-              disabled={!fullPageAllowed}
+              checked={fullPage}
               onChange={(e) => setFullPage(e.target.checked)}
               className={checkboxClass}
             />
-            <span className="text-xs text-[var(--dim)]">Full page{!fullPageAllowed && <span className="ml-1 text-amber-600 dark:text-amber-400">(Starter+)</span>}</span>
+            <span className="text-xs text-[var(--dim)]">
+              Full page
+              {!fullPageAllowed && <span className="ml-1 text-amber-600 dark:text-amber-400">(Starter $9)</span>}
+            </span>
           </label>
           <label className="flex items-center gap-1.5 text-sm cursor-pointer">
             <input
@@ -552,8 +828,13 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
       </form>
 
       {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-4 mt-4">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <div className={`rounded-lg border p-4 mt-4 ${upgradeRequired ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800" : "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"}`}>
+          <p className={`text-sm ${upgradeRequired ? "text-amber-800 dark:text-amber-200" : "text-red-600 dark:text-red-400"}`}>{error}</p>
+          {upgradeRequired && (
+            <div className="mt-3">
+              <UpgradeButton />
+            </div>
+          )}
         </div>
       )}
 
@@ -615,9 +896,47 @@ export function DashboardPlayground({ plan = "free" }: { plan?: PlanId }) {
         </div>
       )}
 
-      {!result && !error && !loading && (
+      {bulkResults && (
+        <div className="mt-4 rounded-lg border border-[var(--border)] overflow-hidden">
+          <div className="bg-[var(--muted)] dark:bg-[var(--card)] px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
+            <span className="text-xs text-[var(--dim)]">
+              Bulk results — {bulkResults.successful}/{bulkResults.total} succeeded
+            </span>
+            {creditsUsed != null && (
+              <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 ring-1 ring-inset ring-amber-600/20">
+                {bulkResults.creditsUsed ?? creditsUsed} credit{(bulkResults.creditsUsed ?? creditsUsed) !== 1 ? "s" : ""} used
+              </span>
+            )}
+          </div>
+          <div className="max-h-64 overflow-y-auto divide-y divide-[var(--border)]">
+            {bulkResults.results.map((item) => (
+              <div key={item.url} className="px-4 py-2 flex items-start justify-between gap-3 text-xs">
+                <span className="font-mono truncate text-[var(--ink)]">{item.url}</span>
+                <span className="shrink-0 flex items-center gap-2">
+                  {item.success && item.storage_url ? (
+                    <a href={item.storage_url} target="_blank" rel="noopener noreferrer" className="text-orange-600 dark:text-orange-400 hover:underline">
+                      Open
+                    </a>
+                  ) : null}
+                  <span className={`font-medium ${item.success ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                    {item.success ? "OK" : item.error ?? "Failed"}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!result && !error && !loading && !bulkResults && (
         <div className="mt-4 rounded-xl border border-dashed border-[var(--border)] p-8 text-center">
-          <p className="text-sm text-[var(--dim)]">Enter a URL and click Take Screenshot to see the result here.</p>
+          <p className="text-sm text-[var(--dim)]">
+            {mode === "bulk"
+              ? "Paste URLs (one per line) and run bulk capture."
+              : mode === "async"
+                ? "Enter a URL and capture via the async v1 job API."
+                : "Enter a URL and click Take Screenshot to see the result here."}
+          </p>
         </div>
       )}
     </div>

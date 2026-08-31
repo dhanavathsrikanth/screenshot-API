@@ -11,21 +11,21 @@ const steps = [
     title: "Call the API",
     command: "GET /api/take",
     description:
-      "Send a single GET request with your URL. Choose from 9 output formats, full-page capture, dark mode, custom viewports, and more.",
+      "Send a single GET request with your URL. Free covers viewport PNG, JPEG, and WebP. Starter ($9) adds full-page, PDF, and higher volume.",
   },
   {
     number: "03",
     title: "Get clean screenshots",
     command: "response: blob",
     description:
-      "Receive pixel-perfect images or PDFs in milliseconds. Ads, cookie banners, and chat widgets are stripped automatically.",
+      "Receive a viewport image in seconds. Ads, cookie banners, and chat widgets are stripped automatically. Upgrade to Starter when you need the full scrollable page or PDF.",
   },
 ];
 
 export function HowItWorks() {
   return (
     <section className="mb-16 px-6">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-6xl">
         <h2 className="mb-[18px] font-mono text-xs tracking-[0.08em] text-[var(--dim)] uppercase">
           how it works
         </h2>

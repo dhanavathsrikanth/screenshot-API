@@ -59,7 +59,10 @@ export function BuyCredits() {
       }
       if (data.checkout_url) {
         window.location.assign(data.checkout_url);
+        return;
       }
+      setError("Checkout did not return a payment URL. Please try again.");
+      setLoading(null);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(null);

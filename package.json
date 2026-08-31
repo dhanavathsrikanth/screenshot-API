@@ -11,7 +11,8 @@
     "dodo:reconcile": "node ./scripts/reconcile-dodo-plans.mjs",
     "keepalive:setup": "node ./scripts/setup-keepalive.mjs",
     "keepalive:list": "node ./scripts/setup-keepalive.mjs --list",
-    "keepalive:remove": "node ./scripts/setup-keepalive.mjs --remove"
+    "keepalive:remove": "node ./scripts/setup-keepalive.mjs --remove",
+    "launch:check": "node ./scripts/launch-check.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",

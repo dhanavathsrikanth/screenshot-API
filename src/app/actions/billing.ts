@@ -1,4 +1,7 @@
+"use server";
+
 import { createServiceClient } from "@/lib/supabase/server";
+import { auth } from "@clerk/nextjs/server";
 import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
 import { cacheInvalidate } from "@/lib/redis";
@@ -210,4 +213,30 @@ export async function reconcilePlanAfterCheckout(userId: string): Promise<Reconc
 
   console.log(`[billing] Reconciled user ${userId} to ${planInfo.plan} (subscription ${sub?.subscription_id})`);
   return { plan: planInfo.plan, applied: true };
+}
+
+/** Toggle pay-as-you-go overage billing for paid plans. */
+export async function setOverageEnabled(enabled: boolean): Promise<void> {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = createServiceClient();
+  const { data: quota, error: readError } = await supabase
+    .from("user_quotas")
+    .select("plan")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (readError) throw readError;
+  if (!quota?.plan || quota.plan === "free") {
+    throw new Error("Overage billing requires a paid plan.");
+  }
+
+  const { error } = await supabase
+    .from("user_quotas")
+    .update({ overage_enabled: enabled })
+    .eq("user_id", userId);
+
+  if (error) throw error;
+  await cacheInvalidate(`cache:userplan:${userId}`);
 }

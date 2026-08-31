@@ -12,7 +12,7 @@ export function ContactInbox({ messages }: { messages: ContactMessage[] }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="eyebrow text-[var(--dim)]">Contact Inbox</h2>
+        <h2 className="section-title">Contact Inbox</h2>
         {newCount > 0 && (
           <span className="rounded-full bg-orange-600 text-white text-xs font-medium px-2.5 py-1">
             {newCount} unread

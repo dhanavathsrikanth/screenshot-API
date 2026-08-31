@@ -75,17 +75,29 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ── Plan resolution (mirrors src/app/api/webhooks/dodo/route.ts) ─────────
 
-const PLAN_IDS = ["starter", "pro"];
+const PLAN_IDS = ["starter", "pro", "scale"];
+
+function envId(...keys) {
+  for (const key of keys) {
+    const v = process.env[key];
+    if (v && String(v).trim()) return String(v).trim();
+  }
+  return undefined;
+}
 
 function planInfoFor(plan) {
-  return plan === "pro"
-    ? { plan: "pro", credits: 15000, monthlyLimit: 15000 }
-    : { plan: "starter", credits: 2500, monthlyLimit: 2500 };
+  if (plan === "scale") return { plan: "scale", credits: 50000, monthlyLimit: 50000 };
+  if (plan === "pro") return { plan: "pro", credits: 15000, monthlyLimit: 15000 };
+  return { plan: "starter", credits: 2500, monthlyLimit: 2500 };
 }
 
 const ENV_PLAN_MAP = [
-  [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID, "starter"],
-  [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID, "pro"],
+  [envId("NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID", "DODO_PRODUCT_STARTER_ID"), "starter"],
+  [envId("NEXT_PUBLIC_DODO_PRODUCT_PRO_ID", "DODO_PRODUCT_PRO_ID"), "pro"],
+  [envId("NEXT_PUBLIC_DODO_PRODUCT_SCALE_ID", "DODO_PRODUCT_SCALE_ID"), "scale"],
+  [envId("NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID", "DODO_PRODUCT_STARTER_ANNUAL_ID"), "starter"],
+  [envId("NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID", "DODO_PRODUCT_PRO_ANNUAL_ID"), "pro"],
+  [envId("NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID", "DODO_PRODUCT_SCALE_ANNUAL_ID"), "scale"],
 ];
 
 async function resolvePlanFromProduct(productId) {
@@ -104,6 +116,7 @@ async function resolvePlanFromProduct(productId) {
   }
 
   const lower = productId.toLowerCase();
+  if (lower.includes("scale")) return planInfoFor("scale");
   if (lower.includes("pro")) return planInfoFor("pro");
   if (lower.includes("starter")) return planInfoFor("starter");
 

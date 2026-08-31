@@ -98,6 +98,10 @@ export async function getUsageStats(userId: string) {
     .eq("user_id", userId)
     .single();
 
+  if (quotaResult.error && quotaResult.error.code !== "PGRST116") {
+    throw new Error(quotaResult.error.message);
+  }
+
   let totalCalls = 0;
   let cachedCalls = 0;
 
@@ -173,6 +177,8 @@ export type HistoryFilterParams = {
   from?: string;
   /** ISO timestamp — only rows created at/before this time. */
   to?: string;
+  /** Filter by project UUID. */
+  projectId?: string;
 };
 
 function applyHistoryFilters(
@@ -186,9 +192,15 @@ function applyHistoryFilters(
     query = query.eq("format", filters.format.toLowerCase());
   }
   if (filters.source === "api") {
-    query = query.not("metadata->>method", "is", null);
+    // New rows carry metadata->>source = "api"; legacy rows only have a method.
+    query = query.or(
+      "metadata->>source.eq.api,and(metadata->>source.is.null,metadata->>method.not.is.null)"
+    );
   } else if (filters.source === "playground") {
-    query = query.is("metadata->>method", null);
+    // New rows carry metadata->>source = "app"; legacy rows had no method.
+    query = query.or(
+      "metadata->>source.eq.app,and(metadata->>source.is.null,metadata->>method.is.null)"
+    );
   } else if (filters.source === "cached") {
     query = query.eq("cached", true);
   }
@@ -208,6 +220,9 @@ function applyHistoryFilters(
       query = query.lte("created_at", end.toISOString());
     }
   }
+  if (filters.projectId) {
+    query = query.eq("project_id", filters.projectId);
+  }
   return query;
 }
 
@@ -221,7 +236,9 @@ export async function getScreenshotHistory(
   options: { limit?: number; before?: string; filters?: HistoryFilterParams } = {}
 ): Promise<ScreenshotRow[]> {
   const limit = Math.min(Math.max(1, options.limit ?? 50), 100);
-  const supabase = await createClient();
+  // Service role + explicit user_id filter: history rows are written via the
+  // service role (saveScreenshot), so RLS/JWT misalignment must not hide them.
+  const supabase = createServiceClient();
 
   let query = supabase
     .from("screenshots")
@@ -250,7 +267,7 @@ export async function getScreenshotHistoryStats(userId: string): Promise<{
   viaApi: number;
   cachedCount: number;
 }> {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data: rpcData, error: rpcError } = await supabase
     .rpc("get_screenshot_history_stats", { p_user_id: userId });
@@ -279,8 +296,8 @@ export async function getScreenshotHistoryStats(userId: string): Promise<{
   for (const row of data ?? []) {
     totalBytes += row.file_size_bytes ?? 0;
     if (row.cached) cachedCount++;
-    const meta = (row.metadata ?? {}) as { method?: string };
-    if (meta.method) viaApi++;
+    const meta = (row.metadata ?? {}) as { source?: string; method?: string };
+    if (meta.source === "api" || meta.method) viaApi++;
   }
 
   return { total: data?.length ?? 0, totalBytes, viaApi, cachedCount };

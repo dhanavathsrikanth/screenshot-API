@@ -76,6 +76,100 @@ async function convertWithSharp(
 }
 
 /**
+ * Capture a full page by scrolling through it in real viewport-height steps
+ * and stitching the individual shots together. Unlike Puppeteer's built-in
+ * `fullPage` capture (which resizes the viewport to the whole page and shoots
+ * once from the top), this preserves the real viewport so scroll-triggered
+ * animations and lazy content render correctly, and it always reaches the very
+ * bottom — including the footer — even when the page grows while scrolling.
+ */
+async function captureFullPageStitched(
+  page: Page,
+  type: "png" | "jpeg"
+): Promise<Buffer> {
+  const sharp = (await import("sharp")).default;
+  const viewport = page.viewport() ?? { width: 1280, height: 720 };
+  const shotHeight = Math.max(viewport.height, 1);
+
+  const measureHeight = async (): Promise<number> =>
+    page.evaluate(() => {
+      const el = document.scrollingElement || document.documentElement;
+      return el.scrollHeight;
+    });
+
+  const tiles: Buffer[] = [];
+  const maxShots = 120; // guard against infinite/very tall pages
+
+  let previousTop = -1;
+  let i = 0;
+
+  while (i < maxShots) {
+    const totalHeight = Math.max(await measureHeight(), shotHeight);
+    const top = Math.min(i * shotHeight, totalHeight - shotHeight);
+    if (Math.floor(top) === Math.floor(previousTop)) break; // no further progress
+    previousTop = top;
+
+    await page.evaluate((y) => window.scrollTo(0, y), top);
+    // Let scroll-triggered animations settle before capturing this view.
+    await new Promise((r) => setTimeout(r, 100));
+
+    let tile: Buffer;
+    if (type === "jpeg") {
+      tile = Buffer.from(
+        await page.screenshot({ type: "jpeg", quality: 85, fromSurface: true, captureBeyondViewport: false })
+      );
+    } else {
+      tile = Buffer.from(
+        await page.screenshot({ type: "png", fromSurface: true, captureBeyondViewport: false })
+      );
+    }
+    tiles.push(tile);
+
+    // Re-measure after this view; if lazy content grew the page, keep scrolling
+    // so newly-revealed content (including the footer) is never missed.
+    const grewHeight = Math.max(await measureHeight(), shotHeight);
+    if (top + shotHeight >= grewHeight - 1) {
+      await new Promise((r) => setTimeout(r, 150));
+      const afterBottom = Math.max(await measureHeight(), shotHeight);
+      if (afterBottom <= totalHeight) break; // bottom is stable, done
+    }
+    i++;
+  }
+
+  // Scroll back to the top so the final document state matches the capture.
+  await page.evaluate(() => window.scrollTo(0, 0));
+
+  if (tiles.length === 1) return tiles[0];
+
+  const meta = await sharp(tiles[0]).metadata();
+  const tileWidth = meta.width ?? viewport.width;
+  const tileCount = tiles.length;
+  const stitchedHeight = tileCount * shotHeight;
+
+  const composed = await sharp({
+    create: {
+      width: tileWidth,
+      height: Math.max(1, Math.round(stitchedHeight)),
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  })
+    .composite(
+      tiles.map((t, idx) => ({
+        input: t,
+        top: Math.min(idx * shotHeight, Math.round(stitchedHeight) - 1),
+        left: 0,
+      }))
+    )
+    .png()
+    .toBuffer();
+
+  return type === "jpeg"
+    ? Buffer.from(await sharp(composed).jpeg({ quality: 85 }).toBuffer())
+    : composed;
+}
+
+/**
  * Produce the final artifact buffer for the current page state.
  * `page` must already be fully prepared (navigation + readiness applied).
  */
@@ -133,10 +227,12 @@ export async function capturePage(
     screenshotBuffer = Buffer.from(
       await el.screenshot({ type, omitBackground: options.omit_background })
     );
+  } else if (options.full_page) {
+    screenshotBuffer = await captureFullPageStitched(page, type);
   } else {
     const opt: PuppeteerScreenshotOptions = {
       type,
-      fullPage: options.full_page,
+      fullPage: false,
       captureBeyondViewport: options.capture_beyond_viewport,
       fromSurface: options.from_surface,
       omitBackground: options.omit_background,

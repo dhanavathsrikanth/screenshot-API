@@ -13,6 +13,7 @@ const plans = [
     href: "/sign-up",
     popular: false,
     overage: null,
+    highlights: ["100 viewport captures", "PNG, JPEG, WebP", "Ads & banners blocked", "24-hour history"],
     features: {
       screenshots: "100 / month",
       formats: "PNG, JPEG, WebP",
@@ -40,11 +41,12 @@ const plans = [
     id: "starter",
     name: "Starter",
     monthlyPrice: 9,
-    description: "For developers building integrations",
-    cta: "Get Started",
+    description: "The plan most products upgrade to",
+    cta: "Unlock Starter — $9",
     href: "/sign-up",
-    popular: false,
+    popular: true,
     overage: "$0.005 / extra",
+    highlights: ["2,500 captures / month", "Full-page screenshots", "PDF export", "30-day history"],
     features: {
       screenshots: "2,500 / month",
       formats: "PNG, JPEG, WebP, PDF",
@@ -63,7 +65,7 @@ const plans = [
       apiKeys: "5",
       rateLimit: "40 req/min",
       support: "Email",
-      sla: "99.9% uptime",
+      sla: null,
       geoTargeting: false,
       videoCapture: false,
     },
@@ -72,11 +74,12 @@ const plans = [
     id: "pro",
     name: "Pro",
     monthlyPrice: 49,
-    description: "For teams shipping production features",
+    description: "For teams at production volume",
     cta: "Get Started",
     href: "/sign-up",
-    popular: true,
+    popular: false,
     overage: "$0.003 / extra",
+    highlights: ["15,000 captures / month", "Geo-targeted rendering", "Your S3 / R2 / GCS", "90-day history"],
     features: {
       screenshots: "15,000 / month",
       formats: "PNG, JPEG, WebP, PDF",
@@ -97,7 +100,7 @@ const plans = [
       apiKeys: "25",
       rateLimit: "120 req/min",
       support: "Priority email",
-      sla: "99.9% uptime",
+      sla: "Priority queue",
     },
   },
   {
@@ -109,12 +112,13 @@ const plans = [
     href: "/sign-up",
     popular: false,
     overage: "$0.002 / extra",
+    highlights: ["50,000 captures / month", "Video / GIF capture", "Highest queue priority", "90-day history"],
     features: {
       screenshots: "50,000 / month",
       formats: "PNG, JPEG, WebP, PDF, MP4, GIF",
       rendering: "Highest priority",
       caching: "CDN caching",
-      storage: "180 days",
+      storage: "90 days",
       adBlocking: true,
       cookieBlocking: true,
       trackerBlocking: true,
@@ -129,7 +133,7 @@ const plans = [
       apiKeys: "50",
       rateLimit: "240 req/min",
       support: "Priority email",
-      sla: "99.9% uptime",
+      sla: "Priority queue",
     },
   },
 ];
@@ -201,12 +205,13 @@ function FeatureValue({ value }: { value: string | boolean | null }) {
 export function PricingSection() {
   return (
     <section className="mb-16 px-6">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-6xl">
         <h2 className="mb-[18px] font-mono text-xs tracking-[0.08em] text-[var(--dim)] uppercase">
           pricing
         </h2>
         <p className="mb-8 text-[13px] leading-[1.55] text-[var(--dim)]">
-          Start free, scale as you grow. No hidden fees. Only pay for what you use.
+          Try on Free. Pay $9 when screenshots become a product feature — full-page, PDF, and 2,500 captures.
+          Cached hits and failed renders do not consume quota.
         </p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -247,6 +252,17 @@ export function PricingSection() {
                 {plan.overage && (
                   <p className="text-[12px] text-[var(--dim)] mt-1">Overage: {plan.overage}</p>
                 )}
+
+                <ul className="mt-4 flex-1 space-y-1.5">
+                  {plan.highlights.map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-[12px] text-[var(--dim)]">
+                      <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                      </svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
 
                 <Link
                   href={plan.href}
@@ -310,8 +326,12 @@ export function PricingSection() {
           <div className="space-y-3">
             {[
               {
+                q: "What do I actually pay for?",
+                a: "Starter ($9) is the first paid step: full-page captures, PDF, 2,500 screenshots/month, and 30-day history. Free is for trying viewport PNG/JPEG/WebP. Pro and Scale are for volume, geo targeting, and video.",
+              },
+              {
                 q: "Do cached screenshots count toward my limit?",
-                a: "No. Screenshots served from our CDN cache do not count toward your monthly quota. Only fresh renders are billed.",
+                a: "No. Screenshots served from cache do not count toward your monthly quota. Only fresh successful renders are billed.",
               },
               {
                 q: "What happens when I exceed my plan limit?",
@@ -323,7 +343,7 @@ export function PricingSection() {
               },
               {
                 q: "Do you offer annual billing?",
-                a: "Not yet. All plans are billed monthly, and you can upgrade or downgrade at any time.",
+                a: "Annual checkout is available in the dashboard when those products are configured (about 17% off). Otherwise billing is monthly, and you can upgrade or downgrade at any time.",
               },
               {
                 q: "What payment methods do you accept?",
@@ -342,7 +362,7 @@ export function PricingSection() {
         <div className="mt-16 rounded-lg bg-[var(--ink)] p-8 text-center">
           <h2 className="text-lg font-semibold text-[var(--background)]">Need more than 50,000 screenshots?</h2>
           <p className="mt-2 text-[13px] text-[var(--dim)] max-w-lg mx-auto">
-            Custom plans with dedicated infrastructure, custom SLAs, volume discounts, and a dedicated account manager.
+            Custom volume, longer retention, and invoicing for teams above Scale. Email us with your monthly capture estimate.
           </p>
           <Link
             href="mailto:enterprise@screenshotapi.tech"

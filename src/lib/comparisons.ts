@@ -42,7 +42,7 @@ export const comparisons: Comparison[] = [
       { factor: "Output formats", us: "PNG, JPEG, WebP, PDF, GIF, TIFF, AVIF, SVG, HTML", them: "Screenshots, PDF, video" },
       { factor: "Full-page capture", us: "Yes", them: "Yes" },
       { factor: "Dark mode emulation", us: "Yes", them: "Yes" },
-      { factor: "Bulk rendering endpoint", us: "Yes (Pro plan)", them: "Check vendor documentation" },
+      { factor: "Bulk rendering endpoint", us: "Yes — POST /api/take/bulk (all plans, credits apply)", them: "Check vendor documentation" },
       { factor: "First request setup", us: "One authenticated GET request", them: "SDK or authenticated request" },
     ],
     faqs: [
@@ -84,7 +84,7 @@ export const comparisons: Comparison[] = [
       { factor: "Output formats", us: "9 incl. PNG, WebP, AVIF, PDF", them: "Common image formats + PDF" },
       { factor: "Full-page capture", us: "Yes", them: "Yes" },
       { factor: "Dark mode emulation", us: "Yes", them: "Yes" },
-      { factor: "Bulk rendering endpoint", us: "Yes (Pro plan)", them: "Available on higher tiers" },
+      { factor: "Bulk rendering endpoint", us: "Yes — POST /api/take/bulk", them: "Available on higher tiers" },
       { factor: "MCP Server for AI agents", us: "5 tools: screenshot, element capture, Markdown, usage, job retrieval", them: "1 tool: render-website-screenshot" },
       { factor: "Element capture via MCP", us: "Yes — capture any CSS selector", them: "No" },
       { factor: "Free interactive demo", us: "On the homepage, no signup", them: "Sandbox with signup" },
@@ -128,7 +128,7 @@ export const comparisons: Comparison[] = [
       { factor: "Output formats", us: "9 incl. PNG, JPEG, WebP, AVIF, PDF", them: "JPEG/PNG (+PDF on higher tiers)" },
       { factor: "Dark mode emulation", us: "Yes", them: "Check vendor documentation" },
       { factor: "Viewport flexibility", us: "320–3840px wide, custom scale factor", them: "Basic width/height controls" },
-      { factor: "Bulk rendering endpoint", us: "Yes (Pro plan)", them: "Not advertised" },
+      { factor: "Bulk rendering endpoint", us: "Yes — POST /api/take/bulk", them: "Not advertised" },
       { factor: "Interactive live demo", us: "Homepage, no account needed", them: "Requires access key" },
     ],
     faqs: [

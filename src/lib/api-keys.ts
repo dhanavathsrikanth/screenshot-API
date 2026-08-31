@@ -28,3 +28,16 @@ export function newApiKeyPair(environment: ApiKeyEnvironment): {
     keyHash: hashApiKey(rawKey),
   };
 }
+
+export function newAccessKey(environment: ApiKeyEnvironment): string {
+  const envPart = environment === "test" ? "test" : "live";
+  return `ak_${envPart}_${nanoid(16)}`;
+}
+
+export function newSigningSecret(): string {
+  return `ss_${nanoid(32)}`;
+}
+
+export function signingSecretAad(accessKey: string): string {
+  return `signing:${accessKey}`;
+}

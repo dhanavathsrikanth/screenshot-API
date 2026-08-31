@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ScreenshotOptionsSchema } from "@/lib/schema";
 import { render } from "@/lib/browser/engine";
-import { RenderError } from "@/lib/screenshot/types";
-import { uploadToStorage } from "@/lib/storage/uploader";
+import { RenderError, renderPhase } from "@/lib/screenshot/types";
+import { persistCapture } from "@/lib/storage/persist";
 import { getCacheKey, getFromCache, setInCache } from "@/lib/storage/cache";
 import { artifactContentType } from "@/lib/mime";
 import { getFilename } from "@/lib/utils";
@@ -11,16 +11,21 @@ import { saveScreenshot } from "@/app/actions/screenshots";
 import { logRequest } from "@/lib/redis";
 import {
   getUserPlan, checkRateLimit, checkApiKeyRateLimit,
-  checkRenderFeatureGates,
+  checkRenderFeatureGates, planGateDetails,
   type PlanId,
 } from "@/lib/plans";
 import { computeUnits, ensureCredits, meterUsageToDodo, refundCredits } from "@/lib/credits";
-import { resolveAuth, type AuthContext } from "@/lib/api-auth";
+import { resolveAuth, resolveTakeAuth, type AuthContext } from "@/lib/api-auth";
 import { newRequestId } from "@/lib/request-id";
 import { logger } from "@/lib/logger";
 import { validateTargetUrl, SsrfError } from "@/lib/security/ssrf";
 import { assertGeoRequestAllowed, GeoTargetingError } from "@/lib/browser/geo";
 import { fireWebhookEvent } from "@/lib/webhooks";
+import {
+  featureUnavailable, getRequestId, httpStatusForErrorCode, insufficientCredits,
+  internalError, jsonError, missingTarget, normalizeUrl, rateLimited,
+  rateLimitHeaders, unauthorized, zodErrorResponse,
+} from "@/lib/api";
 
 function callerIp(request: NextRequest): string | null {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -47,11 +52,77 @@ function fireQuotaExceeded(userId: string, projectId: string | null, plan: PlanI
     data: { reason: "insufficient_credits", plan },
   }).catch(() => {});
 }
-import {
-  featureUnavailable, getRequestId, httpStatusForErrorCode, insufficientCredits,
-  internalError, jsonError, missingTarget, normalizeUrl, rateLimited,
-  rateLimitHeaders, unauthorized, zodErrorResponse,
-} from "@/lib/api";
+
+function fireTakeCompleted(params: {
+  userId: string;
+  projectId: string | null;
+  requestId: string;
+  method: "GET" | "POST";
+  cached: boolean;
+  screenshot: {
+    id?: string | null;
+    url: string;
+    format: string;
+    width: number;
+    height: number;
+    size: number;
+  };
+}): void {
+  const now = new Date().toISOString();
+  fireWebhookEvent({
+    userId: params.userId,
+    projectId: params.projectId,
+    event: "screenshot.completed",
+    data: {
+      id: params.requestId,
+      status: "completed",
+      endpoint: "/api/take",
+      method: params.method,
+      cached: params.cached,
+      status_url: null,
+      screenshot: {
+        id: params.screenshot.id ?? null,
+        url: params.screenshot.url,
+        format: params.screenshot.format,
+        width: params.screenshot.width,
+        height: params.screenshot.height,
+        size: params.screenshot.size,
+        created_at: now,
+      },
+      error: null,
+      created_at: now,
+      updated_at: now,
+    },
+  }).catch(() => {});
+}
+
+function fireTakeFailed(params: {
+  userId: string;
+  projectId: string | null;
+  requestId: string;
+  method: "GET" | "POST";
+  code: string;
+  message: string;
+}): void {
+  const now = new Date().toISOString();
+  fireWebhookEvent({
+    userId: params.userId,
+    projectId: params.projectId,
+    event: "screenshot.failed",
+    data: {
+      id: params.requestId,
+      status: "failed",
+      endpoint: "/api/take",
+      method: params.method,
+      cached: false,
+      status_url: null,
+      screenshot: null,
+      error: { code: params.code, message: params.message },
+      created_at: now,
+      updated_at: now,
+    },
+  }).catch(() => {});
+}
 
 export const maxDuration = 90;
 
@@ -59,6 +130,18 @@ function ssrfErrorResponse(err: SsrfError, requestId?: string): NextResponse {
   return err.code === "INVALID_URL"
     ? jsonError(400, "invalid_url", err.message, requestId)
     : jsonError(403, "ssrf_blocked", err.message, requestId);
+}
+
+function signedAuthError(reason: "missing" | "expired" | "bad_signature" | "unknown_key", requestId?: string): NextResponse {
+  if (reason === "expired") {
+    return jsonError(401, "signed_url_expired", "This signed URL has expired. Generate a new one.", requestId);
+  }
+  return jsonError(
+    401,
+    "invalid_signature",
+    "Signed URL is invalid. Check access_key, signature, and canonical query encoding.",
+    requestId
+  );
 }
 
 function uniqueKey(url: string, format: string): string {
@@ -95,51 +178,69 @@ async function uploadAndSave(
   startTime: number,
   ensureMeta?: { units?: number; mode?: "deducted" | "overage" },
   source: "app" | "api" = "app",
-  ctx: { projectId?: string | null; requestId?: string | null; ipHash?: string; userAgent?: string } = {}
-): Promise<string | null> {
+  ctx: { projectId?: string | null; requestId?: string | null; ipHash?: string; userAgent?: string; plan?: PlanId } = {}
+): Promise<{ publicUrl: string | null; screenshotId: string | null; customerUrl: string | null }> {
   const key = uniqueKey(options.url ?? "screenshot", result.format);
   const creditsMetadata =
     ensureMeta && typeof ensureMeta.units === "number"
       ? ({ credits_used: ensureMeta.units, mode: ensureMeta.mode ?? "deducted", cached: options.cached } as Record<string, unknown>)
       : ({ cached: options.cached } as Record<string, unknown>);
+  // Distinguish app-originated (playground) captures from API-key calls. The
+  // history page filters on `source`; `method` is only persisted for API calls
+  // so playground captures are not mislabelled as API requests.
+  const metaMethod = source === "api" ? options.method : undefined;
 
-  let publicUrl: string | null = null;
-
-  try {
-    publicUrl = await uploadToStorage(buffer, key, artifactContentType(result.format));
-  } catch (e) {
-    logger.error({ event: "take_upload_failed", requestId: ctx.requestId ?? undefined, error: e instanceof Error ? e.message : e });
-  }
+  const storageResult = await persistCapture(
+    buffer,
+    key,
+    artifactContentType(result.format),
+    { userId, requestId: ctx.requestId, sourceUrl: options.url, projectId: ctx.projectId, plan: ctx.plan }
+  );
+  const publicUrl = storageResult.url;
+  const customerUrl = storageResult.customerUrl;
+  let screenshotId: string | null = null;
 
   if (userId) {
-    saveScreenshot({
-      userId,
-      projectId: ctx.projectId,
-      apiKeyId: apiKeyId ?? undefined,
-      sourceUrl: options.url,
-      storageUrl: publicUrl,
-      format: result.format,
-      width: result.width,
-      height: result.height,
-      fileSizeBytes: buffer.length,
-      cached: options.cached,
-      metadata: {
-        ...creditsMetadata,
-        full_page: options.fullPage ?? false,
-        dark_mode: options.darkMode ?? false,
-        viewport_width: options.viewportWidth,
-        viewport_height: options.viewportHeight,
-        block_ads: options.blockAds ?? false,
-        block_trackers: options.blockTrackers ?? false,
-        block_cookie_banners: options.blockCookieBanners ?? false,
-        selector: options.selector ?? null,
-        wait_until: options.waitUntil ?? null,
-        quality: options.quality ?? null,
-        method: options.method,
-        request_id: ctx.requestId,
-        response_time_ms: Date.now() - startTime,
-      },
-    }).catch((e) => logger.error({ event: "save_screenshot_failed", requestId: ctx.requestId ?? undefined, error: e.message }));
+    try {
+      const saved = await saveScreenshot({
+        userId,
+        projectId: ctx.projectId,
+        apiKeyId: apiKeyId ?? undefined,
+        sourceUrl: options.url,
+        storageUrl: publicUrl,
+        format: result.format,
+        width: result.width,
+        height: result.height,
+        fileSizeBytes: buffer.length,
+        cached: options.cached,
+        metadata: {
+          ...creditsMetadata,
+          full_page: options.fullPage ?? false,
+          dark_mode: options.darkMode ?? false,
+          viewport_width: options.viewportWidth,
+          viewport_height: options.viewportHeight,
+          block_ads: options.blockAds ?? false,
+          block_trackers: options.blockTrackers ?? false,
+          block_cookie_banners: options.blockCookieBanners ?? false,
+          selector: options.selector ?? null,
+          wait_until: options.waitUntil ?? null,
+          quality: options.quality ?? null,
+          source,
+          storage: storageResult.source,
+          ...(customerUrl ? { customer_url: customerUrl } : {}),
+          ...(storageResult.source === "supabase" || storageResult.source === "none"
+            ? { failed_storage: "r2" }
+            : {}),
+          ...(storageResult.error ? { storage_error: storageResult.error } : {}),
+          ...(metaMethod ? { method: metaMethod } : {}),
+          request_id: ctx.requestId,
+          response_time_ms: Date.now() - startTime,
+        },
+      });
+      screenshotId = saved?.id ?? null;
+    } catch (e) {
+      logger.error({ event: "save_screenshot_failed", requestId: ctx.requestId ?? undefined, error: e instanceof Error ? e.message : e });
+    }
 
     logScreenshotUsage({
       userId,
@@ -157,9 +258,27 @@ async function uploadAndSave(
       ipHash: ctx.ipHash,
       userAgent: ctx.userAgent,
     }).catch(() => {});
+
+    if (source === "api" && publicUrl) {
+      fireTakeCompleted({
+        userId,
+        projectId: ctx.projectId ?? null,
+        requestId: ctx.requestId ?? newRequestId(),
+        method: options.method as "GET" | "POST",
+        cached: options.cached,
+        screenshot: {
+          id: screenshotId,
+          url: publicUrl,
+          format: result.format,
+          width: result.width,
+          height: result.height,
+          size: buffer.length,
+        },
+      });
+    }
   }
 
-  return publicUrl;
+  return { publicUrl, screenshotId, customerUrl };
 }
 
 export async function GET(request: NextRequest) {
@@ -185,8 +304,10 @@ export async function GET(request: NextRequest) {
       return missingTarget(requestId);
     }
 
-    const authCtx: AuthContext | null = await resolveAuth(request);
-    if (!authCtx) return unauthorized(requestId);
+    const takeAuth = await resolveTakeAuth(request);
+    if (!takeAuth) return unauthorized(requestId);
+    if ("signedFailure" in takeAuth) return signedAuthError(takeAuth.signedFailure, requestId);
+    const authCtx: AuthContext = takeAuth.ctx;
     const { userId, apiKeyId, projectId } = authCtx;
     const source = authCtx.source;
     const callerIpHash = ipHash(callerIp(request) ?? "unknown");
@@ -211,7 +332,7 @@ export async function GET(request: NextRequest) {
       country: options.country,
     });
     if (gateFailure) {
-      return featureUnavailable(`${gateFailure.message} Upgrade at /dashboard/plan`, requestId);
+      return featureUnavailable(gateFailure.message, requestId, planGateDetails(gateFailure));
     }
 
     // ── Geo availability (fail fast before credits) ─────────────────
@@ -275,7 +396,8 @@ export async function GET(request: NextRequest) {
           dark_mode: options.dark_mode,
           viewport_width: options.viewport_width,
           viewport_height: options.viewport_height,
-          method: "GET",
+          source,
+          ...(source === "api" ? { method: "GET" } : {}),
           request_id: requestId,
           response_time_ms: Date.now() - startTime,
         },
@@ -298,6 +420,23 @@ export async function GET(request: NextRequest) {
         userAgent,
       }).catch(() => {});
 
+      if (source === "api") {
+        fireTakeCompleted({
+          userId,
+          projectId,
+          requestId,
+          method: "GET",
+          cached: true,
+          screenshot: {
+            url: cached.storageUrl,
+            format: cached.format,
+            width: cached.width,
+            height: cached.height,
+            size: cached.sizeBytes,
+          },
+        });
+      }
+
       logRequest(userId, {
         ts: new Date().toISOString(),
         endpoint: "/api/take",
@@ -309,7 +448,7 @@ export async function GET(request: NextRequest) {
       }).catch(() => {});
 
       // Serve straight from R2 — no bytes through our server, no bandwidth cost.
-      return NextResponse.redirect(cached.storageUrl, {
+      return NextResponse.redirect(cached.customerUrl || cached.storageUrl, {
         status: 302,
         headers: {
           "X-Cache": "HIT",
@@ -348,13 +487,25 @@ export async function GET(request: NextRequest) {
       // locally (full amount in "deducted" mode, partial in overage mode).
       await refundCredits(userId, ensure.localDeducted);
       if (error instanceof RenderError && error.code === "INVALID_COUNTRY") {
+        if (source === "api") {
+          fireTakeFailed({ userId, projectId, requestId, method: "GET", code: "invalid_country", message: error.message });
+        }
         return jsonError(400, "invalid_country", error.message, requestId);
       }
       if (error instanceof RenderError && error.code === "UNSUPPORTED_COUNTRY") {
+        if (source === "api") {
+          fireTakeFailed({ userId, projectId, requestId, method: "GET", code: "unsupported_country", message: error.message });
+        }
         return jsonError(400, "unsupported_country", error.message, requestId);
       }
       if (error instanceof RenderError && error.code === "GEO_UNAVAILABLE") {
+        if (source === "api") {
+          fireTakeFailed({ userId, projectId, requestId, method: "GET", code: "geo_unavailable", message: error.message });
+        }
         return jsonError(503, "geo_unavailable", error.message, requestId);
+      }
+      if (source === "api" && error instanceof RenderError) {
+        fireTakeFailed({ userId, projectId, requestId, method: "GET", code: error.code.toLowerCase(), message: error.message });
       }
       throw error;
     }
@@ -396,14 +547,15 @@ export async function GET(request: NextRequest) {
       startTime,
       { units: ensure.units, mode: ensure.mode },
       source,
-      { projectId, requestId, ipHash: callerIpHash, userAgent }
-    ).then((publicUrl) => {
+      { projectId, requestId, ipHash: callerIpHash, userAgent, plan }
+    ).then((saved) => {
       // Cache only the R2 URL once the upload has succeeded.
-      if (publicUrl) {
+      if (saved.publicUrl) {
         setInCache(
           cacheKey,
           {
-            storageUrl: publicUrl,
+            storageUrl: saved.publicUrl,
+            customerUrl: saved.customerUrl,
             width: result.width,
             height: result.height,
             format: result.format,
@@ -444,7 +596,8 @@ export async function GET(request: NextRequest) {
         httpStatusForErrorCode(error.code),
         error.code.toLowerCase(),
         error.message,
-        requestId
+        requestId,
+        { phase: renderPhase(error.code) }
       );
     }
     return internalError(error, requestId);
@@ -496,7 +649,7 @@ export async function POST(request: NextRequest) {
       country: options.country,
     });
     if (gateFailure) {
-      return featureUnavailable(`${gateFailure.message} Upgrade at /dashboard/plan`, requestId);
+      return featureUnavailable(gateFailure.message, requestId, planGateDetails(gateFailure));
     }
 
     // ── Geo availability (fail fast before credits) ─────────────────
@@ -568,7 +721,8 @@ export async function POST(request: NextRequest) {
           selector: options.selector,
           wait_until: options.wait_until,
           quality: options.quality,
-          method: "POST",
+          source,
+          ...(source === "api" ? { method: "POST" } : {}),
           request_id: requestId,
           response_time_ms: Date.now() - startTime,
         },
@@ -600,6 +754,23 @@ export async function POST(request: NextRequest) {
         cached: true,
         url: options.url,
       }).catch(() => {});
+
+      if (source === "api") {
+        fireTakeCompleted({
+          userId,
+          projectId,
+          requestId,
+          method: "POST",
+          cached: true,
+          screenshot: {
+            url: publicUrl,
+            format: cached.format,
+            width: cached.width,
+            height: cached.height,
+            size: cached.sizeBytes,
+          },
+        });
+      }
 
       return NextResponse.json({
         url: publicUrl,
@@ -646,13 +817,25 @@ export async function POST(request: NextRequest) {
       // locally (full amount in "deducted" mode, partial in overage mode).
       await refundCredits(userId, ensure.localDeducted);
       if (error instanceof RenderError && error.code === "INVALID_COUNTRY") {
+        if (source === "api") {
+          fireTakeFailed({ userId, projectId, requestId, method: "POST", code: "invalid_country", message: error.message });
+        }
         return jsonError(400, "invalid_country", error.message, requestId);
       }
       if (error instanceof RenderError && error.code === "UNSUPPORTED_COUNTRY") {
+        if (source === "api") {
+          fireTakeFailed({ userId, projectId, requestId, method: "POST", code: "unsupported_country", message: error.message });
+        }
         return jsonError(400, "unsupported_country", error.message, requestId);
       }
       if (error instanceof RenderError && error.code === "GEO_UNAVAILABLE") {
+        if (source === "api") {
+          fireTakeFailed({ userId, projectId, requestId, method: "POST", code: "geo_unavailable", message: error.message });
+        }
         return jsonError(503, "geo_unavailable", error.message, requestId);
+      }
+      if (source === "api" && error instanceof RenderError) {
+        fireTakeFailed({ userId, projectId, requestId, method: "POST", code: error.code.toLowerCase(), message: error.message });
       }
       throw error;
     }
@@ -672,8 +855,9 @@ export async function POST(request: NextRequest) {
 
     // Upload to R2 + save to DB (awaited for POST so we return the URL)
     let publicUrl: string | null = null;
+    let customerUrl: string | null = null;
     try {
-      publicUrl = await uploadAndSave(
+      const uploadResult = await uploadAndSave(
         userId,
         apiKeyId ?? undefined,
         result.buffer,
@@ -696,8 +880,10 @@ export async function POST(request: NextRequest) {
         startTime,
         { units: ensure.units, mode: ensure.mode },
         source,
-        { projectId, requestId, ipHash: callerIpHash, userAgent }
+        { projectId, requestId, ipHash: callerIpHash, userAgent, plan }
       );
+      publicUrl = uploadResult.publicUrl;
+      customerUrl = uploadResult.customerUrl;
     } catch {
       // Upload failed — still return the format/dimensions
     }
@@ -708,6 +894,7 @@ export async function POST(request: NextRequest) {
         cacheKey,
         {
           storageUrl: publicUrl,
+          customerUrl,
           width: result.width,
           height: result.height,
           format: result.format,
@@ -728,7 +915,9 @@ export async function POST(request: NextRequest) {
     }).catch(() => {});
 
     return NextResponse.json({
-      url: publicUrl,
+      url: customerUrl ?? publicUrl,
+      storage_url: publicUrl,
+      upload_url: customerUrl,
       format: result.format,
       width: result.width,
       height: result.height,
@@ -748,7 +937,8 @@ export async function POST(request: NextRequest) {
         httpStatusForErrorCode(error.code),
         error.code.toLowerCase(),
         error.message,
-        requestId
+        requestId,
+        { phase: renderPhase(error.code) }
       );
     }
     return internalError(error, requestId);

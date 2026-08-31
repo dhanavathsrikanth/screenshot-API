@@ -6,8 +6,8 @@ const features = [
   },
   {
     title: "Full-Page Capture",
-    command: "full_page: true",
-    description: "Take screenshots of entire webpages. Triggers lazy-loaded images by scrolling automatically.",
+    command: "full_page: true · Starter+",
+    description: "Capture the entire scrollable page. Lazy-loaded images are triggered automatically. Included on Starter ($9) and above.",
   },
   {
     title: "High-Resolution",
@@ -31,8 +31,8 @@ const features = [
   },
   {
     title: "PDF Generation",
-    command: "format: pdf",
-    description: "Convert any URL to PDF with full control over page size, margins, and backgrounds.",
+    command: "format: pdf · Starter+",
+    description: "Convert any URL to PDF with control over page size, margins, and backgrounds. Starter plan and above.",
   },
   {
     title: "Multiple Formats",
@@ -50,25 +50,25 @@ const features = [
     description: "Edge-cached and long-term storage. Repeated renders return instantly.",
   },
   {
-    title: "MCP Server",
+    title: "MCP for agents",
     command: "mcp install",
-    description: "Official MCP server for Claude, Cursor, or any AI agent to capture screenshots with natural language.",
+    description: "Official MCP server so Claude, Cursor, or any agent can capture a URL, an element, or Markdown without a browser farm.",
   },
   {
-    title: "99.9% Uptime",
-    command: "status: ok",
-    description: "Global edge network with redundant infrastructure. Every request is served from the nearest region.",
+    title: "Pay for successful renders",
+    command: "status: 200",
+    description: "Cached hits are free. Failed renders are not billed. Paid plans jump the queue so production traffic is not stuck behind demos.",
   },
 ];
 
 export function Features() {
   return (
     <section id="features" className="mb-16 px-6">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-6xl">
         <h2 className="mb-[18px] font-mono text-xs tracking-[0.08em] text-[var(--dim)] uppercase">
           features
         </h2>
-        <div className="grid grid-cols-1 gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
             <div key={feature.title} className="feature-card bg-white p-[22px] dark:bg-[var(--card)]">
               <span className="mb-1.5 block font-semibold">{feature.title}</span>

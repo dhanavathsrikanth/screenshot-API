@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { resolveAuth } from "@/lib/api-auth";
 import { getJob } from "@/lib/jobs";
-import { deleteFromStorage, storageKeyFromUrl } from "@/lib/storage/uploader";
+import { deleteStorageObjectByUrl } from "@/lib/storage/fallback";
 import { createServiceClient } from "@/lib/supabase/server";
 import { v1Ok, v1Err } from "@/lib/v1-api";
 import { getRequestId } from "@/lib/api";
@@ -84,9 +84,9 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
 
     const supabase = createServiceClient();
 
-    const storageKey = job.storage_url ? storageKeyFromUrl(job.storage_url) : null;
-    if (storageKey) {
-      deleteFromStorage(storageKey).catch((e) =>
+    const storageUrl = job.storage_url;
+    if (storageUrl) {
+      deleteStorageObjectByUrl(storageUrl).catch((e) =>
         console.error("[v1] storage delete failed:", e instanceof Error ? e.message : e)
       );
     }

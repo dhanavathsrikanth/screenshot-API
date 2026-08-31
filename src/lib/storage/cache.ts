@@ -9,6 +9,9 @@ const UNSTABLE_PARAMS = [
   "wait_until",
   "full_page_scroll_by",
   "full_page_scroll_delay",
+  "access_key",
+  "signature",
+  "expires",
 ];
 
 // TTL (seconds) per plan. Configurable per plan so paid tiers can keep
@@ -23,6 +26,8 @@ export interface CacheEntry {
   height: number;
   format: string;
   sizeBytes: number;
+  /** Customer-bucket URL when a destination copy succeeded. */
+  customerUrl?: string | null;
 }
 
 function filterUnstableParams(options: Record<string, unknown>): Record<string, unknown> {

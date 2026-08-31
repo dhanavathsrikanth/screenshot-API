@@ -253,12 +253,18 @@ export async function fireWebhookEvent(params: {
     const supabase = createServiceClient();
     const { data: endpoints } = await supabase
       .from("webhook_endpoints")
-      .select("id, user_id, events")
+      .select("id, user_id, events, project_id")
       .eq("user_id", params.userId)
       .eq("is_active", true)
       .contains("events", [params.event]);
 
-    if (!endpoints || endpoints.length === 0) return;
+    const scoped = (endpoints ?? []).filter(
+      (e) =>
+        e.project_id === null ||
+        (params.projectId != null && e.project_id === params.projectId)
+    );
+
+    if (scoped.length === 0) return;
 
     const payload: Record<string, unknown> = {
       event: params.event,
@@ -266,7 +272,7 @@ export async function fireWebhookEvent(params: {
       data: params.data,
     };
 
-    const rows = endpoints.map((e) => ({
+    const rows = scoped.map((e) => ({
       endpoint_id: e.id,
       user_id: params.userId,
       event: params.event,

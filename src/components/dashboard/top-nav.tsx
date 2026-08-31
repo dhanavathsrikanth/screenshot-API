@@ -21,7 +21,7 @@ export function DashboardTopNav({ plan }: { plan?: string }) {
             </span>
             ScreenshotAPI
           </Link>
-          <span className="hidden sm:inline eyebrow text-[var(--dim)] bg-[var(--muted)] dark:bg-[var(--muted)] px-2 py-0.5 rounded">
+          <span className="hidden sm:inline section-title bg-[var(--muted)] px-2 py-0.5 rounded">
             Dashboard
           </span>
         </div>

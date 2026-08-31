@@ -22,7 +22,7 @@ export function ConsentAnalytics({ summary }: { summary: Summary }) {
   if (!summary) {
     return (
       <div className="card p-5">
-        <h2 className="text-sm font-semibold mb-2">Cookie Consent</h2>
+        <h2 className="panel-heading mb-2">Cookie Consent</h2>
         <p className="text-sm text-[var(--dim)]">
           No consent data yet. Apply migration 010 and the cookie banner will
           start recording impression / accept / essential-only events here.
@@ -42,17 +42,17 @@ export function ConsentAnalytics({ summary }: { summary: Summary }) {
 
   return (
     <section className="space-y-4">
-      <h2 className="eyebrow text-[var(--dim)]">Cookie Consent</h2>
+      <h2 className="section-title">Cookie Consent</h2>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card) => (
           <div key={card.label} className="card p-5">
-            <div className="text-2xl font-bold">{card.value}</div>
+            <div className="metric-value text-[var(--ink)]">{card.value}</div>
             <div className="text-xs text-[var(--dim)] mt-1">{card.label}</div>
           </div>
         ))}
       </div>
       <div className="card p-5">
-        <h3 className="text-sm font-medium text-[var(--ink)] dark:text-[var(--ink)] mb-4">
+        <h3 className="panel-heading mb-4">
           Last 14 Days
         </h3>
         {hasData ? (

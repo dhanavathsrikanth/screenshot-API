@@ -59,7 +59,7 @@ if (!response.ok) throw new Error("Bulk capture failed: HTTP " + response.status
 const body = await response.json();
 console.log(body.successful + "/" + body.total + " succeeded, " + body.creditsUsed + " credits");
 for (const result of body.results) {
-  if (result.success) console.log("OK  ", result.url);
+  if (result.success) console.log("OK  ", result.url, result.storage_url);
   else console.log("FAIL", result.url, "-", result.error);
 }`,
     async: `import { writeFile } from "node:fs/promises";

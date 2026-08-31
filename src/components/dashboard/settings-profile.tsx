@@ -6,7 +6,7 @@ export function SettingsProfile() {
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] dark:bg-[var(--card)]">
       <div className="border-b border-[var(--border)] px-6 py-4">
-        <h2 className="text-sm font-semibold text-[var(--ink)] dark:text-[var(--ink)]">Profile & account</h2>
+        <h2 className="panel-heading">Profile & account</h2>
         <p className="mt-0.5 text-xs text-[var(--dim)] dark:text-[var(--dim)]">
           Update your name, email, password, and security settings.
         </p>

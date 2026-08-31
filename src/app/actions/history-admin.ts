@@ -2,7 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { deleteFromStorage, storageKeyFromUrl } from "@/lib/storage/uploader";
+import { deleteStorageObjectByUrl } from "@/lib/storage/fallback";
 
 /**
  * Bulk-delete screenshots and their Cloudflare R2 objects. Rows and objects
@@ -24,12 +24,10 @@ export async function deleteScreenshots(screenshotIds: string[]): Promise<{ dele
   if (fetchErr) throw fetchErr;
   if (!rows?.length) return { deleted: 0 };
 
-  // Delete R2 objects in parallel (best-effort; orphaned objects don't break anything).
+  // Delete R2 + Supabase-fallback objects in parallel (best-effort; orphaned
+  // objects don't break anything).
   await Promise.allSettled(
-    rows
-      .map((r) => storageKeyFromUrl(r.storage_url))
-      .filter((k): k is string => !!k)
-      .map((key) => deleteFromStorage(key))
+    rows.map((r) => deleteStorageObjectByUrl(r.storage_url))
   );
 
   const ids = rows.map((r) => r.id);
@@ -77,9 +75,13 @@ export async function exportHistoryCsv(filters?: {
     query = query.eq("format", filters.format.toLowerCase());
   }
   if (filters?.source === "api") {
-    query = query.not("metadata->>method", "is", null);
+    query = query.or(
+      "metadata->>source.eq.api,and(metadata->>source.is.null,metadata->>method.not.is.null)"
+    );
   } else if (filters?.source === "playground") {
-    query = query.is("metadata->>method", null);
+    query = query.or(
+      "metadata->>source.eq.app,and(metadata->>source.is.null,metadata->>method.is.null)"
+    );
   } else if (filters?.source === "cached") {
     query = query.eq("cached", true);
   }

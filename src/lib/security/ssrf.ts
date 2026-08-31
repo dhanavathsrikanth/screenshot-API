@@ -78,13 +78,23 @@ async function resolveHostname(hostname: string): Promise<string[]> {
   const cached = await cacheGet<string[]>(cacheKey);
   if (cached && cached.length > 0) return cached;
 
-  try {
-    const addresses = await lookup(hostname, { all: true });
-    const ips = addresses.map((a) => a.address);
-    await cacheSet(cacheKey, ips, DNS_CACHE_TTL_SECONDS);
-    return ips;
-  } catch {
-    throw new SsrfError("SSRF_BLOCKED", `Could not resolve hostname "${hostname}".`);
+  // Transient DNS failures are common in serverless / hostnames with flaky
+  // resolvers. Retry once before concluding the hostname is genuinely
+  // unresolvable, so a temporary hiccup doesn't 403 a legitimate target.
+  let attempts = 0;
+  while (true) {
+    attempts += 1;
+    try {
+      const addresses = await lookup(hostname, { all: true });
+      const ips = addresses.map((a) => a.address);
+      await cacheSet(cacheKey, ips, DNS_CACHE_TTL_SECONDS);
+      return ips;
+    } catch {
+      if (attempts >= 2) {
+        throw new SsrfError("SSRF_BLOCKED", `Could not resolve hostname "${hostname}".`);
+      }
+      await new Promise((r) => setTimeout(r, 150));
+    }
   }
 }
 

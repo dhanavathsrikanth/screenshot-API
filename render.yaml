@@ -102,9 +102,23 @@ services:
         sync: false
       - key: NEXT_PUBLIC_DODO_PRODUCT_PRO_ID
         sync: false
+      - key: NEXT_PUBLIC_DODO_PRODUCT_SCALE_ID
+        sync: false
       - key: NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID
         sync: false
       - key: NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID
+        sync: false
+      - key: NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID
+        sync: false
+      - key: NEXT_PUBLIC_DODO_PRODUCT_TOPUP_500_ID
+        sync: false
+      - key: NEXT_PUBLIC_DODO_PRODUCT_TOPUP_2500_ID
+        sync: false
+      - key: NEXT_PUBLIC_DODO_PRODUCT_TOPUP_10000_ID
+        sync: false
+      - key: DODO_METER_SCREENSHOT_ID
+        sync: false
+      - key: DODO_METER_PDF_ID
         sync: false
 
       # ── Observability ────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ interface DodoDataRecord {
   entitlement_id?: string;
   credit_entitlement_id?: string;
   status?: string | null;
+  cancel_at_next_billing_date?: boolean;
   balance_after?: number | string;
   available_balance?: number | string;
   credit_balance?: number | string;
@@ -694,6 +695,14 @@ function getWebhookHandler() {
 
       onSubscriptionCancelled: async (payload: AnyRecord) => {
         console.log("[Dodo Webhook] Subscription cancelled");
+        // Customer Portal "cancel at period end" keeps the subscription active
+        // until `subscription.expired`. Don't strip access on the scheduled cancel.
+        if (payload?.data?.cancel_at_next_billing_date === true) {
+          console.log(
+            `[Dodo Webhook] Scheduled cancellation for ${payload?.data?.subscription_id}; keeping plan until expiry`
+          );
+          return;
+        }
         await downgradeToFree(payload);
       },
 

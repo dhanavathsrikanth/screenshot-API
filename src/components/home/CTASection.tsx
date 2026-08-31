@@ -3,13 +3,12 @@ import Link from "next/link";
 export function CTASection() {
   return (
     <section className="mb-16 px-6">
-      <div className="mx-auto max-w-3xl rounded-lg border border-[var(--line)] bg-white p-8 text-center dark:bg-[var(--card)]">
+      <div className="mx-auto max-w-6xl rounded-lg border border-[var(--line)] bg-white p-8 text-center dark:bg-[var(--card)]">
         <h2 className="text-balance text-xl font-semibold tracking-[-0.02em]">
           Ready to render your first screenshot?
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-[13px] leading-[1.6] text-[var(--dim)]">
-          Join thousands of developers using ScreenshotAPI. 100 free renders every month — no credit card
-          required, and you&apos;ll land straight in your dashboard.
+          Join with 100 free renders each month. Starter is $9 when you need full-page, PDF, and 2,500 captures — no credit card to start.
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link

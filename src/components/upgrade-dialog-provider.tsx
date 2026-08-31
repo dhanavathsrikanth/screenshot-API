@@ -16,9 +16,11 @@ export function useUpgradeDialog() {
 export function UpgradeDialogProvider({
   children,
   currentPlan,
+  currentProductId,
 }: {
   children: ReactNode;
   currentPlan?: string;
+  currentProductId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const openUpgradeDialog = useCallback(() => setOpen(true), []);
@@ -30,6 +32,7 @@ export function UpgradeDialogProvider({
         open={open}
         onClose={() => setOpen(false)}
         currentPlan={currentPlan}
+        currentProductId={currentProductId}
       />
     </UpgradeDialogContext.Provider>
   );

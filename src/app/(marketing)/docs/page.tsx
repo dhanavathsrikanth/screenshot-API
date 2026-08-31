@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CodeBlock } from "@/components/docs/code-block";
 import { LanguageExamples } from "@/components/docs/language-examples";
 import { TryIt } from "@/components/docs/try-it";
@@ -15,8 +16,13 @@ const nav = [
   { href: "#overview", label: "Overview" },
   { href: "#quickstart", label: "Quick start" },
   { href: "#authentication", label: "Authentication" },
+  { href: "/docs/signed-urls", label: "Signed URLs" },
+  { href: "/docs/sdks", label: "SDKs" },
+  { href: "/docs/customer-upload", label: "Customer upload" },
+  { href: "#endpoints", label: "Endpoints" },
   { href: "#endpoints", label: "Endpoints" },
   { href: "#parameters", label: "Parameters" },
+  { href: "#clean-captures", label: "Clean captures" },
   { href: "#v1-api", label: "v1 API (async jobs)" },
   { href: "#webhooks", label: "Webhooks" },
   { href: "#usage", label: "Usage & quotas" },
@@ -52,7 +58,7 @@ const endpoints = [
     method: "POST",
     path: "/api/take/bulk",
     description:
-      "Capture up to 100 URLs in one request with configurable concurrency and retries.",
+      "Capture up to 100 URLs in one request. Each successful item includes storage_url, width, height, format, and size.",
     auth: true,
   },
   {
@@ -130,9 +136,11 @@ const params: Param[] = [
   ["viewport_height", "integer", "720", "Viewport height in pixels."],
   ["device_scale_factor", "integer 1–3", "1", "Device scale factor (Retina/2x screenshots)."],
   ["full_page", "boolean", "false", "Capture the full scrollable page."],
-  ["block_ads", "boolean", "true", "Block advertisement scripts."],
-  ["block_cookie_banners", "boolean", "true", "Block cookie consent banners."],
-  ["block_chats", "boolean", "true", "Block chat/widget scripts."],
+  ["block_ads", "boolean", "true", "Block advertisement scripts. Set false for compliance captures that must include ads."],
+  ["block_cookie_banners", "boolean", "true", "Hide cookie consent banners (network lists + DOM overlays). Set false to keep the CMP in frame."],
+  ["block_chats", "boolean", "true", "Hide chat/widget launchers (Intercom, HubSpot, Crisp, …)."],
+  ["clean_preset", "enum", "default", "default = consent+chat overlays; strict also hides newsletter popups; off = only hide_selectors. Pair off with block_*=false for an unmodified page."],
+  ["hide_selectors", "string", "—", "Comma-separated CSS selectors to hide. Tokens: preset:consent, preset:newsletter, preset:chat."],
   ["block_trackers", "boolean", "true", "Block tracking scripts."],
   ["block_images", "boolean", "false", "Block image resources."],
   ["block_fonts", "boolean", "false", "Block font resources."],
@@ -149,7 +157,6 @@ const params: Param[] = [
   ["reduced_motion", "boolean", "false", "Emulate prefers-reduced-motion: reduce."],
   ["omit_background", "boolean", "false", "Transparent background (PNG/WebP)."],
   ["selector", "string", "—", "CSS selector to capture a single element."],
-  ["hide_selectors", "string", "—", "Comma-separated CSS selectors to hide."],
   ["styles", "string", "—", "Custom CSS to inject before capture."],
   ["scripts", "string", "—", "Custom JavaScript to execute before capture."],
   ["click", "string", "—", "CSS selector to click before capturing."],
@@ -397,6 +404,34 @@ export default function DocsPage() {
                 </tbody>
               </table>
             </div>
+          </section>
+
+          <section id="clean-captures" className="mt-16 scroll-mt-24">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Clean captures</h2>
+            <p className="mt-3 text-slate-600 dark:text-slate-400">
+              Ads, cookie banners, trackers, and chat widgets are blocked by default so the first
+              capture is usable. For a compliance archive, pass{" "}
+              <code className="rounded bg-[var(--muted)] px-1.5 py-0.5 font-mono text-sm">block_ads=false</code>,{" "}
+              <code className="rounded bg-[var(--muted)] px-1.5 py-0.5 font-mono text-sm">block_cookie_banners=false</code>, and{" "}
+              <code className="rounded bg-[var(--muted)] px-1.5 py-0.5 font-mono text-sm">clean_preset=off</code>.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-400">
+              <li>
+                <Link href="/docs/clean-captures" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                  Overlay challenge set
+                </Link>
+                {" — "}30 public URLs (CMP, ads, chat, lazy full-page).
+              </li>
+              <li>
+                <Link href="/docs/migrate/screenshotone" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                  Migrate from ScreenshotOne
+                </Link>
+                {" · "}
+                <Link href="/docs/migrate/urlbox" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                  Migrate from Urlbox
+                </Link>
+              </li>
+            </ul>
           </section>
 
           <section id="v1-api" className="mt-16 scroll-mt-24">
@@ -693,7 +728,7 @@ export default function DocsPage() {
             <div className="mt-4">
               <CodeBlock
                 label="json"
-                code={'{\n  "error": {\n    "code": "invalid_parameters",\n    "message": "Invalid parameters.",\n    "requestId": "4f7b2c9a-…",\n    "details": { "fieldErrors": { "url": ["Invalid url"] } }\n  }\n}'}
+                code={'{\n  "error": {\n    "code": "navigation_failed",\n    "message": "Failed to load https://example.com: net::ERR_NAME_NOT_RESOLVED",\n    "requestId": "4f7b2c9a-…",\n    "details": { "phase": "navigate" }\n  }\n}'}
               />
             </div>
             <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--border)] bg-white dark:bg-slate-900">

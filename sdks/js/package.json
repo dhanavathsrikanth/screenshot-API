@@ -1,0 +1,19 @@
+{
+  "name": "screenshotapi",
+  "version": "1.0.0",
+  "description": "Official ScreenshotAPI client — sync/async/bulk captures and HMAC signed GET URLs.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["screenshot", "api", "og-image", "puppeteer"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/screenshotapi/screenshot-api"
+  }
+}

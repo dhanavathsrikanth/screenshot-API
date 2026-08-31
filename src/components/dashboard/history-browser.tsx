@@ -13,6 +13,13 @@ export type HistoryFilters = {
   query: string;  // URL substring
   from: string;   // ISO date string
   to: string;     // ISO date string
+  projectId: string; // "" = all projects
+};
+
+export type HistoryError = {
+  message: string;
+  code?: string;
+  issue?: "clerk_supabase_mismatch" | "database_error";
 };
 
 const PAGE_SIZE = 50;
@@ -24,16 +31,30 @@ function filtersToServerParams(f: HistoryFilters): HistoryFilterParams {
   if (f.query) params.query = f.query;
   if (f.from) params.from = f.from;
   if (f.to) params.to = f.to;
+  if (f.projectId) params.projectId = f.projectId;
   return params;
 }
 
-export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }) {
+export function HistoryBrowser({
+  initialRows,
+  initialError,
+  initialProjectId,
+}: {
+  initialRows: ScreenshotRow[];
+  initialError?: HistoryError | null;
+  initialProjectId?: string;
+}) {
   const [rows, setRows] = useState<ScreenshotRow[]>(initialRows);
   const [filters, setFilters] = useState<HistoryFilters>({
-    format: "all", source: "all", query: "", from: "", to: "",
+    format: "all",
+    source: "all",
+    query: "",
+    from: "",
+    to: "",
+    projectId: initialProjectId ?? "",
   });
   const [exhausted, setExhausted] = useState(initialRows.length < PAGE_SIZE);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError?.message ?? null);
   const [isPending, startTransition] = useTransition();
 
   // Bulk selection state
@@ -201,7 +222,7 @@ export function HistoryBrowser({ initialRows }: { initialRows: ScreenshotRow[] }
           <button
             type="button"
             onClick={() => {
-              const blank = { format: "all", source: "all", query: "", from: "", to: "" };
+              const blank: HistoryFilters = { format: "all", source: "all", query: "", from: "", to: "", projectId: "" };
               setFilters(blank);
               applyFilters(blank);
             }}

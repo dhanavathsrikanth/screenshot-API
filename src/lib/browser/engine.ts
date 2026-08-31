@@ -8,6 +8,7 @@ import {
   resolveSetContentWaitUntil,
 } from "@/lib/screenshot/readiness";
 import { enableBlocking } from "@/lib/screenshot/blocker";
+import { overlaySelectorsFor } from "@/lib/screenshot/clean-presets";
 import { withBrowserRetry } from "@/lib/browser/manager";
 import { createRenderSession } from "@/lib/browser/context";
 import { buildGeoProxyUrl, GeoTargetingError } from "@/lib/browser/geo";
@@ -247,31 +248,25 @@ async function preparePage(page: Page, options: ScreenshotOptions): Promise<void
     throw new Error("Must provide url, html, or markdown");
   }
 
-  // ── Post-navigation DOM mutations ───────────────────────────────────
-  if (options.block_chats) {
-    const chatSelectors = [
-      ".crisp-client", "#intercom-container", ".tawk-min-container",
-      ".drift-widget", ".fb_dialog", "#hubspot-messages-iframe-container",
-      ".zopim", ".livechat-widget", "#tidio-chat",
-    ];
-    await page.evaluate((selectors: string[]) => {
-      for (const sel of selectors) {
-        document.querySelectorAll(sel).forEach((el) => {
-          (el as HTMLElement).style.display = "none";
-        });
-      }
-    }, chatSelectors);
-  }
-
-  if (options.hide_selectors) {
-    const selectors = options.hide_selectors.split(",");
+  // ── Post-navigation DOM mutations (consent / chat / hide_selectors) ─
+  const overlaySelectors = overlaySelectorsFor({
+    preset: options.clean_preset,
+    blockCookieBanners: options.block_cookie_banners,
+    blockChats: options.block_chats,
+    hideSelectors: options.hide_selectors,
+  });
+  if (overlaySelectors.length > 0) {
     await page.evaluate((sels: string[]) => {
       for (const sel of sels) {
-        document.querySelectorAll(sel.trim()).forEach((el) => {
-          (el as HTMLElement).style.display = "none";
-        });
+        try {
+          document.querySelectorAll(sel).forEach((el) => {
+            (el as HTMLElement).style.setProperty("display", "none", "important");
+          });
+        } catch {
+          // Invalid selector from the caller — skip it.
+        }
       }
-    }, selectors);
+    }, overlaySelectors);
   }
 
   if (options.style_url) await page.addStyleTag({ url: options.style_url });
@@ -303,20 +298,37 @@ async function preparePage(page: Page, options: ScreenshotOptions): Promise<void
   } else if (options.full_page) {
     const scrollDelay = Math.min(options.full_page_scroll_delay || 50, 50);
     await page.evaluate(async (delay: number) => {
-      await new Promise<void>((resolve) => {
-        const i = setInterval(() => {
-          window.scrollBy(0, window.innerHeight);
-          if (
-            document.scrollingElement &&
-            document.scrollingElement.scrollTop + window.innerHeight >=
-              document.scrollingElement.scrollHeight
-          ) {
-            window.scrollTo(0, 0);
-            clearInterval(i);
-            resolve();
-          }
-        }, delay);
-      });
+      const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+      const step = window.innerHeight || 800;
+
+      // Scroll down in fixed increments, then re-scan. Lazy-loaded content
+      // expands the document, so we keep scrolling until the page height
+      // stops growing across consecutive passes — guaranteeing nothing below
+      // the fold is missed.
+      let passesWithoutGrowth = 0;
+      while (passesWithoutGrowth < 3) {
+        const startHeight = document.scrollingElement?.scrollHeight ?? 0;
+
+        let top = 0;
+        while (true) {
+          window.scrollBy(0, step);
+          top += step;
+          const el = document.scrollingElement!;
+          if (el.scrollTop + el.clientHeight >= el.scrollHeight) break;
+          await sleep(delay);
+        }
+
+        // Stay at the bottom briefly so deferred/infinite-loaders can hydrate.
+        await sleep(120);
+        const endHeight = document.scrollingElement?.scrollHeight ?? 0;
+        if (endHeight <= startHeight) {
+          passesWithoutGrowth++;
+        } else {
+          passesWithoutGrowth = 0;
+        }
+      }
+
+      window.scrollTo(0, 0);
     }, scrollDelay);
   }
 

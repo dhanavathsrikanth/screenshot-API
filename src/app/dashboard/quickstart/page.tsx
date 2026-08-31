@@ -17,13 +17,13 @@ export default async function QuickStartPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader
         eyebrow="Quick Start"
         title="Get Started in Seconds"
         description="Get started with the ScreenshotAPI API in seconds."
       />
       <QuickStart apiKeyPrefix={firstKeyPrefix} />
-    </div>
+    </>
   );
 }

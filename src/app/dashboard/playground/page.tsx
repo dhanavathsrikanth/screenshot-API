@@ -17,13 +17,13 @@ export default async function PlaygroundPage() {
   const plan = await getUserPlan(userId);
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader
         eyebrow="Playground"
         title="Try the Screenshot API"
-        description="Render screenshots directly from the dashboard."
+        description="Test the same API your app calls. Free covers viewport captures — Starter ($9) unlocks full-page and PDF."
       />
-      <DashboardPlayground plan={plan} />
-    </div>
+      <DashboardPlayground plan={plan} showUpsell />
+    </>
   );
 }

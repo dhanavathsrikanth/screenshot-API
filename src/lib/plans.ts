@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 // ─── Plan Definitions ─────────────────────────────────────────────────
 
 export type PlanId = "free" | "starter" | "pro" | "scale";
+export type PaidPlanId = "starter" | "pro" | "scale";
 
 export interface PlanLimits {
   monthlyScreenshots: number;
@@ -25,6 +26,8 @@ export interface PlanLimits {
   maxVideoSeconds: number;
   /** Days rendered screenshots are stored before automatic deletion. */
   retentionDays: number;
+  /** Copy captures into the customer's S3/R2/GCS bucket (Pro+). */
+  customerUpload: boolean;
 }
 
 const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
@@ -43,6 +46,7 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     videoCapture: false,
     maxVideoSeconds: 0,
     retentionDays: 1,
+    customerUpload: false,
   },
   starter: {
     monthlyScreenshots: 2500,
@@ -59,6 +63,7 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     videoCapture: false,
     maxVideoSeconds: 0,
     retentionDays: 30,
+    customerUpload: false,
   },
   pro: {
     monthlyScreenshots: 15000,
@@ -75,6 +80,7 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     videoCapture: false,
     maxVideoSeconds: 0,
     retentionDays: 90,
+    customerUpload: true,
   },
   scale: {
     monthlyScreenshots: 50000,
@@ -91,6 +97,7 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     videoCapture: true,
     maxVideoSeconds: 30,
     retentionDays: 90,
+    customerUpload: true,
   },
 };
 
@@ -267,6 +274,10 @@ export function isGeoTargetingAllowed(plan: PlanId): boolean {
   return getPlanLimits(plan).geoTargeting;
 }
 
+export function isCustomerUploadAllowed(plan: PlanId): boolean {
+  return getPlanLimits(plan).customerUpload;
+}
+
 export function isVideoCaptureAllowed(plan: PlanId): boolean {
   return getPlanLimits(plan).videoCapture;
 }
@@ -298,12 +309,27 @@ export function getPlanEntitlements(plan: PlanId) {
     video_capture: limits.videoCapture,
     max_video_seconds: limits.maxVideoSeconds,
     retention_days: limits.retentionDays,
+    customer_upload: limits.customerUpload,
   };
 }
 
 // ─── Shared render-feature gate ───────────────────────────────────────
 
-export type PlanGateFailure = { message: string };
+export type PlanGateFeature = "format" | "pdf" | "full_page" | "geo" | "video";
+
+export type PlanGateFailure = {
+  message: string;
+  required_plan: PaidPlanId;
+  feature: PlanGateFeature;
+};
+
+export function planGateDetails(failure: PlanGateFailure) {
+  return {
+    required_plan: failure.required_plan,
+    feature: failure.feature,
+    upgrade_url: "/dashboard/plan",
+  };
+}
 
 /**
  * Centralized plan-feature enforcement for screenshot render requests.
@@ -318,24 +344,50 @@ export function checkRenderFeatureGates(
   options: { format: string; full_page?: boolean; selector?: string; country?: string; video_seconds?: number }
 ): PlanGateFailure | null {
   if (!isFormatAllowed(options.format, plan)) {
-    return { message: `Format "${options.format}" requires a paid plan.` };
+    const required: PaidPlanId =
+      options.format === "gif" || options.format === "mp4" || options.format === "webm" ? "scale" : "starter";
+    return {
+      message: `Format "${options.format}" requires the ${required === "scale" ? "Scale" : "Starter"} plan or above.`,
+      required_plan: required,
+      feature: "format",
+    };
   }
   if (options.format === "pdf" && !isPdfExportAllowed(plan)) {
-    return { message: "PDF export requires a paid plan." };
+    return {
+      message: "PDF export requires the Starter plan or above.",
+      required_plan: "starter",
+      feature: "pdf",
+    };
   }
   if (options.full_page && !isFullPageAllowed(plan)) {
-    return { message: "Full-page captures require the Starter plan or above." };
+    return {
+      message: "Full-page captures require the Starter plan or above.",
+      required_plan: "starter",
+      feature: "full_page",
+    };
   }
   if (options.country && !isGeoTargetingAllowed(plan)) {
-    return { message: "Geo-targeted rendering requires the Pro plan or above." };
+    return {
+      message: "Geo-targeted rendering requires the Pro plan or above.",
+      required_plan: "pro",
+      feature: "geo",
+    };
   }
   if (options.video_seconds && options.video_seconds > 0) {
     if (!isVideoCaptureAllowed(plan)) {
-      return { message: "Video capture requires the Scale plan." };
+      return {
+        message: "Video capture requires the Scale plan.",
+        required_plan: "scale",
+        feature: "video",
+      };
     }
     const maxSeconds = maxVideoSecondsFor(plan);
     if (options.video_seconds > maxSeconds) {
-      return { message: `Video captures are limited to ${maxSeconds} seconds on your plan.` };
+      return {
+        message: `Video captures are limited to ${maxSeconds} seconds on your plan.`,
+        required_plan: "scale",
+        feature: "video",
+      };
     }
   }
   return null;
@@ -354,8 +406,6 @@ export function getAllPlanLimits(): { id: PlanId; limits: PlanLimits }[] {
 // across src/app/api/checkout/route.ts, src/app/api/webhooks/dodo/route.ts,
 // and src/app/actions/billing.ts.
 
-export type PaidPlanId = "starter" | "pro" | "scale";
-
 /** Monthly USD price per paid plan; used for checkout proration decisions. */
 export const PLAN_PRICES: Record<PaidPlanId, number> = { starter: 9, pro: 49, scale: 79 };
 
@@ -367,6 +417,30 @@ export function planInfoFor(plan: PaidPlanId): ResolvedPlan {
     monthlyLimit: getPlanLimits(plan).monthlyScreenshots,
     price: PLAN_PRICES[plan],
   };
+}
+
+/**
+ * Product IDs are stored twice in env (`NEXT_PUBLIC_DODO_PRODUCT_*` for the
+ * client, `DODO_PRODUCT_*` for scripts). Accept either so checkout/webhooks
+ * still resolve if only one side is filled in.
+ */
+export function dodoProductEnvId(...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function dodoPlanProductMappings(): [string | undefined, PaidPlanId][] {
+  return [
+    [dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID", "DODO_PRODUCT_STARTER_ID"), "starter"],
+    [dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_PRO_ID", "DODO_PRODUCT_PRO_ID"), "pro"],
+    [dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_SCALE_ID", "DODO_PRODUCT_SCALE_ID"), "scale"],
+    [dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID", "DODO_PRODUCT_STARTER_ANNUAL_ID"), "starter"],
+    [dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID", "DODO_PRODUCT_PRO_ANNUAL_ID"), "pro"],
+    [dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID", "DODO_PRODUCT_SCALE_ANNUAL_ID"), "scale"],
+  ];
 }
 
 /**
@@ -385,14 +459,7 @@ export async function resolvePlanFromDodoProduct(
 ): Promise<ResolvedPlan | null> {
   if (!productId) return null;
 
-  const mappings: [string | undefined, PaidPlanId][] = [
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID, "starter"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID, "pro"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_SCALE_ID, "scale"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID, "starter"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID, "pro"],
-    [process.env.NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID, "scale"],
-  ];
+  const mappings = dodoPlanProductMappings();
   for (const [pid, plan] of mappings) {
     if (pid && pid === productId) return planInfoFor(plan);
   }

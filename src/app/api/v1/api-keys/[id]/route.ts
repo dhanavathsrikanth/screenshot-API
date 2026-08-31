@@ -4,6 +4,7 @@ import { resolveAuth } from "@/lib/api-auth";
 import { v1Ok, v1Err } from "@/lib/v1-api";
 import { getRequestId } from "@/lib/api";
 import { newRequestId } from "@/lib/request-id";
+import { verifyProjectOwnership } from "@/app/actions/projects";
 import { createServiceClient } from "@/lib/supabase/server";
 import { trackServerEvent } from "@/lib/posthog";
 
@@ -12,6 +13,7 @@ export const maxDuration = 60;
 const ApiKeyUpdateSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   is_active: z.boolean().optional(),
+  project_id: z.string().uuid().optional(),
   /** Per-key requests/minute override; 0 or null clears it (plan default). */
   rate_limit_per_minute: z.coerce.number().int().min(0).max(10_000).nullable().optional(),
   /** Days from now until expiry; null clears expiry. */
@@ -50,6 +52,13 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
           ? null
           : new Date(Date.now() + parsed.data.expires_in_days * 24 * 60 * 60 * 1000).toISOString();
     }
+    if (parsed.data.project_id !== undefined) {
+      const owned = await verifyProjectOwnership(authCtx.userId, parsed.data.project_id);
+      if (!owned) {
+        return v1Err(403, "forbidden", "Project not found or does not belong to your account.", requestId);
+      }
+      patch.project_id = parsed.data.project_id;
+    }
 
     if (Object.keys(patch).length === 0) {
       return v1Err(400, "invalid_parameters", "No updatable fields provided.", requestId);
@@ -61,7 +70,7 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
       .update(patch)
       .eq("id", id)
       .eq("user_id", authCtx.userId)
-      .select("id, name, key_prefix, environment, is_active, rate_limit, expires_at")
+      .select("id, name, key_prefix, environment, is_active, rate_limit, expires_at, project_id")
       .single();
 
     if (error) {
@@ -76,6 +85,7 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
       is_active: data.is_active,
       rate_limit_per_minute: data.rate_limit,
       expires_at: data.expires_at,
+      project_id: data.project_id,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

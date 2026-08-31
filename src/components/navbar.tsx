@@ -33,7 +33,7 @@ export function Navbar() {
 
   return (
     <header className="border-b border-[var(--line)]">
-      <nav className="mx-auto flex h-14 max-w-3xl items-center justify-between px-6">
+      <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         <div className="flex items-center gap-8">
           <Logo />
           <div className="hidden md:flex items-center gap-1">

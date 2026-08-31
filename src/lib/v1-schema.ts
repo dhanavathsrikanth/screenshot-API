@@ -47,6 +47,8 @@ export const V1ScreenshotRequestSchema = z.object({
   block_cookie_banners: z.coerce.boolean().optional(),
   block_trackers: z.coerce.boolean().optional(),
   block_images: z.coerce.boolean().optional(),
+  hide_selectors: z.string().optional(),
+  clean_preset: z.enum(["default", "strict", "off"]).optional(),
   timeout: z.coerce.number().int().min(1000).optional(),
   // Thumbnail / resize transform (applied via the sharp pipeline after capture).
   thumbnail_width: z.coerce.number().int().min(1).max(5000).optional(),
@@ -141,6 +143,8 @@ export function buildRenderOptions(input: V1ScreenshotRequest): ScreenshotOption
     block_cookie_banners: input.block_cookie_banners ?? true,
     block_trackers: input.block_trackers ?? true,
     block_images: input.block_images ?? false,
+    hide_selectors: input.hide_selectors,
+    clean_preset: input.clean_preset,
     country: input.country,
     timeout: input.timeout ?? 10000,
     thumbnail_width: input.thumbnail_width,

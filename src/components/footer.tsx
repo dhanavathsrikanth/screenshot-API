@@ -23,15 +23,31 @@ const columns = [
   {
     title: "Resources",
     links: [
-      { label: "API Reference", href: "/docs" },
-      { label: "SDKs", href: "/docs#sdks" },
+      { label: "SDKs", href: "/docs/sdks" },
+      { label: "Signed URLs", href: "/docs/signed-urls" },
+      { label: "Customer upload", href: "/docs/customer-upload" },
+      { label: "Clean captures", href: "/docs/clean-captures" },
+      { label: "Migrate from ScreenshotOne", href: "/docs/migrate/screenshotone" },
+      { label: "Migrate from Urlbox", href: "/docs/migrate/urlbox" },
       { label: "Guides", href: "/docs#guides" },
-      { label: "Python Guide", href: "/screenshot-api/python" },
-      { label: "Node.js Guide", href: "/screenshot-api/nodejs" },
-      { label: "Go Guide", href: "/screenshot-api/go" },
+      { label: "Status", href: "/status" },
       { label: "vs Urlbox", href: "/vs/urlbox" },
       { label: "vs ScreenshotOne", href: "/vs/screenshotone" },
       { label: "vs ApiFlash", href: "/vs/apiflash" },
+    ],
+  },
+  {
+    title: "Language Guides",
+    links: [
+      { label: "cURL", href: "/screenshot-api/curl" },
+      { label: "Python", href: "/screenshot-api/python" },
+      { label: "Node.js", href: "/screenshot-api/nodejs" },
+      { label: "Go", href: "/screenshot-api/go" },
+      { label: "PHP", href: "/screenshot-api/php" },
+      { label: "Ruby", href: "/screenshot-api/ruby" },
+      { label: "Java", href: "/screenshot-api/java" },
+      { label: "C#", href: "/screenshot-api/csharp" },
+      { label: "Rust", href: "/screenshot-api/rust" },
     ],
   },
   {
@@ -50,8 +66,8 @@ const columns = [
 export function Footer() {
   return (
     <footer className="border-t border-[var(--line)]">
-      <div className="mx-auto max-w-3xl px-6 py-8">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-6">
+      <div className="mx-auto max-w-6xl px-6 py-8">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-7">
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded bg-[var(--ink)]">

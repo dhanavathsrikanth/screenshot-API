@@ -62,7 +62,7 @@ export function RequestDiagnostics({ initialRequests }: { initialRequests: Recen
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="eyebrow text-[var(--dim)]">Request Diagnostics</h2>
+        <h2 className="section-title">Request Diagnostics</h2>
         <button
           type="button"
           onClick={refreshRecent}
@@ -123,7 +123,7 @@ export function RequestDiagnostics({ initialRequests }: { initialRequests: Recen
             <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 dark:bg-[var(--card)]">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold text-[var(--ink)] dark:text-[var(--ink)]">Request trace</p>
+                  <p className="panel-heading">Request trace</p>
                   <p className="mt-0.5 font-mono text-xs text-[var(--dim)] dark:text-[var(--dim)] break-all">{trace.requestId}</p>
                 </div>
                 {trace.request ? (
@@ -159,7 +159,7 @@ export function RequestDiagnostics({ initialRequests }: { initialRequests: Recen
 
             {trace.user && (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 dark:bg-[var(--card)]">
-                <p className="text-sm font-semibold text-[var(--ink)] dark:text-[var(--ink)]">Account</p>
+                <p className="panel-heading">Account</p>
                 <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   <Field label="User ID" value={trace.user.id} mono />
                   <Field label="Email" value={trace.user.email} />
@@ -185,7 +185,7 @@ export function RequestDiagnostics({ initialRequests }: { initialRequests: Recen
             {trace.job && (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 dark:bg-[var(--card)]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-[var(--ink)] dark:text-[var(--ink)]">Screenshot job</p>
+                  <p className="panel-heading">Screenshot job</p>
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${trace.job.status === "completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : trace.job.status === "failed" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}>
                     {trace.job.status}
                   </span>
@@ -223,7 +223,7 @@ export function RequestDiagnostics({ initialRequests }: { initialRequests: Recen
 
             {trace.usageEvents.length > 0 && (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 dark:bg-[var(--card)]">
-                <p className="text-sm font-semibold text-[var(--ink)] dark:text-[var(--ink)]">Usage events</p>
+                <p className="panel-heading">Usage events</p>
                 <ul className="mt-3 space-y-2">
                   {trace.usageEvents.map((e) => (
                     <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">

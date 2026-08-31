@@ -5,10 +5,11 @@ import { v1Ok, v1Err } from "@/lib/v1-api";
 import { getRequestId } from "@/lib/api";
 import { newRequestId } from "@/lib/request-id";
 import { checkApiKeyLimit } from "@/lib/plans";
-import { getOrCreateProject } from "@/app/actions/projects";
+import { getOrCreateProject, verifyProjectOwnership } from "@/app/actions/projects";
 import { trackServerEvent } from "@/lib/posthog";
 import { createServiceClient } from "@/lib/supabase/server";
-import { KEY_ENVIRONMENTS, newApiKeyPair, type ApiKeyEnvironment } from "@/lib/api-keys";
+import { KEY_ENVIRONMENTS, newApiKeyPair, newAccessKey, newSigningSecret, signingSecretAad, type ApiKeyEnvironment } from "@/lib/api-keys";
+import { encryptSecret } from "@/lib/crypto/secret-box";
 
 export const maxDuration = 60;
 
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("api_keys")
-      .select("id, name, key_prefix, environment, is_active, last_used_at, created_at, project_id, rate_limit, expires_at")
+      .select("id, name, key_prefix, environment, is_active, last_used_at, created_at, project_id, rate_limit, expires_at, access_key, signing_secret_encrypted")
       .eq("user_id", authCtx.userId)
       .order("created_at", { ascending: false });
 
@@ -46,7 +47,22 @@ export async function GET(request: NextRequest) {
       return v1Err(500, "internal_error", error.message, requestId);
     }
 
-    return v1Ok({ api_keys: data ?? [] });
+    return v1Ok({
+      api_keys: (data ?? []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        key_prefix: row.key_prefix,
+        access_key: row.access_key,
+        has_signing_secret: Boolean(row.signing_secret_encrypted),
+        environment: row.environment,
+        is_active: row.is_active,
+        last_used_at: row.last_used_at,
+        created_at: row.created_at,
+        project_id: row.project_id,
+        rate_limit: row.rate_limit,
+        expires_at: row.expires_at,
+      })),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return v1Err(500, "internal_error", message, requestId);
@@ -84,9 +100,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceClient();
-    const resolvedProjectId = input.project_id ?? (await getOrCreateProject(authCtx.userId));
+    let resolvedProjectId = input.project_id ?? (await getOrCreateProject(authCtx.userId));
+    if (input.project_id) {
+      const owned = await verifyProjectOwnership(authCtx.userId, input.project_id);
+      if (!owned) {
+        return v1Err(403, "forbidden", "Project not found or does not belong to your account.", requestId);
+      }
+      resolvedProjectId = input.project_id;
+    }
     const environment: ApiKeyEnvironment = input.environment;
     const { rawKey, prefix, keyHash } = newApiKeyPair(environment);
+    const accessKey = newAccessKey(environment);
+    const signingSecret = newSigningSecret();
     const expiresAt = input.expires_in_days
       ? new Date(Date.now() + input.expires_in_days * 24 * 60 * 60 * 1000).toISOString()
       : null;
@@ -102,8 +127,10 @@ export async function POST(request: NextRequest) {
         environment,
         rate_limit: input.rate_limit_per_minute ?? null,
         expires_at: expiresAt,
+        access_key: accessKey,
+        signing_secret_encrypted: encryptSecret(signingSecret, signingSecretAad(accessKey)),
       })
-      .select("id, name, key_prefix, environment, is_active, created_at, project_id, rate_limit, expires_at")
+      .select("id, name, key_prefix, environment, is_active, created_at, project_id, rate_limit, expires_at, access_key")
       .single();
 
     if (error) {
@@ -121,6 +148,8 @@ export async function POST(request: NextRequest) {
         id: data.id,
         name: data.name,
         key_prefix: data.key_prefix,
+        access_key: data.access_key,
+        signing_secret: signingSecret,
         environment: data.environment,
         project_id: data.project_id,
         is_active: data.is_active,

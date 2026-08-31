@@ -19,6 +19,17 @@ export class RenderError extends Error {
   }
 }
 
+/** Operator-facing pipeline stage for render failures. */
+export function renderPhase(code: string): "validate" | "geo" | "navigate" | "render" | "encode" | "upload" {
+  const c = code.toUpperCase();
+  if (c.includes("SSRF") || c === "INVALID_URL") return "validate";
+  if (c.includes("GEO") || c.includes("COUNTRY")) return "geo";
+  if (c.includes("NAVIGATION") || c.includes("REDIRECT") || c.includes("HTTP")) return "navigate";
+  if (c.includes("VIDEO") || c.includes("FFMPEG") || c.includes("RECORD")) return "encode";
+  if (c.includes("UPLOAD") || c.includes("STORAGE")) return "upload";
+  return "render";
+}
+
 /**
  * Swappable rendering backend. The rest of the system (API routes, jobs,
  * storage) depends only on this interface, so the browser engine can later

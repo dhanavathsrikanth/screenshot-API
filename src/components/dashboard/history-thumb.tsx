@@ -2,15 +2,22 @@
 
 import { useState } from "react";
 
-export function HistoryThumb({ src, format }: { src: string | null; format: string }) {
+export function HistoryThumb({ src, format, onOpen }: { src: string | null; format: string; onOpen?: () => void }) {
   const [failed, setFailed] = useState(false);
 
   if (!src || format === "pdf" || failed) {
     return <span className="text-[9px] font-bold text-[var(--dim)] uppercase">{format}</span>;
   }
 
+  // Used as a button so clicking the thumbnail opens the in-app preview popup
+  // instead of a new browser tab.
   return (
-    <a href={src} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+    <button
+      type="button"
+      onClick={onOpen}
+      title="Preview screenshot"
+      className="block w-full h-full cursor-pointer"
+    >
       <img
         src={src}
         alt=""
@@ -18,6 +25,6 @@ export function HistoryThumb({ src, format }: { src: string | null; format: stri
         loading="lazy"
         onError={() => setFailed(true)}
       />
-    </a>
+    </button>
   );
 }

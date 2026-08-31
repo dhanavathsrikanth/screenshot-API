@@ -119,8 +119,8 @@ export function Hero() {
 
   return (
     <section className="pt-16 pb-8">
-      <div className="mx-auto max-w-3xl px-6">
-<a
+      <div className="mx-auto max-w-6xl px-6 text-center">
+        <a
             href="/pricing"
             className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white px-3 py-1 text-xs font-medium text-[var(--dim)] transition-colors hover:text-[var(--ink)] dark:bg-[var(--card)]"
           >
@@ -128,21 +128,22 @@ export function Hero() {
             <span className="absolute inline-flex h-1.5 w-1.5 animate-ping rounded-full bg-[var(--accent)] opacity-75" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
           </span>
-          New: GIF &amp; TIFF formats
+          100 free / month · Starter $9 unlocks full-page + PDF
         </a>
 
         <h1 className="text-balance mt-6 mb-4 text-[26px] leading-tight tracking-[-0.02em] sm:text-[34px] font-medium">
-          Screenshots of any website,
+          Clean screenshots for your product,
           <br className="hidden sm:block" />
           <span className="text-[var(--accent)]">one API call</span>
         </h1>
 
-        <p className="text-pretty leading-[1.6] text-[var(--dim)] max-w-2xl">
-          Render pixel-perfect screenshots of any URL with full-page capture, dark mode, and automatic
-          blocking of ads, cookie banners, and chat widgets. No browser setup required.
+        <p className="text-pretty mx-auto leading-[1.6] text-[var(--dim)] max-w-2xl">
+          Built for indie SaaS, link previews, docs, and AI agents. Ads, cookie banners, and chat
+          widgets are stripped by default — so the image you ship is the page, not the clutter.
+          No Chromium farm to run.
         </p>
 
-        <div className="mt-8 flex items-center gap-3">
+        <div className="mt-8 flex items-center justify-center gap-3">
           <Link
             href="/sign-up"
             onClick={() =>
@@ -150,23 +151,23 @@ export function Hero() {
             }
             className="inline-flex items-center gap-2 rounded-lg bg-[var(--ink)] px-5 py-2.5 text-sm font-medium text-[var(--background)] transition-colors active:scale-[0.96]"
           >
-            Get Started Free
+            Get 100 free captures
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
           </Link>
           <Link
-            href="/docs"
+            href="/pricing"
+            onClick={() =>
+              captureClientFunnel(FUNNEL_EVENTS.ctaClicked, { location: "hero_secondary", target: "/pricing" })
+            }
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--line)] px-5 py-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--muted)]"
           >
-            <svg className="h-3.5 w-3.5 text-[var(--dim)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-            </svg>
-            Documentation
+            See $9 Starter
           </Link>
         </div>
 
-        <div className="mt-10 max-w-xl">
+        <div className="mt-10 max-w-xl mx-auto">
           <div className="term-window overflow-hidden rounded-lg border border-[var(--line)] bg-white dark:bg-[var(--card)]">
             <div className="flex items-center gap-1.5 border-b border-[var(--line)] bg-[#f5f5f4] px-3.5 py-2.5 dark:bg-[var(--muted)]">
               <span className="inline-block size-2.25 rounded-full bg-[var(--line)]" />
@@ -235,6 +236,15 @@ export function Hero() {
                 </button>
                 <span className="ml-1 text-[11px] text-[var(--dim)]">no signup needed</span>
               </div>
+              {fullPage && (
+                <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+                  Full-page works in this demo. On API keys, it unlocks with{" "}
+                  <Link href="/pricing" className="font-medium underline underline-offset-2">
+                    Starter — $9/mo
+                  </Link>
+                  .
+                </p>
+              )}
             </div>
           </div>
 
@@ -257,7 +267,7 @@ export function Hero() {
       </div>
 
       {(loading || screenshot || error) && (
-        <div className="mx-auto mt-10 max-w-3xl px-6">
+        <div className="mx-auto mt-10 max-w-6xl px-6">
           <div className="term-window overflow-hidden rounded-lg border border-[var(--line)] bg-white dark:bg-[var(--card)]">
             <div className="flex items-center gap-1.5 border-b border-[var(--line)] bg-[#f5f5f4] px-3.5 py-2.5 dark:bg-[var(--muted)]">
               <span className="inline-block size-2.25 rounded-full bg-[var(--line)]" />
@@ -282,11 +292,13 @@ export function Hero() {
                 </div>
               ) : screenshot && !error ? (
                 <>
-                  <img
-                    src={screenshot}
-                    alt={`Screenshot of ${capturedUrl || url}`}
-                    className="max-h-[500px] w-full rounded object-cover"
-                  />
+                  <div className="max-h-[80vh] overflow-y-auto rounded">
+                    <img
+                      src={screenshot}
+                      alt={`Screenshot of ${capturedUrl || url}`}
+                      className="w-full rounded object-contain"
+                    />
+                  </div>
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
                     <div className="flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3 py-1.5 text-[11px] text-[var(--dim)] shadow-sm dark:bg-[var(--card)]">
                       <svg className="h-3 w-3 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -310,7 +322,7 @@ export function Hero() {
       )}
 
       {screenshot && !loading && !error && capturedUrl && (
-        <div className="mx-auto mt-8 max-w-3xl px-6">
+        <div className="mx-auto mt-8 max-w-6xl px-6">
           <div className="rounded-lg border border-[var(--line)] bg-white p-6 dark:bg-[var(--card)]">
             <p className="font-mono text-[11px] tracking-[0.08em] text-[var(--dim)] uppercase">
               You just used the same engine behind our API
@@ -319,7 +331,12 @@ export function Hero() {
               Automate this with one line of code
             </h2>
             <p className="mt-2 text-sm text-[var(--dim)]">
-              Get a free API key and turn what you just did into a single authenticated GET request.
+              Free keys cover viewport PNG, JPEG, and WebP.
+              {fullPage ? (
+                <> You just previewed full-page — included on <Link href="/pricing" className="font-medium text-[var(--accent)] underline underline-offset-2">Starter at $9/mo</Link>.</>
+              ) : (
+                <> Full-page and PDF unlock on Starter at $9/month.</>
+              )}
             </p>
             <div className="mt-4">
               <CodeBlock code={buildCurl(capturedUrl)} label="Equivalent API call" />

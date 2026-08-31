@@ -7,9 +7,17 @@ export function getRedis(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
-  _redis = new Redis({ url, token });
+  _redis = new Redis({
+    url,
+    token,
+    // Abort each request if Upstash doesn't respond in time. Without this,
+    // a slow/unreachable Redis can hang a server-rendered page for minutes.
+    signal: () => AbortSignal.timeout(REDIS_TIMEOUT_MS),
+  });
   return _redis;
 }
+
+const REDIS_TIMEOUT_MS = 8000;
 
 // ─── Cache Helpers ─────────────────────────────────────────────────────
 

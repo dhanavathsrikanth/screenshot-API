@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUpgradeDialog } from "@/components/upgrade-dialog-provider";
+import { getPlanBadgeClass, getPlanLabel } from "@/lib/plan-display";
 
 const navigation = [
   {
@@ -143,13 +144,6 @@ function SidebarContent({
 
   const adminActive = isAdmin && isActive(adminLink.href);
 
-  const planLabels: Record<string, string> = { free: "Free", starter: "Starter", pro: "Pro" };
-  const planColors: Record<string, string> = {
-    free: "bg-[var(--muted)] text-[var(--dim)]",
-    starter: "bg-blue-100 text-blue-700",
-    pro: "bg-orange-100 text-orange-700",
-  };
-
   const linkBase =
     "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all";
   const linkActive = "bg-orange-500/10 text-orange-600";
@@ -166,7 +160,7 @@ function SidebarContent({
               <div className="my-4 border-t border-[var(--border)]" />
             )}
             <nav className="space-y-1">
-              <p className="eyebrow px-3 mb-2 text-[var(--dim)]">{section.label}</p>
+              <p className="section-title px-3 mb-2">{section.label}</p>
               {section.links.map((link) => (
                 <Link
                   key={link.href}
@@ -187,7 +181,7 @@ function SidebarContent({
                   )}
                 </Link>
               ))}
-              {section.label === "Dashboard" && isAdmin && (
+              {section.label === "Account" && isAdmin && (
                 <Link
                   href={adminLink.href}
                   onClick={onLinkClick}
@@ -209,9 +203,9 @@ function SidebarContent({
       {/* Bottom section: Plan badge + Upgrade button */}
       <div className="border-t border-[var(--border)] bg-[var(--muted)]/50 p-3 space-y-2">
         <div className="flex items-center justify-between px-2">
-          <span className="eyebrow text-[var(--dim)]">Plan</span>
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${planColors[plan ?? "free"]}`}>
-            {planLabels[plan ?? "free"] ?? "Free"}
+          <span className="section-title">Plan</span>
+          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${getPlanBadgeClass(plan)}`}>
+            {getPlanLabel(plan)}
           </span>
         </div>
         {(!plan || plan === "free") && (
@@ -222,7 +216,7 @@ function SidebarContent({
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
             </svg>
-            Upgrade Plan
+            Upgrade to Starter — $9
           </button>
         )}
         {plan && plan !== "free" && (
@@ -298,7 +292,7 @@ export function MobileSidebar({
         }`}
       >
         <div className="flex items-center justify-between px-4 h-14 flex-shrink-0 border-b border-[var(--border)]">
-          <span className="text-lg font-bold gradient-text">ScreenshotAPI</span>
+          <span className="text-base font-bold tracking-tight text-[var(--ink)]">ScreenshotAPI</span>
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-[var(--dim)] hover:text-[var(--ink)] hover:bg-[var(--muted)] transition-colors"

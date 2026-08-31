@@ -91,7 +91,7 @@ export function unauthorized(requestId?: string): NextResponse {
   return jsonError(
     401,
     "unauthorized",
-    "Authentication required. Sign in at /dashboard or include a valid API key via the Authorization: Bearer header.",
+    "Authentication required. Sign in at /dashboard, send Authorization: Bearer <api_key>, or use a signed GET /api/take URL (access_key + signature).",
     requestId
   );
 }
@@ -101,12 +101,13 @@ export function insufficientCredits(requestId?: string): NextResponse {
     402,
     "insufficient_credits",
     "No credits remaining. Upgrade or buy credits.",
-    requestId
+    requestId,
+    { upgrade_url: "/dashboard/plan" }
   );
 }
 
-export function featureUnavailable(message: string, requestId?: string): NextResponse {
-  return jsonError(403, "plan_feature", message, requestId);
+export function featureUnavailable(message: string, requestId?: string, details?: unknown): NextResponse {
+  return jsonError(403, "plan_feature", message, requestId, details);
 }
 
 export function internalError(error: unknown, requestId?: string): NextResponse {

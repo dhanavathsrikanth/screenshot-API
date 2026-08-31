@@ -37,7 +37,7 @@ export function AdminRoleManager({ initialUsers }: { initialUsers: AdminUserRow[
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 dark:bg-[var(--card)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-[var(--ink)] dark:text-[var(--ink)]">User roles</h2>
+          <h2 className="panel-heading">User roles</h2>
           <p className="mt-1 text-xs text-[var(--dim)] dark:text-[var(--dim)]">
             Promote or demote admins. Stored in <code className="font-mono">users.role</code> — takes effect
             immediately, no redeploy needed.

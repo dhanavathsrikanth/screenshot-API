@@ -12,9 +12,10 @@ import { StatsCard, UsageBar } from "@/components/dashboard/stats-card";
 import { UsageAlerts, UpgradePrompt } from "@/components/dashboard/charts";
 import { UpgradeSuccessBanner } from "@/components/upgrade-success-banner";
 import { BuyCredits } from "@/components/dashboard/buy-credits";
+import { OverageToggle } from "@/components/dashboard/overage-toggle";
 import { PageHeader } from "@/components/dashboard/page-header";
 
-const planLabels: Record<string, string> = { free: "Free", starter: "Starter", pro: "Pro", scale: "Scale" };
+import { getPlanLabel } from "@/lib/plan-display";
 
 type PaymentListRow = {
   payment_id: string;
@@ -189,18 +190,15 @@ export default async function PlanPage({
   for (const p of allPlanLimits) planLimitsMap[p.id] = p.limits;
 
   return (
-    <div className="space-y-8">
+    <>
       <PageHeader
         eyebrow="Plan & Billing"
         title="Plan, Credits & Invoices"
         description="Manage your subscription, credits, and billing history"
         actions={
           customerId ? (
-            <a
-              href={`/customer-portal?customer_id=${encodeURIComponent(customerId)}`}
-              className="btn-secondary"
-            >
-              Customer Portal
+            <a href="/customer-portal" className="btn-secondary">
+              Manage billing
             </a>
           ) : undefined
         }
@@ -211,7 +209,7 @@ export default async function PlanPage({
       </Suspense>
 
       <div>
-        <h2 className="eyebrow text-[var(--dim)] mb-4">Current Plan</h2>
+        <h2 className="section-title mb-4">Current Plan</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <StatsCard
@@ -245,29 +243,34 @@ export default async function PlanPage({
           />
           <div className="flex items-center">
             <span className="inline-flex items-center rounded-full bg-orange-100 dark:bg-orange-900/30 px-4 py-2 text-sm font-medium text-orange-700 dark:text-orange-300">
-              {planLabels[stats.plan] ?? stats.plan} Plan
+              {getPlanLabel(stats.plan)} Plan
             </span>
           </div>
         </div>
       </div>
 
       <div>
-        <h2 className="eyebrow text-[var(--dim)] mb-4">Usage Alerts</h2>
+        <h2 className="section-title mb-4">Usage Alerts</h2>
         <UsageAlerts data={alerts} />
       </div>
 
       <div>
-        <h2 className="eyebrow text-[var(--dim)] mb-4">Upgrade</h2>
+        <h2 className="section-title mb-4">Upgrade</h2>
         <UpgradePrompt data={{ plan: stats.plan, monthlyUsed: stats.monthlyUsed, monthlyLimit: stats.monthlyLimit, recommendedPlan: costEst.recommendedPlan }} />
       </div>
 
       <div>
-        <h2 className="eyebrow text-[var(--dim)] mb-4">Buy Credit Top-Ups</h2>
+        <h2 className="section-title mb-4">Overage Billing</h2>
+        <OverageToggle enabled={stats.overageEnabled} plan={stats.plan} />
+      </div>
+
+      <div>
+        <h2 className="section-title mb-4">Buy Credit Top-Ups</h2>
         <BuyCredits />
       </div>
 
       <div>
-        <h2 className="eyebrow text-[var(--dim)] mb-4">Billing History</h2>
+        <h2 className="section-title mb-4">Billing History</h2>
         {!customerId && (
           <div className="card card-lift border-orange-500/30 bg-orange-50/50 dark:bg-orange-950/30 p-4 mb-4">
             <p className="text-sm text-orange-800 dark:text-orange-200">
@@ -323,7 +326,7 @@ export default async function PlanPage({
       </div>
 
       <div>
-        <h2 className="eyebrow text-[var(--dim)] mb-4">Plan Comparison</h2>
+        <h2 className="section-title mb-4">Plan Comparison</h2>
         <div className="rounded-xl border border-[var(--border)] p-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -338,7 +341,7 @@ export default async function PlanPage({
                         : "text-[var(--dim)]"
                     }`}
                   >
-                    {planLabels[pid]}
+                    {getPlanLabel(pid)}
                     {pid === currentPlan && (
                       <span className="ml-1 text-[10px] text-orange-500">(current)</span>
                     )}
@@ -378,6 +381,6 @@ export default async function PlanPage({
           </table>
         </div>
       </div>
-    </div>
+    </>
   );
 }

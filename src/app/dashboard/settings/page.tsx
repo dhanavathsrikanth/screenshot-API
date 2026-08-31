@@ -9,7 +9,7 @@ export default async function SettingsPage() {
   if (!userId) redirect("/sign-in");
 
   return (
-    <div className="space-y-8">
+    <>
       <PageHeader
         eyebrow="Settings"
         title="Account Settings"
@@ -20,8 +20,8 @@ export default async function SettingsPage() {
       <SettingsProfile />
 
       {/* Shortcuts to related areas (each has its own dedicated page) */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 dark:bg-[var(--card)]">
-        <h2 className="text-sm font-semibold text-[var(--ink)] dark:text-[var(--ink)]">Related settings</h2>
+      <div className="card p-6">
+        <h2 className="panel-heading">Related settings</h2>
         <p className="mt-1 text-xs text-[var(--dim)] dark:text-[var(--dim)]">
           These live on their own pages:
         </p>
@@ -72,6 +72,6 @@ export default async function SettingsPage() {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 }

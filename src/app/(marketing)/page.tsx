@@ -5,7 +5,8 @@ import { StackStrip } from "@/components/home/StackStrip";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { FormatsSection } from "@/components/home/FormatsSection";
 import { Features } from "@/components/features";
-import { Testimonials } from "@/components/home/Testimonials";
+import { UseCases } from "@/components/home/UseCases";
+import { WhyStarter } from "@/components/home/WhyStarter";
 import { CodeExamples } from "@/components/home/CodeExamples";
 import { PricingSection } from "@/components/pricing-section";
 import { CTASection } from "@/components/home/CTASection";
@@ -13,9 +14,9 @@ import { CTASection } from "@/components/home/CTASection";
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: {
-    title: "ScreenshotAPI - The Screenshot API for Developers",
+    title: "ScreenshotAPI - Clean website screenshots via API",
     description:
-      "Render website screenshots in one simple API call. Block cookie banners, ads, and chat widgets. Full-page, high-resolution, dark mode, and more.",
+      "Screenshot API for products that ship captures. Cookie banners and ads blocked by default. 100 free renders, then $9 for full-page, PDF, and production volume.",
     url: "/",
     type: "website",
   },
@@ -65,7 +66,8 @@ export default function Home() {
       <HowItWorks />
       <FormatsSection />
       <Features />
-      <Testimonials />
+      <UseCases />
+      <WhyStarter />
       <CodeExamples />
       <PricingSection />
       <CTASection />

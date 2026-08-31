@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { render } from "@/lib/browser/engine";
 import { RenderError } from "@/lib/screenshot/types";
-import { uploadToStorage } from "@/lib/storage/uploader";
+import { persistCapture } from "@/lib/storage/persist";
 import { artifactContentType } from "@/lib/mime";
 import { getCacheKey, getFromCache, setInCache, type CacheEntry } from "@/lib/storage/cache";
 import { saveScreenshot } from "@/app/actions/screenshots";
@@ -380,7 +380,7 @@ export async function processJob(id: string): Promise<void> {
     const cacheKey = getCacheKey(job.options as unknown as Record<string, unknown>);
     const cached = await getFromCache(cacheKey);
     if (cached) {
-      await completeJob(id, cached.storageUrl, cached.format, cached.width, cached.height, cached.sizeBytes, cached, common, startedAt, jobSourceUrl(job.options));
+      await completeJob(id, cached.customerUrl || cached.storageUrl, cached.format, cached.width, cached.height, cached.sizeBytes, cached, common, startedAt, jobSourceUrl(job.options));
       return;
     }
 
@@ -388,28 +388,42 @@ export async function processJob(id: string): Promise<void> {
 
     const key = uniqueKey(typeof job.options?.url === "string" ? job.options.url : "screenshot", result.format);
     let publicUrl: string | null = null;
+    let customerUrl: string | null = null;
     try {
-      publicUrl = await uploadToStorage(result.buffer, key, contentType(result.format));
+      const plan = await getUserPlan(job.user_id);
+      const uploaded = await persistCapture(
+        result.buffer,
+        key,
+        contentType(result.format),
+        {
+          userId: job.user_id,
+          projectId: job.project_id,
+          requestId: job.request_id,
+          sourceUrl: jobSourceUrl(job.options),
+          plan,
+        }
+      );
+      publicUrl = uploaded.url;
+      customerUrl = uploaded.customerUrl;
+      if (publicUrl) {
+        setInCache(
+          cacheKey,
+          {
+            storageUrl: publicUrl,
+            customerUrl,
+            width: result.width,
+            height: result.height,
+            format: result.format,
+            sizeBytes: result.buffer.length,
+          },
+          plan
+        ).catch(() => {});
+      }
     } catch (e) {
       logger.error({ event: "render_upload_failed", jobId: id, requestId: job.request_id ?? undefined, error: e instanceof Error ? e.message : e });
     }
 
-    if (publicUrl) {
-      const plan = await getUserPlan(job.user_id);
-      setInCache(
-        cacheKey,
-        {
-          storageUrl: publicUrl,
-          width: result.width,
-          height: result.height,
-          format: result.format,
-          sizeBytes: result.buffer.length,
-        },
-        plan
-      ).catch(() => {});
-    }
-
-    await completeJob(id, publicUrl, result.format, result.width, result.height, result.buffer.length, null, common, startedAt, jobSourceUrl(job.options));
+    await completeJob(id, customerUrl ?? publicUrl, result.format, result.width, result.height, result.buffer.length, null, common, startedAt, jobSourceUrl(job.options));
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown render error";
     const code =
@@ -496,7 +510,7 @@ async function completeJob(
         response_time_ms: Date.now() - startedAt,
       },
     });
-    screenshotId = saved.id;
+    screenshotId = saved?.id ?? null;
   } catch (e) {
     logger.error({ event: "job_save_screenshot_failed", jobId: id, requestId: common.requestId ?? undefined, error: e instanceof Error ? e.message : e });
   }
@@ -603,7 +617,7 @@ export async function recordCacheHitJob(params: {
         response_time_ms: params.responseTimeMs ?? 0,
       },
     });
-    screenshotId = saved.id;
+    screenshotId = saved?.id ?? null;
   } catch (e) {
     logger.error({ event: "cache_hit_save_screenshot_failed", requestId: params.requestId ?? undefined, userId: params.userId, error: e instanceof Error ? e.message : e });
   }

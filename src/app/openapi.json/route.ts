@@ -35,7 +35,8 @@ const screenshotOptionsSchema = {
     reduced_motion: { type: "boolean", default: false, description: "Emulate prefers-reduced-motion: reduce." },
     omit_background: { type: "boolean", default: false },
     selector: { type: "string", description: "CSS selector to capture a specific element." },
-    hide_selectors: { type: "string", description: "Comma-separated CSS selectors to hide." },
+    hide_selectors: { type: "string", description: "Comma-separated CSS selectors to hide. Tokens preset:consent, preset:newsletter, preset:chat expand to built-in overlay lists." },
+    clean_preset: { type: "string", enum: ["default", "strict", "off"], description: "default hides consent+chat overlays; strict also hides newsletter popups; off applies only hide_selectors. Independent of block_ads=false for compliance captures." },
     readiness: { type: "string", enum: ["fast", "balanced", "complete", "custom"], description: "Readiness strategy: fast (domready), balanced (load+idle), complete (2s after load), custom." },
     wait_for_selector: { type: "string", description: "CSS selector to wait for before capture (custom readiness)." },
     wait_for_condition: { type: "string", description: "JavaScript expression to evaluate for readiness (custom readiness)." },
@@ -139,7 +140,7 @@ export async function GET() {
           tags: ["Screenshots"],
           summary: "Capture a screenshot",
           description:
-            "Renders a website (or HTML/markdown) and returns the image/PDF bytes directly. Parameters are sent as query string. Requires authentication.",
+            "Renders a website (or HTML/markdown) and returns the image/PDF bytes directly. Parameters are sent as query string. Authenticate with a Bearer API key or an HMAC-signed access_key + signature (for img/OG tags).",
           operationId: "takeScreenshotGet",
           parameters: [
             {
@@ -148,6 +149,24 @@ export async function GET() {
               schema: { type: "string", format: "uri" },
               required: true,
               description: "The URL to screenshot (url, html, or markdown required).",
+            },
+            {
+              in: "query",
+              name: "access_key",
+              schema: { type: "string" },
+              description: "Public access key for HMAC-signed GET requests (no Authorization header).",
+            },
+            {
+              in: "query",
+              name: "signature",
+              schema: { type: "string" },
+              description: "HMAC-SHA256 hex of the canonical query using the key's signing secret.",
+            },
+            {
+              in: "query",
+              name: "expires",
+              schema: { type: "integer" },
+              description: "Optional Unix timestamp (seconds). After this time the signed URL is rejected.",
             },
             {
               in: "query",
@@ -532,8 +551,12 @@ export async function GET() {
                             url: { type: "string" },
                             success: { type: "boolean" },
                             error: { type: ["string", "null"] },
-                            statusCode: { type: ["integer", "null"] },
-                            durationMs: { type: ["integer", "null"] },
+                            attempts: { type: "integer" },
+                            storage_url: { type: ["string", "null"] },
+                            format: { type: "string" },
+                            width: { type: "integer" },
+                            height: { type: "integer" },
+                            size: { type: "integer" },
                           },
                         },
                       },

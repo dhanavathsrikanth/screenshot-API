@@ -4,7 +4,7 @@ import DodoPayments from "dodopayments";
 import { getDodoConfig } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/server";
 import { trackServerEvent } from "@/lib/posthog";
-import { resolvePlanFromDodoProduct, PLAN_PRICES } from "@/lib/plans";
+import { resolvePlanFromDodoProduct, PLAN_PRICES, dodoProductEnvId } from "@/lib/plans";
 
 type CheckoutBody = {
   product_id?: string;
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient();
     const { data: quota } = await supabase
       .from("user_quotas")
-      .select("plan, dodo_subscription_id")
+      .select("plan, dodo_subscription_id, dodo_product_id")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     // Record the selected plan before checkout. If the Dodo webhook is missed,
     // fails, or can't map the product, the pending markers let the webhook and
     // the ?upgraded=1 page reconciliation apply the plan anyway.
+    // One-time top-ups are not plans — never write pending_plan for them.
     if (requested) {
       await supabase
         .from("user_quotas")
@@ -55,8 +56,21 @@ export async function POST(request: NextRequest) {
         .eq("user_id", userId);
     }
 
-    // Paid → paid plan change: swap the existing subscription in place instead
-    // of creating a parallel subscription (which would double-bill the customer).
+    // Already on this exact product: send them back without a second checkout.
+    if (
+      requested &&
+      quota?.dodo_subscription_id &&
+      quota.dodo_product_id === productId
+    ) {
+      return NextResponse.json(
+        { changed: false, already_subscribed: true, plan: requested.plan, checkout_url: returnUrl },
+        { status: 200 }
+      );
+    }
+
+    // Paid → paid product change: swap the existing subscription in place
+    // instead of creating a parallel subscription (which would double-bill).
+    // Includes same-plan monthly ↔ annual switches (plan name is unchanged).
     // Dodo only supports this for active subscriptions, so verify status first.
     let supersededSubscriptionId: string | undefined;
 
@@ -65,10 +79,19 @@ export async function POST(request: NextRequest) {
       quota?.plan &&
       quota.dodo_subscription_id &&
       quota.plan !== "free" &&
-      quota.plan !== requested.plan
+      quota.dodo_product_id !== productId
     ) {
+      const annualIds = new Set(
+        [
+          dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID", "DODO_PRODUCT_STARTER_ANNUAL_ID"),
+          dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID", "DODO_PRODUCT_PRO_ANNUAL_ID"),
+          dodoProductEnvId("NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID", "DODO_PRODUCT_SCALE_ANNUAL_ID"),
+        ].filter(Boolean) as string[]
+      );
+      const switchingToAnnual =
+        annualIds.has(productId) && Boolean(quota.dodo_product_id) && !annualIds.has(quota.dodo_product_id);
       const proration: "prorated_immediately" | "do_not_bill" =
-        requested.price > (PLAN_PRICES[quota.plan as keyof typeof PLAN_PRICES] ?? 0)
+        requested.price > (PLAN_PRICES[quota.plan as keyof typeof PLAN_PRICES] ?? 0) || switchingToAnnual
           ? "prorated_immediately"
           : "do_not_bill";
 

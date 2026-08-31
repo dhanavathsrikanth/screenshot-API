@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BulkScreenshotSchema } from "@/lib/schema";
 import { bulkRender } from "@/lib/screenshot/bulk";
-import { uploadToStorage } from "@/lib/storage/uploader";
+import { persistCapture } from "@/lib/storage/persist";
 import { artifactContentType } from "@/lib/mime";
 import { saveScreenshot } from "@/app/actions/screenshots";
 import { logScreenshotUsage } from "@/app/actions/usage";
@@ -9,7 +9,7 @@ import { logRequest } from "@/lib/redis";
 import { getFilename } from "@/lib/utils";
 import {
   getUserPlan, checkRateLimit, checkApiKeyRateLimit,
-  checkRenderFeatureGates,
+  checkRenderFeatureGates, planGateDetails,
   type PlanId,
 } from "@/lib/plans";
 import { ensureCredits, refundCredits, computeUnits, meterUsageToDodo } from "@/lib/credits";
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       country: renderOptions.country,
     });
     if (gateFailure) {
-      return featureUnavailable(`${gateFailure.message} Upgrade at /dashboard/plan`, requestId);
+      return featureUnavailable(gateFailure.message, requestId, planGateDetails(gateFailure));
     }
 
     // ── Geo availability (fail fast before credits) ─────────────────
@@ -138,32 +138,60 @@ export async function POST(request: NextRequest) {
     // `unitCost` per failed URL could refund more than was ever deducted.
     let refundableRemaining = ensure.localDeducted;
 
+    const stored: Array<{
+      url: string;
+      success: boolean;
+      error?: string;
+      attempts: number;
+      storage_url: string | null;
+      upload_url?: string | null;
+      format?: string;
+      width?: number;
+      height?: number;
+      size?: number;
+    }> = [];
+
     for (const r of results) {
       if (r.success && r.renderResult) {
         let publicUrl: string | null = null;
+        let customerUrl: string | null = null;
         try {
           const key = uniqueKey(r.url, r.renderResult.format);
-          publicUrl = await uploadToStorage(
+          const uploaded = await persistCapture(
             r.renderResult.buffer,
             key,
-            artifactContentType(r.renderResult.format)
+            artifactContentType(r.renderResult.format),
+            { userId, requestId, sourceUrl: r.url, projectId: authCtx.projectId, plan }
           );
+          publicUrl = uploaded.url;
+          customerUrl = uploaded.customerUrl;
         } catch {}
 
-        saveScreenshot({
-          userId,
-          apiKeyId: apiKeyId ?? undefined,
-          sourceUrl: r.url,
-          storageUrl: publicUrl,
-          format: r.renderResult.format,
-          width: r.renderResult.width,
-          height: r.renderResult.height,
-          fileSizeBytes: r.renderResult.buffer.length,
-          cached: false,
-        }).catch(() => {});
+        try {
+          await saveScreenshot({
+            userId,
+            projectId: authCtx.projectId,
+            apiKeyId: apiKeyId ?? undefined,
+            sourceUrl: r.url,
+            storageUrl: publicUrl,
+            format: r.renderResult.format,
+            width: r.renderResult.width,
+            height: r.renderResult.height,
+            fileSizeBytes: r.renderResult.buffer.length,
+            cached: false,
+            metadata: {
+              source,
+              method: "POST",
+              endpoint: "/api/take/bulk",
+            },
+          });
+        } catch (e) {
+          console.error("[bulk] saveScreenshot failed:", e instanceof Error ? e.message : e);
+        }
 
         logScreenshotUsage({
           userId,
+          projectId: authCtx.projectId,
           apiKeyId: apiKeyId ?? undefined,
           endpoint: "/api/take/bulk",
           method: "POST",
@@ -174,12 +202,31 @@ export async function POST(request: NextRequest) {
           creditsUsed: unitCost,
           source,
         }).catch(() => {});
-      } else if (refundableRemaining > 0) {
-        // Refund the unit cost for failed URLs so the user isn't charged for
-        // failures, capped at what was actually deducted locally.
-        const refundAmount = Math.min(unitCost, refundableRemaining);
-        await refundCredits(userId, refundAmount);
-        refundableRemaining -= refundAmount;
+
+        stored.push({
+          url: r.url,
+          success: true,
+          attempts: r.attempts,
+          storage_url: publicUrl,
+          upload_url: customerUrl,
+          format: r.renderResult.format,
+          width: r.renderResult.width,
+          height: r.renderResult.height,
+          size: r.renderResult.buffer.length,
+        });
+      } else {
+        if (refundableRemaining > 0) {
+          const refundAmount = Math.min(unitCost, refundableRemaining);
+          await refundCredits(userId, refundAmount);
+          refundableRemaining -= refundAmount;
+        }
+        stored.push({
+          url: r.url,
+          success: false,
+          error: r.error,
+          attempts: r.attempts,
+          storage_url: null,
+        });
       }
     }
 
@@ -215,8 +262,7 @@ export async function POST(request: NextRequest) {
       successful,
       failed,
       creditsUsed: ensure.units - totalRefunded,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      results: results.map(({ renderResult, ...rest }) => rest),
+      results: stored,
     }, {
       headers: {
         "X-Credits-Used": String(ensure.units),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { upgradeReasons } from "@/lib/marketing";
 
 const paidPlans = [
   {
@@ -8,13 +9,13 @@ const paidPlans = [
     name: "Starter",
     monthlyPrice: 9,
     annualPrice: 90,
-    description: "For developers building integrations",
+    description: "Full-page, PDF, and 2,500 captures",
     screenshots: "2,500",
     overage: "$0.005 / extra",
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID || "",
     annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID || "",
     color: "blue",
-    features: ["2,500 screenshots/mo", "PNG, JPEG, WebP, PDF", "Ad & cookie blocking", "5 API keys", "40 req/min", "Email support"],
+    features: ["2,500 screenshots/mo", "Full-page captures", "PDF export", "30-day history", "5 API keys · 40 req/min", "Email support"],
   },
   {
     id: "pro",
@@ -26,9 +27,9 @@ const paidPlans = [
     overage: "$0.003 / extra",
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID || "",
     annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID || "",
-    popular: true,
+    popular: false,
     color: "orange",
-    features: ["15,000 screenshots/mo", "PNG, JPEG, WebP, PDF", "Geo-targeted rendering", "Cloud storage (R2)", "25 API keys", "120 req/min", "Priority support + 99.9% SLA"],
+    features: ["15,000 screenshots/mo", "Everything in Starter", "Geo-targeted rendering", "Cloud storage (R2)", "25 API keys · 120 req/min", "Priority queue"],
   },
   {
     id: "scale",
@@ -41,7 +42,7 @@ const paidPlans = [
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_SCALE_ID || "",
     annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID || "",
     color: "purple",
-    features: ["50,000 screenshots/mo", "Everything in Pro", "Video / GIF capture (MP4, GIF, WebM)", "Geo-targeted rendering", "Highest queue priority", "50 API keys · 240 req/min", "Priority support + 99.9% SLA"],
+    features: ["50,000 screenshots/mo", "Everything in Pro", "Video / GIF capture (MP4, GIF, WebM)", "Highest queue priority", "50 API keys · 240 req/min"],
   },
 ];
 
@@ -51,10 +52,12 @@ export function UpgradeDialog({
   open,
   onClose,
   currentPlan,
+  currentProductId,
 }: {
   open: boolean;
   onClose: () => void;
   currentPlan?: string;
+  currentProductId?: string;
 }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,9 +90,18 @@ export function UpgradeDialog({
         return;
       }
 
+      if (data.already_subscribed) {
+        window.location.assign(data.checkout_url || `${window.location.origin}/dashboard/plan`);
+        return;
+      }
+
       if (data.checkout_url) {
         window.location.assign(data.checkout_url);
+        return;
       }
+
+      setError("Checkout did not return a payment URL. Please try again.");
+      setLoading(null);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(null);
@@ -123,10 +135,24 @@ export function UpgradeDialog({
             </svg>
             Upgrade Your Plan
           </div>
-          <h2 className="text-2xl font-bold">Choose the right plan for you</h2>
+          <h2 className="text-2xl font-bold">Ship production screenshots</h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-md mx-auto">
-            Unlock more screenshots, faster rendering, and premium features. Cancel anytime.
+            {currentPlan === "free" || !currentPlan
+              ? "Most teams upgrade when screenshots ship to users. Starter ($9) unlocks full-page, PDF, 2,500 captures/month, and 30-day history."
+              : "Higher plans add volume, geo targeting, and video. Cancel anytime."}
           </p>
+          {(currentPlan === "free" || !currentPlan) && (
+            <ul className="mt-4 mx-auto max-w-sm text-left space-y-1.5">
+              {upgradeReasons.starter.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                  <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Error */}
@@ -168,18 +194,25 @@ export function UpgradeDialog({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {paidPlans.map((plan) => {
             const price = annual ? plan.annualPrice : plan.monthlyPrice;
-            const isCurrent = currentPlan === plan.id;
+            const selectedProductId = annual ? plan.annualProductId : plan.productId;
+            const isCurrent =
+              Boolean(currentProductId) && currentProductId === selectedProductId
+                ? true
+                : !currentProductId && currentPlan === plan.id;
             const isLoading = loading === plan.id;
             const perMonth = Math.round((plan.annualPrice / 12) * 100) / 100;
+            const recommendStarter = (!currentPlan || currentPlan === "free") && plan.id === "starter";
+            const recommendPro = currentPlan === "starter" && plan.id === "pro";
+            const isRecommended = recommendStarter || recommendPro;
             const colorClasses = {
               blue: {
-                border: plan.popular ? "border-orange-500 ring-2 ring-orange-500" : isCurrent ? "border-blue-500 ring-2 ring-blue-500/50" : "border-zinc-200 dark:border-zinc-800",
+                border: isRecommended ? "border-orange-500 ring-2 ring-orange-500" : isCurrent ? "border-blue-500 ring-2 ring-blue-500/50" : "border-zinc-200 dark:border-zinc-800",
                 badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
                 button: "bg-blue-600 hover:bg-blue-700 text-white",
                 check: "text-blue-500",
               },
               orange: {
-                border: "border-orange-500 ring-2 ring-orange-500",
+                border: isRecommended || isCurrent ? "border-orange-500 ring-2 ring-orange-500" : "border-zinc-200 dark:border-zinc-800",
                 badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
                 button: "bg-orange-600 hover:bg-orange-700 text-white",
                 check: "text-orange-500",
@@ -197,12 +230,12 @@ export function UpgradeDialog({
               <div
                 key={plan.id}
                 className={`rounded-xl border p-5 flex flex-col relative transition-all ${colors.border} ${
-                  plan.popular ? "shadow-lg shadow-orange-500/10" : ""
+                  isRecommended ? "shadow-lg shadow-orange-500/10" : ""
                 }`}
               >
-                {plan.popular && (
+                {isRecommended && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-orange-600 px-3 py-1 text-xs font-medium text-white whitespace-nowrap">
-                    Most Popular
+                    Best next step
                   </span>
                 )}
 

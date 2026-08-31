@@ -125,6 +125,35 @@ async function main() {
     measurementUnit: "page",
   });
 
+  async function listProductsByName() {
+    const byName = new Map();
+    for await (const product of client.products.list({ page_size: 100 })) {
+      if (product?.name && product?.product_id) byName.set(product.name, product);
+    }
+    return byName;
+  }
+
+  const existingProducts = await listProductsByName();
+  console.log(`[Dodo] Found ${existingProducts.size} existing product(s)`);
+
+  async function getOrCreateSubscriptionProduct({ name, priceCents, monthlyCredits, overagePricePerUnitUSD, planMeta, frequency = "Month" }) {
+    const existing = existingProducts.get(name);
+    if (existing) {
+      console.log(`Reusing subscription product '${name}': ${existing.product_id}`);
+      return existing;
+    }
+    return createSubscriptionProduct({ name, priceCents, monthlyCredits, overagePricePerUnitUSD, planMeta, frequency });
+  }
+
+  async function getOrCreateTopupProduct({ name, priceCents, credits, expiresDays }) {
+    const existing = existingProducts.get(name);
+    if (existing) {
+      console.log(`Reusing top-up product '${name}': ${existing.product_id}`);
+      return existing;
+    }
+    return createTopupProduct({ name, priceCents, credits, expiresDays });
+  }
+
   // Helpers
   async function createSubscriptionProduct({ name, priceCents, monthlyCredits, overagePricePerUnitUSD, planMeta, frequency = "Month" }) {
     // UBB (usage-based) price so Dodo can meter consumption against the
@@ -214,7 +243,7 @@ async function main() {
 
   // 3) Create Subscription Products (recreated as UBB with credit-billed meters)
   //    No free trials — customers are charged at checkout. Free plan never uses Dodo.
-  const starter = await createSubscriptionProduct({
+  const starter = await getOrCreateSubscriptionProduct({
     name: "ScreenTool Starter (Monthly)",
     priceCents: 900, // $9.00
     monthlyCredits: 2500,
@@ -222,7 +251,7 @@ async function main() {
     planMeta: "starter",
   });
 
-  const pro = await createSubscriptionProduct({
+  const pro = await getOrCreateSubscriptionProduct({
     name: "ScreenTool Pro (Monthly)",
     priceCents: 4900, // $49.00
     monthlyCredits: 15000,
@@ -230,8 +259,16 @@ async function main() {
     planMeta: "pro",
   });
 
+  const scale = await getOrCreateSubscriptionProduct({
+    name: "ScreenTool Scale (Monthly)",
+    priceCents: 7900, // $79.00
+    monthlyCredits: 50000,
+    overagePricePerUnitUSD: "0.002",
+    planMeta: "scale",
+  });
+
   // Annual variants (billed once per year; credits granted per year).
-  const starterAnnual = await createSubscriptionProduct({
+  const starterAnnual = await getOrCreateSubscriptionProduct({
     name: "ScreenTool Starter (Annual)",
     priceCents: 9000, // $90.00 (~2 months free vs monthly)
     monthlyCredits: 30000, // 2,500/mo × 12
@@ -240,7 +277,7 @@ async function main() {
     frequency: "Year",
   });
 
-  const proAnnual = await createSubscriptionProduct({
+  const proAnnual = await getOrCreateSubscriptionProduct({
     name: "ScreenTool Pro (Annual)",
     priceCents: 49000, // $490.00 (~2 months free vs monthly)
     monthlyCredits: 180000, // 15,000/mo × 12
@@ -249,22 +286,31 @@ async function main() {
     frequency: "Year",
   });
 
+  const scaleAnnual = await getOrCreateSubscriptionProduct({
+    name: "ScreenTool Scale (Annual)",
+    priceCents: 79000, // $790.00 (~2 months free vs monthly)
+    monthlyCredits: 600000, // 50,000/mo × 12
+    overagePricePerUnitUSD: "0.002",
+    planMeta: "scale",
+    frequency: "Year",
+  });
+
   // 4) Create Top-Up Products (365-day validity)
-  const topup500 = await createTopupProduct({
+  const topup500 = await getOrCreateTopupProduct({
     name: "ScreenTool Top-up 500",
     priceCents: 499, // $4.99
     credits: 500,
     expiresDays: 365,
   });
 
-  const topup2500 = await createTopupProduct({
+  const topup2500 = await getOrCreateTopupProduct({
     name: "ScreenTool Top-up 2500",
     priceCents: 1999, // $19.99
     credits: 2500,
     expiresDays: 365,
   });
 
-  const topup10000 = await createTopupProduct({
+  const topup10000 = await getOrCreateTopupProduct({
     name: "ScreenTool Top-up 10000",
     priceCents: 6999, // $69.99
     credits: 10000,
@@ -278,16 +324,26 @@ async function main() {
   console.log(`DODO_METER_PDF_ID=${pdfMeterId}`);
   console.log(`DODO_PRODUCT_STARTER_ID=${starter.product_id}`);
   console.log(`DODO_PRODUCT_PRO_ID=${pro.product_id}`);
+  console.log(`DODO_PRODUCT_SCALE_ID=${scale.product_id}`);
   console.log(`DODO_PRODUCT_STARTER_ANNUAL_ID=${starterAnnual.product_id}`);
   console.log(`DODO_PRODUCT_PRO_ANNUAL_ID=${proAnnual.product_id}`);
+  console.log(`DODO_PRODUCT_SCALE_ANNUAL_ID=${scaleAnnual.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_500_ID=${topup500.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_2500_ID=${topup2500.product_id}`);
   console.log(`DODO_PRODUCT_TOPUP_10000_ID=${topup10000.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID=${starter.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_PRO_ID=${pro.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_SCALE_ID=${scale.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID=${starterAnnual.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID=${proAnnual.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID=${scaleAnnual.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_TOPUP_500_ID=${topup500.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_TOPUP_2500_ID=${topup2500.product_id}`);
+  console.log(`NEXT_PUBLIC_DODO_PRODUCT_TOPUP_10000_ID=${topup10000.product_id}`);
 
   console.log("\n=== IMPORTANT ===");
-  console.log("Subscription products were RECREATED as usage-based (with credit-billed meters).");
-  console.log("Any pre-existing ScreenTool subscription products WITHOUT meters must be archived in");
-  console.log("the Dodo dashboard (or left unused) — only the NEW product IDs above grant + auto-deduct credits.");
+  console.log("Existing products are reused by name; only missing plans are created.");
+  console.log("Copy the NEXT_PUBLIC_DODO_PRODUCT_* values into Render as well.");
 }
 
 main().catch((err) => {

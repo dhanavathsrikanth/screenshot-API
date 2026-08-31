@@ -13,7 +13,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }> = [
     { path: "/", priority: 1, changeFrequency: "weekly" },
     { path: "/pricing", priority: 0.9, changeFrequency: "monthly" },
-    { path: "/docs", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/docs/clean-captures", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/docs/signed-urls", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/docs/sdks", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/docs/customer-upload", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/docs/migrate/screenshotone", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/docs/migrate/urlbox", priority: 0.7, changeFrequency: "monthly" },
     { path: "/tools", priority: 0.8, changeFrequency: "monthly" },
     { path: "/tools/full-page", priority: 0.8, changeFrequency: "monthly" },
     { path: "/tools/pdf", priority: 0.8, changeFrequency: "monthly" },

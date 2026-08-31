@@ -65,6 +65,8 @@ export const ScreenshotOptionsSchema = z.object({
   omit_background: z.coerce.boolean().default(false),
   selector: z.string().optional(),
   hide_selectors: z.string().optional(),
+  /** Extra overlay hiding. default = consent+chat CSS; strict adds newsletter popups; off = only hide_selectors. */
+  clean_preset: z.enum(["default", "strict", "off"]).optional(),
   // Readiness strategy + custom readiness knobs (blueprint §9)
   readiness: z.enum(["fast", "balanced", "complete", "custom"]).optional(),
   wait_for_selector: z.string().optional(),
