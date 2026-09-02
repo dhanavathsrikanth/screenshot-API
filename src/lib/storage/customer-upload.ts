@@ -56,7 +56,7 @@ export async function validateDestinationInput(
   }
   const bucket = input.bucket.trim().toLowerCase();
   if (!BUCKET_RE.test(bucket)) {
-    return { ok: false, message: "Bucket name is invalid." };
+    return { ok: false, message: "Bucket name is invalid — use 3–63 lowercase letters, numbers, dots or hyphens (e.g. my-captures). No underscores or uppercase." };
   }
   const accessKeyId = input.accessKeyId.trim();
   const secretAccessKey = input.secretAccessKey.trim();
@@ -78,7 +78,7 @@ export async function validateDestinationInput(
     region = "auto";
     forcePathStyle = true;
     if (!endpoint) {
-      return { ok: false, message: "R2 requires the S3 API endpoint (https://<accountid>.r2.cloudflarestorage.com)." };
+      return { ok: false, message: "R2 requires the S3 API endpoint. In Cloudflare: R2 → Manage R2 API Tokens → copy the S3 endpoint (https://<accountid>.r2.cloudflarestorage.com)." };
     }
   } else {
     region = "auto";
@@ -113,12 +113,12 @@ export async function validateDestinationInput(
       return { ok: false, message: "Public URL prefix is not a valid URL." };
     }
   } else if (input.provider === "r2") {
-    return { ok: false, message: "R2 needs a public URL prefix (r2.dev or your custom domain)." };
+    return { ok: false, message: "R2 needs a public URL prefix — enable Public access on the bucket (r2.dev) or add a custom domain, then paste it as https://pub-xxxx.r2.dev." };
   }
 
   const pathPrefix = (input.pathPrefix ?? "screenshots").replace(/^\/+|\/+$/g, "");
   if (!PATH_PREFIX_RE.test(pathPrefix) || pathPrefix.includes("..")) {
-    return { ok: false, message: "Path prefix may only contain letters, numbers, /, _, and -." };
+    return { ok: false, message: "Path prefix may only contain letters, numbers, /, _, and - (e.g. screenshots/prod)." };
   }
 
   return {

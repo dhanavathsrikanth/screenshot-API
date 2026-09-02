@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardTopNav } from "@/components/dashboard/top-nav";
 import {
   DashboardSidebar,
-  MobileSidebarButton,
   MobileSidebar,
 } from "@/components/dashboard/sidebar";
 import { UpgradeDialogProvider } from "@/components/upgrade-dialog-provider";
@@ -28,11 +26,9 @@ export function DashboardLayoutClient({
 
   return (
     <UpgradeDialogProvider currentPlan={plan} currentProductId={currentProductId}>
-      <DashboardTopNav plan={plan} />
-
-      <div className="relative min-h-[calc(100vh-3.5rem)]">
+      <div className="flex min-h-screen bg-[var(--background)]">
         <DashboardSidebar plan={plan} isAdmin={isAdmin} />
-        <MobileSidebarButton onClick={() => setMobileOpen(true)} />
+
         <MobileSidebar
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
@@ -40,11 +36,28 @@ export function DashboardLayoutClient({
           isAdmin={isAdmin}
         />
 
-        <div className="lg:pl-64">
-          <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-            <DataAccessBanner status={dataAccess} />
-            <div className="dashboard-page">{children}</div>
-          </div>
+        {/* Mobile top bar — minimal, not fixed */}
+        <div className="flex flex-1 flex-col lg:pl-64 min-w-0">
+          <header className="flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-4 lg:hidden">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--ink)]"
+              aria-label="Open navigation"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
+            <span className="text-sm font-bold tracking-tight">ScreenshotAPI</span>
+            <span className="h-9 w-9" aria-hidden />
+          </header>
+
+          <main className="flex-1">
+            <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
+              <DataAccessBanner status={dataAccess} />
+              <div className="dashboard-page">{children}</div>
+            </div>
+          </main>
         </div>
       </div>
     </UpgradeDialogProvider>

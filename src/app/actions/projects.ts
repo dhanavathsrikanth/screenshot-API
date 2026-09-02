@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { trackServerEvent } from "@/lib/posthog";
 
 /** Returns true when the project belongs to the user. */
@@ -167,14 +167,25 @@ export async function createProject(name: string): Promise<ProjectRow> {
   if (!trimmed) throw new Error("Project name is required.");
   if (trimmed.length > 64) throw new Error("Project name must be 64 characters or fewer.");
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
+
+  // Ensure users row exists — dashboard creates projects before Clerk webhook syncs.
+  await supabase.from("users").upsert({ id: userId }, { onConflict: "id", ignoreDuplicates: false }).then(() => {}, () => {});
+
   const { data, error } = await supabase
     .from("projects")
     .insert({ user_id: userId, name: trimmed })
     .select("id, name, slug, plan, monthly_limit, created_at")
     .single();
 
-  if (error) throw error;
+  if (error) {
+    const msg = (error as { message?: string }).message ?? "Failed to create project.";
+    const code = (error as { code?: string }).code;
+    if (code === "23505") throw new Error("A project with that name already exists.");
+    if (code === "23503") throw new Error("Account setup incomplete — please refresh and try again.");
+    if (code === "42501") throw new Error("Permission error — please sign out and sign in again.");
+    throw new Error(msg);
+  }
 
   // Activation funnel: project_created (blueprint §16).
   await trackServerEvent({
@@ -194,14 +205,19 @@ export async function renameProject(projectId: string, name: string): Promise<vo
   if (!trimmed) throw new Error("Project name is required.");
   if (trimmed.length > 64) throw new Error("Project name must be 64 characters or fewer.");
 
-  const supabase = await createClient();
+  if (!(await verifyProjectOwnership(userId, projectId))) throw new Error("Project not found.");
+
+  const supabase = createServiceClient();
   const { error } = await supabase
     .from("projects")
     .update({ name: trimmed, updated_at: new Date().toISOString() })
     .eq("id", projectId)
     .eq("user_id", userId);
 
-  if (error) throw error;
+  if (error) {
+    const msg = (error as { message?: string }).message ?? "Failed to rename project.";
+    throw new Error(msg);
+  }
 
   await trackServerEvent({
     userId,

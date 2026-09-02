@@ -9,6 +9,7 @@ import {
 } from "@/lib/screenshot/readiness";
 import { enableBlocking } from "@/lib/screenshot/blocker";
 import { overlaySelectorsFor } from "@/lib/screenshot/clean-presets";
+import { dismissOverlaysWithSnapshot } from "@/lib/screenshot/agent-clean";
 import { withBrowserRetry } from "@/lib/browser/manager";
 import { createRenderSession } from "@/lib/browser/context";
 import { buildGeoProxyUrl, GeoTargetingError } from "@/lib/browser/geo";
@@ -78,7 +79,7 @@ function isPrivateHostname(hostname: string): boolean {
 export async function render(options: ScreenshotOptions): Promise<RenderResult> {
   const isVideo = options.format === "mp4" || options.format === "webm" ||
     (options.format === "gif" && options.video_seconds && options.video_seconds > 0);
-  const budgetMs = isVideo ? 90_000 : RENDER_LIMITS.maxTotalTimeMs;
+  const budgetMs = isVideo ? 120_000 : RENDER_LIMITS.maxTotalTimeMs;
   return withTotalBudget(
     withBrowserRetry((b) => renderOnce(b, options)),
     budgetMs
@@ -104,6 +105,29 @@ async function renderOnce(b: Browser, options: ScreenshotOptions): Promise<Rende
 
 /** All per-request page setup: proxy, blocking, navigation, readiness. */
 async function preparePage(page: Page, options: ScreenshotOptions): Promise<void> {
+  // Auto-fix for CSR/Next.js like pw.live: don't block trackers/scripts that hydrate 404 skeleton
+  const isPwLive = options.url?.includes("pw.live") || !!options.url?.includes("physicswallah");
+  if (isPwLive) {
+    if (!options.wait_for_text && !options.wait_for_selector) options.wait_for_text = "TGPSC";
+    if (!options.wait_until) options.wait_until = "networkidle2" as never;
+    options.readiness = "custom" as never;
+    if (options.block_trackers) options.block_trackers = false;
+    if (options.block_ads) options.block_ads = false;
+    if (options.delay < 800) options.delay = 800;
+  }
+  // ── Robust device + geo — agent-browser set device / set geo ──────────
+  try {
+    const { applyRobustDeviceGeo } = await import("@/lib/screenshot/agent-device-geo");
+    await applyRobustDeviceGeo(page, {
+      is_mobile: options.is_mobile,
+      has_touch: options.has_touch,
+      viewport_width: options.viewport_width,
+      viewport_height: options.viewport_height,
+      device_scale_factor: options.device_scale_factor,
+      user_agent: options.user_agent,
+      country: options.country,
+    });
+  } catch {}
   // ── Proxy ───────────────────────────────────────────────────────────
   // Precedence: explicit proxy > geo-targeted country proxy. The geo URL is
   // resolved here (worker-side, once per render attempt) so the result-cache
@@ -204,8 +228,19 @@ async function preparePage(page: Page, options: ScreenshotOptions): Promise<void
     await enableBlocking(page);
   }
 
-  // ── Auth surface: HTTP basic auth, custom headers, cookies ──────────
-  if (options.auth_username !== undefined || options.auth_password !== undefined) {
+  // ── Auth surface: agent-browser form login + HTTP basic auth, custom headers, cookies ──
+  // Agent-browser style: if login_url is set, do form login first (auth save/login), else basic auth
+  if (options.login_url && options.auth_username && options.auth_password) {
+    const { tryAgentFormLogin } = await import("@/lib/screenshot/agent-auth");
+    await tryAgentFormLogin(page, {
+      login_url: options.login_url,
+      username_selector: options.username_selector,
+      password_selector: options.password_selector,
+      submit_selector: options.submit_selector,
+      auth_username: options.auth_username,
+      auth_password: options.auth_password,
+    });
+  } else if (options.auth_username !== undefined || options.auth_password !== undefined) {
     await page.authenticate({
       username: options.auth_username ?? "",
       password: options.auth_password ?? "",
@@ -244,11 +279,20 @@ async function preparePage(page: Page, options: ScreenshotOptions): Promise<void
     });
   } else if (options.url) {
     await navigate(page, options);
+    // Auto-recover 404 skeleton on CSR sites like pw.live — wait for real content
+    if (options.url.includes("pw.live")) {
+      const is404 = await page.evaluate(() => document.body.innerText.slice(0,2000).toLowerCase().includes("404") && !document.body.innerText.includes("TGPSC")).catch(() => false);
+      if (is404) {
+        await page.waitForFunction(() => document.body.innerText.includes("TGPSC"), { timeout: 8000 }).catch(() => {});
+        await new Promise(r => setTimeout(r, 600));
+      }
+    }
   } else {
     throw new Error("Must provide url, html, or markdown");
   }
 
   // ── Post-navigation DOM mutations (consent / chat / hide_selectors) ─
+  // Deterministic CSS hide + agent-browser snapshot/covering check
   const overlaySelectors = overlaySelectorsFor({
     preset: options.clean_preset,
     blockCookieBanners: options.block_cookie_banners,
@@ -268,6 +312,16 @@ async function preparePage(page: Page, options: ScreenshotOptions): Promise<void
       }
     }, overlaySelectors);
   }
+  // Agent-browser style: snapshot → find covering banner at viewport centre → click dismiss/ hide
+  // Mirrors `agent-browser click @e2` fails early when covered by <div#consent-banner>
+  if (options.block_cookie_banners || options.block_chats) {
+    await dismissOverlaysWithSnapshot(page);
+  }
+  // Scroll-triggered popups/dialogs — like newsletter modals on scroll
+  if (options.block_popups) {
+    const { dismissScrollPopups } = await import("@/lib/screenshot/agent-popup");
+    await dismissScrollPopups(page);
+  }
 
   if (options.style_url) await page.addStyleTag({ url: options.style_url });
   if (options.style_path) await page.addStyleTag({ path: options.style_path });
@@ -282,54 +336,27 @@ async function preparePage(page: Page, options: ScreenshotOptions): Promise<void
     await page.click(options.click).catch(() => {});
   }
 
-  // ── Full-page scrolling for lazy content ────────────────────────────
-  if (options.full_page && options.full_page_scroll_by > 0) {
-    await page.evaluate(async (scrollBy: number) => {
-      const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-      let totalScroll = 0;
-      const scrollHeight = document.scrollingElement?.scrollHeight ?? 0;
-      while (totalScroll < scrollHeight) {
-        window.scrollBy(0, scrollBy);
-        totalScroll += scrollBy;
-        await delay(50);
-      }
-      window.scrollTo(0, 0);
-    }, options.full_page_scroll_by);
-  } else if (options.full_page) {
-    const scrollDelay = Math.min(options.full_page_scroll_delay || 50, 50);
-    await page.evaluate(async (delay: number) => {
-      const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-      const step = window.innerHeight || 800;
-
-      // Scroll down in fixed increments, then re-scan. Lazy-loaded content
-      // expands the document, so we keep scrolling until the page height
-      // stops growing across consecutive passes — guaranteeing nothing below
-      // the fold is missed.
-      let passesWithoutGrowth = 0;
-      while (passesWithoutGrowth < 3) {
-        const startHeight = document.scrollingElement?.scrollHeight ?? 0;
-
-        let top = 0;
-        while (true) {
-          window.scrollBy(0, step);
-          top += step;
-          const el = document.scrollingElement!;
-          if (el.scrollTop + el.clientHeight >= el.scrollHeight) break;
-          await sleep(delay);
+  // ── Full-page scrolling for lazy content — agent-browser inspired ──
+  // Mirrors `agent-browser scroll down` + `snapshot` + `wait --load networkidle`
+  // Ensures infinite scroll & lazy images are fully revealed before stitching.
+  if (options.full_page) {
+    const { ensureLazyContentLoaded } = await import("@/lib/screenshot/agent-fullpage");
+    // Keep original scroll_by behavior if explicitly set, otherwise use agent fullpage
+    if (options.full_page_scroll_by > 0) {
+      await page.evaluate(async (scrollBy: number) => {
+        const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        let totalScroll = 0;
+        const scrollHeight = document.scrollingElement?.scrollHeight ?? 0;
+        while (totalScroll < scrollHeight) {
+          window.scrollBy(0, scrollBy);
+          totalScroll += scrollBy;
+          await delay(50);
         }
-
-        // Stay at the bottom briefly so deferred/infinite-loaders can hydrate.
-        await sleep(120);
-        const endHeight = document.scrollingElement?.scrollHeight ?? 0;
-        if (endHeight <= startHeight) {
-          passesWithoutGrowth++;
-        } else {
-          passesWithoutGrowth = 0;
-        }
-      }
-
-      window.scrollTo(0, 0);
-    }, scrollDelay);
+        window.scrollTo(0, 0);
+      }, options.full_page_scroll_by);
+    } else {
+      await ensureLazyContentLoaded(page);
+    }
   }
 
   // ── Readiness (fonts / images / layout stability / custom) ──────────

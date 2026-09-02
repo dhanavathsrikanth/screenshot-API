@@ -524,45 +524,28 @@ export function UpgradePrompt({ data }: { data: { plan: string; monthlyUsed: num
 
   if (!isFree && usagePct < 60 && !data.recommendedPlan) return null;
 
-  const planPrices: Record<string, string> = { starter: "$9/mo", pro: "$49/mo", scale: "$79/mo" };
-  const planLimits: Record<string, string> = { starter: "2,500", pro: "15,000", scale: "50,000" };
   const targetPlan = isFree ? "starter" : (data.recommendedPlan ?? "pro");
 
   return (
-    <div className="rounded-xl border border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20 p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4 flex-1">
-          <div className="p-2.5 rounded-lg bg-orange-100 dark:bg-orange-900/50">
-            <svg className="h-6 w-6 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-orange-900 dark:text-orange-200">
-              {isFree
-                ? "Ready to ship screenshots to users?"
-                : usagePct >= 80
-                  ? "You're growing fast!"
-                  : "Unlock more power"}
-            </h3>
-            <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
-              {isFree
-                ? "Starter ($9) adds full-page, PDF, 2,500 captures/month, and 30-day history."
-                : usagePct >= 80
-                  ? `You've used ${usagePct}% of your ${data.plan} plan. Upgrade to keep scaling.`
-                  : `Upgrade to ${targetPlan} for higher limits and lower per-screenshot costs.`}
-            </p>
-            <div className="mt-3 flex items-center gap-3 text-sm">
-              <span className="font-semibold capitalize">{targetPlan}</span>
-              <span className="text-[var(--dim)]">{planPrices[targetPlan]}</span>
-              <span className="text-[var(--dim)]">({planLimits[targetPlan]} screenshots/mo)</span>
-            </div>
-          </div>
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+          </svg>
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">
+            {isFree ? "Upgrade to Starter — $9" : usagePct >= 80 ? `${usagePct}% used — upgrade?` : `Upgrade to ${targetPlan}`}
+          </p>
+          <p className="text-xs text-[var(--dim)] truncate">
+            <a href="/docs#pricing" className="underline decoration-[var(--border)] underline-offset-4 hover:text-[var(--ink)]">Pricing</a>
+            <span className="mx-1">·</span>
+            <a href="/docs" className="underline decoration-[var(--border)] underline-offset-4 hover:text-[var(--ink)]">Docs</a>
+          </p>
         </div>
-        {(isFree || usagePct >= 60 || data.recommendedPlan) && (
-          <UpgradeButton className="shrink-0 whitespace-nowrap" />
-        )}
       </div>
+      <UpgradeButton className="shrink-0" />
     </div>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { UserButton } from "@clerk/nextjs";
 import { useUpgradeDialog } from "@/components/upgrade-dialog-provider";
 import { getPlanBadgeClass, getPlanLabel } from "@/lib/plan-display";
+import { ProjectSwitcher } from "./project-switcher";
 
 const navigation = [
   {
@@ -66,6 +68,15 @@ const navigation = [
         icon: (
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3.75 3h12m-.75 4.5h.75m-.75 3h.75m-.75 3h.75" />
+          </svg>
+        ),
+      },
+      {
+        label: "Storage",
+        href: "/dashboard/storage",
+        icon: (
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m3.75 9.75h13.5m-13.5 3h13.5" />
           </svg>
         ),
       },
@@ -135,10 +146,23 @@ function SidebarContent({
   isAdmin?: boolean;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { openUpgradeDialog } = useUpgradeDialog();
 
+  const workspaceMatch = pathname.match(/^\/dashboard\/projects\/([^/]+)/);
+  const workspaceId = workspaceMatch?.[1] ?? searchParams.get("project");
+  const isWorkspace = !!workspaceMatch;
+
   const isActive = (href: string) => {
-    if (href === "/dashboard") return pathname === "/dashboard";
+    const [path, query] = href.split("?");
+    if (query?.startsWith("project=")) {
+      const qProject = query.split("=")[1];
+      return pathname === path && searchParams.get("project") === qProject;
+    }
+    if (href === "/dashboard") return pathname === "/dashboard" && !workspaceId;
+    if (href.startsWith("/dashboard/projects/") && workspaceId) {
+      return pathname === href || pathname.startsWith(href + "/");
+    }
     return pathname.startsWith(href);
   };
 
@@ -151,16 +175,68 @@ function SidebarContent({
   const iconActive = "text-orange-500";
   const iconInactive = "text-[var(--dim)]";
 
+  const workspaceNav = workspaceId
+    ? [
+        {
+          label: "Workspace",
+          links: [
+            { label: "Overview", href: `/dashboard/projects/${workspaceId}`, icon: navigation[0].links[0].icon },
+            { label: "Analytics", href: `/dashboard/projects/${workspaceId}/analytics`, icon: navigation[0].links[1].icon },
+            { label: "History", href: `/dashboard/history?project=${workspaceId}`, icon: navigation[0].links[2].icon },
+            { label: "API Keys", href: `/dashboard/api-keys?project=${workspaceId}`, icon: navigation[1].links[1].icon },
+            { label: "Webhooks", href: `/dashboard/webhooks?project=${workspaceId}`, icon: navigation[1].links[4].icon },
+            { label: "Storage", href: `/dashboard/storage?project=${workspaceId}`, icon: navigation[1].links[3].icon },
+            { label: "Playground", href: `/dashboard/playground?project=${workspaceId}`, icon: navigation[1].links[0].icon },
+          ],
+        },
+      ]
+    : [];
+
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto px-3 py-4">
+      <div className="pt-3">
+        <ProjectSwitcher />
+      </div>
+      {isWorkspace && workspaceId && (
+        <div className="mx-3 mb-2 rounded-xl border border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/20 p-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-orange-700 dark:text-orange-300">Workspace</p>
+          <p className="mt-0.5 text-xs text-orange-800/80 dark:text-orange-300/80 leading-tight">All items below are scoped to this workspace. Data is isolated by project.</p>
+          <Link href="/dashboard/projects" onClick={onLinkClick} className="mt-2 inline-flex w-full items-center justify-center rounded-lg border border-orange-200 bg-white px-2.5 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
+            ← All workspaces
+          </Link>
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+        {isWorkspace && workspaceNav.length > 0 && (
+          <>
+            {workspaceNav.map((section) => (
+              <div key={section.label}>
+                <nav className="space-y-1">
+                  <p className="section-title px-3 mb-2">{section.label}</p>
+                  {section.links.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={onLinkClick}
+                      className={`${linkBase} ${isActive(link.href) ? linkActive : linkInactive}`}
+                    >
+                      <span className={isActive(link.href) ? iconActive : iconInactive}>{link.icon}</span>
+                      {link.label}
+                    </Link>
+                  ))}
+                </nav>
+                <div className="my-4 border-t border-[var(--border)]" />
+              </div>
+            ))}
+          </>
+        )}
         {navigation.map((section, sectionIndex) => (
           <div key={section.label}>
             {sectionIndex > 0 && (
               <div className="my-4 border-t border-[var(--border)]" />
             )}
             <nav className="space-y-1">
-              <p className="section-title px-3 mb-2">{section.label}</p>
+              <p className="section-title px-3 mb-2">{section.label}{isWorkspace && section.label !== "Account" ? <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-[var(--dim)]">· global</span> : null}</p>
               {section.links.map((link) => (
                 <Link
                   key={link.href}
@@ -168,7 +244,7 @@ function SidebarContent({
                   onClick={onLinkClick}
                   className={`${linkBase} ${
                     isActive(link.href) ? linkActive : linkInactive
-                  }`}
+                  } ${isWorkspace && section.label !== "Account" ? "opacity-70" : ""}`}
                 >
                   <span className={isActive(link.href) ? iconActive : iconInactive}>
                     {link.icon}
@@ -200,34 +276,67 @@ function SidebarContent({
         ))}
       </div>
 
-      {/* Bottom section: Plan badge + Upgrade button */}
-      <div className="border-t border-[var(--border)] bg-[var(--muted)]/50 p-3 space-y-2">
-        <div className="flex items-center justify-between px-2">
-          <span className="section-title">Plan</span>
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${getPlanBadgeClass(plan)}`}>
-            {getPlanLabel(plan)}
-          </span>
+      {/* Bottom section: Plan + User */}
+      <div className="border-t border-[var(--border)] bg-[var(--muted)]/40 p-3 space-y-3">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--dim)]">Plan</span>
+            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${getPlanBadgeClass(plan)}`}>
+              {getPlanLabel(plan)}
+            </span>
+          </div>
+          {(!plan || plan === "free") ? (
+            <button
+              onClick={() => { openUpgradeDialog(); onLinkClick?.(); }}
+              className="btn-primary mt-2.5 w-full text-xs"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+              Upgrade — $9/mo
+            </button>
+          ) : (
+            <Link
+              href="/dashboard/plan"
+              onClick={onLinkClick}
+              className="btn-secondary mt-2.5 w-full text-xs"
+            >
+              Manage billing
+            </Link>
+          )}
         </div>
-        {(!plan || plan === "free") && (
-          <button
-            onClick={() => { openUpgradeDialog(); onLinkClick?.(); }}
-            className="btn-primary w-full"
+
+        <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5">
+          <UserButton
+            appearance={{
+              elements: { avatarBox: "h-8 w-8" },
+            }}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium leading-none text-[var(--ink)]">Account</p>
+            <Link
+              href="/"
+              onClick={onLinkClick}
+              className="inline-flex items-center gap-1 text-[11px] text-[var(--dim)] hover:text-[var(--ink)]"
+            >
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+              </svg>
+              Back to home
+            </Link>
+          </div>
+          <Link
+            href="/dashboard/settings"
+            onClick={onLinkClick}
+            className="rounded-lg p-1.5 text-[var(--dim)] hover:bg-[var(--muted)] hover:text-[var(--ink)]"
+            aria-label="Settings"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
             </svg>
-            Upgrade to Starter — $9
-          </button>
-        )}
-        {plan && plan !== "free" && (
-          <Link
-            href="/dashboard/plan"
-            onClick={onLinkClick}
-            className="btn-secondary w-full"
-          >
-            View Plans
           </Link>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -235,17 +344,20 @@ function SidebarContent({
 
 export function DashboardSidebar({ plan, isAdmin }: { plan?: string; isAdmin?: boolean }) {
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-[var(--border)] bg-[var(--background)] lg:fixed lg:inset-y-0 lg:top-14 z-30 overflow-hidden">
-      <div className="flex h-14 items-center border-b border-[var(--border)] px-5 flex-shrink-0">
-        <Link href="/" className="flex items-center gap-2 text-base font-bold tracking-tight">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-orange-600 text-white">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 border-r border-[var(--border)] bg-[var(--card)] lg:fixed lg:inset-y-0 lg:left-0 z-30 overflow-hidden">
+      <div className="flex h-[64px] items-center border-b border-[var(--border)] px-5 flex-shrink-0">
+        <Link href="/" className="flex items-center gap-2.5 text-[15px] font-bold tracking-tight">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--ink)] text-white dark:bg-white dark:text-black">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
             </svg>
           </span>
           ScreenshotAPI
         </Link>
+        <span className="ml-auto hidden xl:inline-flex items-center rounded-full bg-[var(--muted)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--dim)]">
+          Dashboard
+        </span>
       </div>
       <SidebarContent plan={plan} isAdmin={isAdmin} />
     </aside>

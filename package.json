@@ -20,6 +20,7 @@
     "@cliqz/adblocker-puppeteer": "^1.34.0",
     "@dodopayments/nextjs": "^0.3.7",
     "@duckduckgo/autoconsent": "^16.12.0",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
     "@sentry/nextjs": "^10.70.0",
     "@sparticuz/chromium": "^149.0.0",
     "@supabase/ssr": "^0.12.3",
@@ -28,6 +29,7 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "@vercel/analytics": "^2.0.1",
+    "ai": "^7.0.89",
     "bullmq": "^6.1.1",
     "dodopayments": "^2.42.2",
     "dotenv": "^17.4.2",
@@ -45,7 +47,7 @@
     "recharts": "^3.9.2",
     "sharp": "^0.35.3",
     "svix": "^1.98.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

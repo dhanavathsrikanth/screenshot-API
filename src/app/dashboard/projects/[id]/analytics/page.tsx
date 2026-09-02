@@ -120,28 +120,37 @@ export default async function ProjectAnalyticsPage({
 
   return (
     <>
-      <div className="mb-2">
-        <Link
-          href="/dashboard/projects"
-          className="inline-flex items-center gap-1 text-sm text-[var(--dim)] hover:text-[var(--ink)] transition-colors"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-          </svg>
-          All projects
+      <div className="flex items-center gap-2 text-xs text-[var(--dim)] mb-2">
+        <Link href="/dashboard/projects" className="inline-flex items-center gap-1 hover:text-[var(--ink)] transition-colors">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+          Projects
         </Link>
+        <span className="text-[var(--border)]">/</span>
+        <span className="font-medium text-[var(--ink)] truncate">{project.name}</span>
+        <span className="hidden sm:inline-flex items-center rounded-full bg-[var(--muted)] px-2 py-0.5 font-mono text-[11px]">{project.slug ?? project.id.slice(0, 8)}</span>
       </div>
 
-      <PageHeader
-        eyebrow="Project analytics"
-        title={project.name}
-        description="Usage, performance, and breakdowns scoped to this project"
-        actions={
-          <Link href={`/dashboard/history?project=${project.id}`} className="btn-secondary">
-            View history
-          </Link>
-        }
-      />
+      <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-500/[0.06] to-violet-500/[0.04] pointer-events-none" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/10 text-orange-600 ring-1 ring-orange-200 dark:ring-orange-900 text-sm font-bold">
+              {project.name.slice(0, 2).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="eyebrow text-orange-600">Project analytics</p>
+              <h1 className="text-xl font-semibold tracking-tight truncate">{project.name}</h1>
+              <p className="text-xs text-[var(--dim)]">Scoped to this project · {new Date(project.created_at).toLocaleDateString()} · {summary.apiKeyCount} keys · {summary.screenshotCount} screenshots</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Link href={`/dashboard/history?project=${project.id}`} className="btn-primary px-3 py-2 text-xs">View history</Link>
+            <Link href="/dashboard/api-keys" className="btn-secondary px-3 py-2 text-xs">Keys</Link>
+            <Link href="/dashboard/webhooks" className="btn-secondary px-3 py-2 text-xs">Webhooks</Link>
+            <Link href={`/dashboard/storage?project=${project.id}`} className="btn-secondary px-3 py-2 text-xs">Storage</Link>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Requests (30d)" value={summary.totalRequests.toLocaleString()} hint="API calls" />

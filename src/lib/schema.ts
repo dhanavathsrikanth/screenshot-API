@@ -48,6 +48,7 @@ export const ScreenshotOptionsSchema = z.object({
   block_cookie_banners: z.coerce.boolean().default(true),
   block_chats: z.coerce.boolean().default(true),
   block_trackers: z.coerce.boolean().default(true),
+  block_popups: z.coerce.boolean().default(true),
   block_images: z.coerce.boolean().default(false),
   block_fonts: z.coerce.boolean().default(false),
   block_media: z.coerce.boolean().default(false),
@@ -68,9 +69,12 @@ export const ScreenshotOptionsSchema = z.object({
   /** Extra overlay hiding. default = consent+chat CSS; strict adds newsletter popups; off = only hide_selectors. */
   clean_preset: z.enum(["default", "strict", "off"]).optional(),
   // Readiness strategy + custom readiness knobs (blueprint §9)
+  // Mirrors agent-browser wait primitives: --text, --url, --fn
   readiness: z.enum(["fast", "balanced", "complete", "custom"]).optional(),
   wait_for_selector: z.string().optional(),
   wait_for_condition: z.string().optional(),
+  wait_for_text: z.string().max(500).optional(),
+  wait_for_url: z.string().max(500).optional(),
   // Device emulation (blueprint §27)
   user_agent: z.string().optional(),
   is_mobile: z.coerce.boolean().default(false),
@@ -120,6 +124,11 @@ export const ScreenshotOptionsSchema = z.object({
   headers: z.preprocess(parseJsonEncoded, z.record(z.string(), z.string()).optional()),
   auth_username: z.string().max(256).optional(),
   auth_password: z.string().max(1024).optional(),
+  // Agent-browser auth: form login (mirrors `agent-browser auth login` + `auth save`)
+  login_url: z.string().url().optional(),
+  username_selector: z.string().max(500).optional(),
+  password_selector: z.string().max(500).optional(),
+  submit_selector: z.string().max(500).optional(),
   wait_until: WaitUntilSchema,
   // pdfPages is used for credit calculation - actual page count may differ after rendering
   pdfPages: z.coerce.number().int().min(1).default(1),
@@ -127,6 +136,11 @@ export const ScreenshotOptionsSchema = z.object({
   video_seconds: z.coerce.number().int().min(1).max(30).optional(),
   video_fps: z.coerce.number().int().min(1).max(30).default(5),
   video_speed: z.coerce.number().int().min(1).max(4).default(1),
+  // Debug: agent-browser screenshot --annotate + highlight
+  debug_annotate: z.coerce.boolean().default(false),
+  // Agent-browser features
+  a11y_check: z.coerce.boolean().default(true),
+  chat_input: z.string().max(500).optional(),
 });
 
 export const BulkScreenshotSchema = z.object({

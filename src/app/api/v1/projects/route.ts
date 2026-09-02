@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceClient();
+    await supabase.from("users").upsert({ id: authCtx.userId }, { onConflict: "id", ignoreDuplicates: false }).then(() => {}, () => {});
     const { data, error } = await supabase
       .from("projects")
       .insert({ user_id: authCtx.userId, name })
@@ -100,7 +101,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return v1Err(500, "internal_error", error.message, requestId);
+      const friendly = error.code === "23505" ? "A project with that name already exists." : error.code === "23503" ? "Account setup incomplete — please refresh." : error.message;
+      return v1Err(500, "internal_error", friendly, requestId);
     }
 
     // Activation funnel: project_created (blueprint §16).

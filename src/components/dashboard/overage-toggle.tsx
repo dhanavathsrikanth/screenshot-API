@@ -17,24 +17,24 @@ export function OverageToggle({
 
   if (!isPaid) {
     return (
-      <div className="card p-4">
-        <p className="text-sm font-medium">Overage billing</p>
+      <div className="card p-5">
+        <p className="text-sm font-semibold">Overage</p>
         <p className="mt-1 text-xs text-[var(--dim)]">
-          Upgrade to a paid plan to keep capturing after you hit your monthly limit. Extra renders bill at your plan&apos;s overage rate.
+          Paid plans only. <a href="/docs#pricing" className="underline hover:text-[var(--ink)]">Docs</a>
         </p>
       </div>
     );
   }
 
   return (
-    <div className="card p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium">Overage billing</p>
+    <div className="card p-5">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Overage</p>
           <p className="mt-1 text-xs text-[var(--dim)]">
-            When enabled, captures continue after your monthly limit and bill at your plan&apos;s overage rate instead of stopping.
+            Continue past limit, billed per extra. <a href="/docs#pricing" className="underline hover:text-[var(--ink)]">Docs</a>
           </p>
-          {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{error}</p>}
         </div>
         <button
           type="button"
@@ -64,8 +64,8 @@ export function OverageToggle({
           />
         </button>
       </div>
-      <p className="mt-2 text-[11px] text-[var(--dim)]">
-        Status: <span className="font-medium text-[var(--ink)]">{value ? "On — overages allowed" : "Off — hard stop at limit"}</span>
+      <p className="mt-3 text-[11px] text-[var(--dim)]">
+        {value ? "On" : "Off"} · {value ? "overages allowed" : "hard stop"}
       </p>
     </div>
   );

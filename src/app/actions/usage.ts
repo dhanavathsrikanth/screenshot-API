@@ -91,7 +91,9 @@ export async function logScreenshotUsage(params: {
 }
 
 export async function getUsageStats(userId: string) {
-  const supabase = await createClient();
+  // Use service role for quota so RLS/JWT mismatch (Clerk ↔ Supabase) never
+  // hides the row. History already uses this pattern — dashboard must too.
+  const supabase = createServiceClient();
   const quotaResult = await supabase
     .from("user_quotas")
     .select("plan, monthly_limit, monthly_used, quota_reset_at, credit_balance, credits_used_this_cycle, credits_granted_this_cycle, top_up_balance, overage_enabled")
@@ -99,9 +101,30 @@ export async function getUsageStats(userId: string) {
     .single();
 
   if (quotaResult.error && quotaResult.error.code !== "PGRST116") {
+    // Fallback to authed client before throwing — handles row-level edge cases
+    try {
+      const authed = await createClient();
+      const retry = await authed
+        .from("user_quotas")
+        .select("plan, monthly_limit, monthly_used, quota_reset_at, credit_balance, credits_used_this_cycle, credits_granted_this_cycle, top_up_balance, overage_enabled")
+        .eq("user_id", userId)
+        .single();
+      if (!retry.error && retry.data) {
+        // use retry data
+        return buildStatsFromQuota(retry.data, supabase, userId);
+      }
+    } catch {}
     throw new Error(quotaResult.error.message);
   }
 
+  return buildStatsFromQuota(quotaResult.data, supabase, userId);
+}
+
+async function buildStatsFromQuota(
+  q: { plan?: string; monthly_limit?: number; monthly_used?: number; quota_reset_at?: string | null; credit_balance?: number; credits_used_this_cycle?: number; credits_granted_this_cycle?: number; top_up_balance?: number; overage_enabled?: boolean } | null,
+  supabase: ReturnType<typeof createServiceClient>,
+  userId: string
+) {
   let totalCalls = 0;
   let cachedCalls = 0;
 
@@ -130,7 +153,6 @@ export async function getUsageStats(userId: string) {
   // The monthly window (and free-plan credit grant) only rolls over lazily inside
   // try_deduct_credits/adjust_credits on the next API request. If it has already
   // expired, show the reset values so the dashboard never displays stale counters.
-  const q = quotaResult.data;
   const windowExpired = q?.quota_reset_at ? new Date(q.quota_reset_at).getTime() <= Date.now() : false;
   const plan = q?.plan ?? "free";
   const freeRefill = q?.monthly_limit ?? 100;
@@ -149,6 +171,25 @@ export async function getUsageStats(userId: string) {
     }
   }
 
+  // Cross-check: sum of credits_used from api_key_logs for this cycle — if the
+  // quota row is stale (cache race), surface the higher value so consumed credits
+  // are never under-reported.
+  try {
+    const cycleStart = q?.quota_reset_at
+      ? new Date(new Date(q.quota_reset_at).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentLogs } = await supabase
+      .from("api_key_logs")
+      .select("credits_used")
+      .eq("user_id", userId)
+      .gte("created_at", cycleStart);
+    const summed = (recentLogs ?? []).reduce((s: number, r: { credits_used?: number }) => s + (r.credits_used ?? 0), 0);
+    if (summed > creditsUsedThisCycle) {
+      // Prefer the audit sum when it exceeds the quota counter (eventual consistency window)
+      creditsUsedThisCycle = summed;
+    }
+  } catch {}
+
   return {
     plan,
     monthlyUsed,
@@ -160,6 +201,7 @@ export async function getUsageStats(userId: string) {
     overageEnabled: q?.overage_enabled ?? false,
     cacheHitRate,
     totalCalls,
+    quotaResetAt: q?.quota_reset_at ?? null,
   };
 }
 

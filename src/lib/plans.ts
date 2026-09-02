@@ -20,7 +20,7 @@ export interface PlanLimits {
   elementCapture: boolean;
   /** Country-targeted rendering via the residential proxy gateway (Pro+). */
   geoTargeting: boolean;
-  /** Video/GIF capture (format=mp4|gif|webm, Scale only). */
+  /** Video/GIF capture (format=mp4|gif|webm, Pro+). */
   videoCapture: boolean;
   /** Max seconds per video capture; 0 when videoCapture is false. */
   maxVideoSeconds: number;
@@ -69,7 +69,7 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     monthlyScreenshots: 15000,
     apiKeys: 25,
     rateLimitPerMinute: 120,
-    formats: ["png", "jpeg", "webp", "pdf"],
+    formats: ["png", "jpeg", "webp", "pdf", "gif", "mp4", "webm"],
     adBlocking: true,
     cookieBlocking: true,
     trackerBlocking: true,
@@ -77,8 +77,8 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     fullPage: true,
     elementCapture: true,
     geoTargeting: true,
-    videoCapture: false,
-    maxVideoSeconds: 0,
+    videoCapture: true,
+    maxVideoSeconds: 30,
     retentionDays: 90,
     customerUpload: true,
   },
@@ -345,9 +345,9 @@ export function checkRenderFeatureGates(
 ): PlanGateFailure | null {
   if (!isFormatAllowed(options.format, plan)) {
     const required: PaidPlanId =
-      options.format === "gif" || options.format === "mp4" || options.format === "webm" ? "scale" : "starter";
+      options.format === "gif" || options.format === "mp4" || options.format === "webm" ? "pro" : "starter";
     return {
-      message: `Format "${options.format}" requires the ${required === "scale" ? "Scale" : "Starter"} plan or above.`,
+      message: `Format "${options.format}" requires the ${required === "pro" ? "Pro" : "Starter"} plan or above.`,
       required_plan: required,
       feature: "format",
     };
@@ -376,8 +376,8 @@ export function checkRenderFeatureGates(
   if (options.video_seconds && options.video_seconds > 0) {
     if (!isVideoCaptureAllowed(plan)) {
       return {
-        message: "Video capture requires the Scale plan.",
-        required_plan: "scale",
+        message: "Video capture requires the Pro plan.",
+        required_plan: "pro",
         feature: "video",
       };
     }
@@ -385,7 +385,7 @@ export function checkRenderFeatureGates(
     if (options.video_seconds > maxSeconds) {
       return {
         message: `Video captures are limited to ${maxSeconds} seconds on your plan.`,
-        required_plan: "scale",
+        required_plan: "pro",
         feature: "video",
       };
     }

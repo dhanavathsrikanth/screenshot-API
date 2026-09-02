@@ -147,6 +147,51 @@ export async function waitForSelector(page: Page, selector: string, timeoutMs: n
   }
 }
 
+/** Wait for text substring to appear — mirrors `agent-browser wait --text "Welcome"` */
+export async function waitForText(page: Page, text: string, timeoutMs: number): Promise<boolean> {
+  try {
+    await page.waitForFunction(
+      (t: string) => document.body.innerText.includes(t),
+      { timeout: timeoutMs },
+      text
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Wait for URL pattern — mirrors agent-browser wait --url with ** wildcards */
+export async function waitForUrl(page: Page, pattern: string, timeoutMs: number): Promise<boolean> {
+  // ** -> .* , * -> [^/]* for simple glob
+  const globToRegex = (glob: string) => {
+    const esc = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("^" + esc.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$");
+  };
+  const deadline = Date.now() + timeoutMs;
+  try {
+    // Fast path: already matches
+    if (globToRegex(pattern).test(page.url())) return true;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        page.off("framenavigated", onNav);
+        reject(new Error("timeout"));
+      }, Math.max(1, deadline - Date.now()));
+      const onNav = () => {
+        if (globToRegex(pattern).test(page.url())) {
+          clearTimeout(timer);
+          page.off("framenavigated", onNav);
+          resolve();
+        }
+      };
+      page.on("framenavigated", onNav);
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Evaluate a JS expression in the page and wait until it is truthy. */
 export async function waitForCondition(page: Page, expression: string, timeoutMs: number): Promise<void> {
   try {
@@ -171,6 +216,13 @@ export async function applyReadiness(page: Page, options: ScreenshotOptions): Pr
   }
 
   if (mode === "custom") {
+    // agent-browser wait primitives: --text, --url, selector, --fn
+    if (options.wait_for_text) {
+      await waitForText(page, options.wait_for_text, timeoutMs);
+    }
+    if (options.wait_for_url) {
+      await waitForUrl(page, options.wait_for_url, timeoutMs);
+    }
     if (options.wait_for_selector) {
       await waitForSelector(page, options.wait_for_selector, timeoutMs);
     }
@@ -182,5 +234,11 @@ export async function applyReadiness(page: Page, options: ScreenshotOptions): Pr
   if (options.delay > 0) {
     const { sleep } = await import("@/lib/utils");
     await sleep(Math.min(options.delay, 1000));
+  }
+  // If any wait_* was requested but readiness wasn't custom, ensure it still ran
+  // (fallback for direct /api/take callers that don't set readiness=custom)
+  if (mode !== "custom") {
+    if (options.wait_for_text) await waitForText(page, options.wait_for_text, timeoutMs);
+    if (options.wait_for_url) await waitForUrl(page, options.wait_for_url, timeoutMs);
   }
 }

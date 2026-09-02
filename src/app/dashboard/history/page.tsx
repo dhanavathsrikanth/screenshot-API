@@ -1,10 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getScreenshotHistory, getScreenshotHistoryStats } from "@/app/actions/usage";
 import type { ScreenshotRow } from "@/lib/history-types";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { HistoryBrowser, type HistoryError } from "@/components/dashboard/history-browser";
 import { DataAccessBanner } from "@/components/dashboard/data-access-banner";
+import { verifyProjectOwnership } from "@/app/actions/projects";
+import Link from "next/link";
 
 const formatBytes = (bytes: number) => {
   if (!bytes) return "0 B";
@@ -21,6 +23,11 @@ export default async function HistoryPage({
   if (!userId) redirect("/sign-in");
 
   const { project: projectId } = await searchParams;
+
+  if (projectId) {
+    const owned = await verifyProjectOwnership(userId, projectId);
+    if (!owned) notFound();
+  }
 
   let initialRows: ScreenshotRow[] = [];
   let initialError: HistoryError | null = null;
@@ -52,12 +59,24 @@ export default async function HistoryPage({
   const apiPct = stats.total > 0 ? Math.round((stats.viaApi / stats.total) * 100) : 0;
   const cachedPct = stats.total > 0 ? Math.round((stats.cachedCount / stats.total) * 100) : 0;
 
+  const isWorkspace = !!projectId;
+
   return (
     <>
+      {isWorkspace && (
+        <div className="flex items-center gap-2 text-xs text-[var(--dim)]">
+          <Link href="/dashboard/projects" className="hover:text-[var(--ink)]">Projects</Link>
+          <span className="text-[var(--border)]">/</span>
+          <Link href={`/dashboard/projects/${projectId}`} className="hover:text-[var(--ink)]">Workspace</Link>
+          <span className="text-[var(--border)]">/</span>
+          <span className="font-medium text-[var(--ink)]">History</span>
+          <Link href={`/dashboard/projects/${projectId}`} className="ml-auto hidden sm:inline-flex rounded-full border border-[var(--border)] bg-[var(--card)] px-2.5 py-1 text-xs hover:bg-[var(--muted)]">← Workspace</Link>
+        </div>
+      )}
       <PageHeader
-        eyebrow="History"
+        eyebrow={isWorkspace ? "Workspace · History" : "History"}
         title="Screenshot History"
-        description="Every screenshot captured from the playground and API calls."
+        description={isWorkspace ? "Scoped to this workspace — only screenshots from this project’s keys are shown." : "Every screenshot captured from the playground and API calls."}
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
