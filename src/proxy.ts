@@ -29,7 +29,15 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
 
   // Signed-out users hitting the dashboard go to the sign-in page instead of
   // seeing a broken session-gated UI.
-  if (!userId && request.nextUrl.pathname.startsWith("/dashboard")) {
+  // For RSC/prefetch requests (?_rsc or RSC header) don't redirect — let the
+  // Server Component's `auth()` → `redirect()` handle it with the correct
+  // RSC payload. Otherwise the browser's `fetch(storage?_rsc=...)` gets an
+  // HTML redirect and surfaces as `Failed to load resource 404 ()` in console.
+  const isRscRequest =
+    request.headers.get("RSC") === "1" ||
+    request.headers.get("Next-Router-Prefetch") === "1" ||
+    request.nextUrl.searchParams.has("_rsc");
+  if (!userId && request.nextUrl.pathname.startsWith("/dashboard") && !isRscRequest) {
     const signInUrl = new URL("/sign-in", request.url);
     signInUrl.searchParams.set("redirect_url", request.nextUrl.pathname);
     return NextResponse.redirect(signInUrl);

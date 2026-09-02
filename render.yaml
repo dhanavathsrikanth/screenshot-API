@@ -23,7 +23,7 @@ services:
     plan: free # bump to `starter`+ to avoid the free plan's 15-min idle sleep
     region: oregon
     branch: main
-    buildCommand: npm install && npm run build
+    buildCommand: apt-get update -qq && apt-get install -y -qq ffmpeg && npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
