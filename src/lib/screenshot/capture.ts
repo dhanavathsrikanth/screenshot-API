@@ -511,9 +511,11 @@ export async function capturePage(
               options.selector = undefined;
               const { logger } = await import("@/lib/logger");
               logger.info({ event: "agent_fallback_auto_navigated", url: fb.suggestedUrl, rawInput });
+              const { ensureLazyContentLoaded: ensureFallback } = await import("@/lib/screenshot/agent-fullpage");
+              await ensureFallback(page);
+              await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+              await new Promise((r) => setTimeout(r, 120));
               if (options.full_page) {
-                const { ensureLazyContentLoaded: ensure2 } = await import("@/lib/screenshot/agent-fullpage");
-                await ensure2(page);
                 const typeFp = (options.format === "jpeg" ? "jpeg" : "png") as "png" | "jpeg";
                 const fpOpt2: import("puppeteer").ScreenshotOptions = { type: typeFp, fullPage: true, captureBeyondViewport: options.capture_beyond_viewport, fromSurface: options.from_surface, omitBackground: options.omit_background };
                 if (typeFp === "jpeg") fpOpt2.quality = options.quality;
@@ -522,8 +524,7 @@ export async function capturePage(
                 const meta = await sharp(buf).metadata().catch(() => null);
                 return { buffer: buf, format: options.format, width: meta?.width ?? 0, height: meta?.height ?? 0 };
               } else {
-                await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
-                await new Promise((r) => setTimeout(r, 120));
+                // Even viewport needs scroll top-bottom to load lazy, then back to top
                 const typeVp = (options.format === "jpeg" ? "jpeg" : "png") as "png" | "jpeg";
                 const opt: import("puppeteer").ScreenshotOptions = { type: typeVp, fullPage: false, captureBeyondViewport: options.capture_beyond_viewport, fromSurface: options.from_surface, omitBackground: options.omit_background };
                 if (typeVp === "jpeg") opt.quality = options.quality;
@@ -562,9 +563,11 @@ export async function capturePage(
                 await page.goto(linkSuggestion.abs, { waitUntil: "domcontentloaded", timeout: 10000 });
                 await new Promise((r) => setTimeout(r, 400));
                 options.selector = undefined;
+                const { ensureLazyContentLoaded: ensure3 } = await import("@/lib/screenshot/agent-fullpage");
+                await ensure3(page);
+                await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+                await new Promise((r) => setTimeout(r, 120));
                 if (options.full_page) {
-                  const { ensureLazyContentLoaded: ensure3 } = await import("@/lib/screenshot/agent-fullpage");
-                  await ensure3(page);
                   const typeFp2 = (options.format === "jpeg" ? "jpeg" : "png") as "png" | "jpeg";
                   const fpOpt3: import("puppeteer").ScreenshotOptions = { type: typeFp2, fullPage: true, captureBeyondViewport: options.capture_beyond_viewport, fromSurface: options.from_surface, omitBackground: options.omit_background };
                   if (typeFp2 === "jpeg") fpOpt3.quality = options.quality;
@@ -573,7 +576,6 @@ export async function capturePage(
                   const meta2 = await sharp2(buf2).metadata().catch(() => null);
                   return { buffer: buf2, format: options.format, width: meta2?.width ?? 0, height: meta2?.height ?? 0 };
                 } else {
-                  await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
                   const typeVp2 = (options.format === "jpeg" ? "jpeg" : "png") as "png" | "jpeg";
                   const opt2: import("puppeteer").ScreenshotOptions = { type: typeVp2, fullPage: false, captureBeyondViewport: options.capture_beyond_viewport, fromSurface: options.from_surface, omitBackground: options.omit_background };
                   if (typeVp2 === "jpeg") opt2.quality = options.quality;

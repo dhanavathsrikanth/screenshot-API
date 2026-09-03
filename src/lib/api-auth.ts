@@ -57,7 +57,12 @@ function extractApiKey(request: NextRequest): string | null {
     if (key) return key;
   }
   const apiKeyHeader = request.headers.get("x-api-key");
-  return apiKeyHeader?.trim() || null;
+  if (apiKeyHeader?.trim()) return apiKeyHeader.trim();
+  // ScreenshotOne-style GET: ?access_key=xxx or ?api_key=xxx or ?key=xxx (like https://api.screenshotone.com/take?access_key=...&url=...)
+  const qp = request.nextUrl.searchParams;
+  const qKey = qp.get("access_key") || qp.get("api_key") || qp.get("key") || qp.get("apikey");
+  if (qKey?.trim()) return qKey.trim();
+  return null;
 }
 
 export type SignedAuthFailure = "missing" | "expired" | "bad_signature" | "unknown_key";

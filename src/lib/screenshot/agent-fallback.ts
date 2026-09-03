@@ -1,5 +1,6 @@
 import type { Page, ElementHandle } from "puppeteer";
 import { logger } from "@/lib/logger";
+import { loadAgentBrowserConfig } from "@/lib/agent-browser/config";
 
 /**
  * Agent-browser inspired fallback for "capture a specific part" when deterministic
@@ -23,9 +24,13 @@ export interface AgentFallbackResult {
 }
 
 function isAgentBrowserAvailable(): boolean {
-  // Rust binary not present on Win dev, but will be in Docker prod.
-  // We keep Puppeteer-emulated fallback so local dev still works.
-  return false;
+  // Real detection: use the shared binary discovery so dev Windows and prod
+  // Docker both work, instead of hardcoding Linux paths.
+  try {
+    return !!loadAgentBrowserConfig().binaryPath;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -100,15 +105,35 @@ export async function tryAgentBrowserFallback(
     logger.warn({ event: "agent_fallback_snapshot_failed", error: e instanceof Error ? e.message : String(e) });
   }
 
-  // 3) If agent-browser binary is available, shell out to real `agent-browser chat`
-  //    (prod Docker). Keep as optional — not required for openrouter.ai fix.
+  // 3) If agent-browser binary is available, shell out to the real thing.
+  //    Mirrors `agent-browser find text "<phrase>" text` + `find role`.
+  //    The real binary runs its own browser, so we locate a matching element
+  //    and surface a suggested selector; the primary Puppeteer page then
+  //    captures it (no need to re-open the page).
   if (isAgentBrowserAvailable()) {
     try {
-      const { spawn } = await import("child_process");
-      // Example: npx agent-browser --session fallback open <url> etc.
-      // Left as hook for future full agentic flow.
-      logger.info({ event: "agent_browser_binary_fallback_skipped", reason: "hook ready" });
-    } catch {}
+      const { runAgentBrowserData, closeAgentBrowserSession } = await import("@/lib/agent-browser/client");
+      const session = `fallback-${Date.now().toString(36)}`;
+      try {
+        await runAgentBrowserData(["open", page.url()], { session, timeoutMs: 15_000 }).catch(() => {});
+        const matches = await runAgentBrowserData<{ selector: string }[] | null>(
+          ["find", "text", phrase.split(/\s+/)[0], "--json"],
+          { session, timeoutMs: 15_000 }
+        ).catch(() => null);
+        if (matches && matches[0]?.selector) {
+          logger.info({ event: "agent_browser_find_matched", phrase, selector: matches[0].selector });
+          await closeAgentBrowserSession(session).catch(() => {});
+          // Re-resolve on the Puppeteer page and return the element.
+          const found = await page.$(matches[0].selector).catch(() => null);
+          if (found) return { el: found };
+        }
+        await closeAgentBrowserSession(session).catch(() => {});
+      } catch {
+        await closeAgentBrowserSession(session).catch(() => {});
+      }
+    } catch {
+      // shell-out failed — ignore and fall through
+    }
   }
 
   return { el: null };

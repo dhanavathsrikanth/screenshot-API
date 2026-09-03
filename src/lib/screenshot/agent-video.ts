@@ -3,6 +3,8 @@ import type { ScreenshotOptions } from "@/lib/schema";
 import type { RenderResult } from "@/lib/screenshot/types";
 import { captureVideo as captureVideoCDP } from "@/lib/screenshot/video";
 import { logger } from "@/lib/logger";
+import { loadAgentBrowserConfig } from "@/lib/agent-browser/config";
+import { runAgentBrowser, closeAgentBrowserSession } from "@/lib/agent-browser/client";
 
 /**
  * Agent-browser inspired video — mirrors:
@@ -17,10 +19,9 @@ import { logger } from "@/lib/logger";
  */
 
 function isAgentBrowserAvailable(): boolean {
-  // Check for Rust binary in prod Docker; dev Win falls back to CDP
+  // Use the shared binary discovery (works on dev Windows + prod Docker).
   try {
-    const { existsSync } = require("node:fs");
-    return existsSync("/usr/local/bin/agent-browser") || existsSync("/usr/bin/agent-browser");
+    return !!loadAgentBrowserConfig().binaryPath;
   } catch {
     return false;
   }
@@ -32,25 +33,19 @@ async function captureViaAgentBrowserRecord(
 ): Promise<RenderResult | null> {
   if (!isAgentBrowserAvailable()) return null;
   try {
-    const { spawn } = await import("child_process");
     const url = page.url();
-    const tmp = `/tmp/agent-record-${Date.now()}.${options.format === "webm" ? "webm" : "mp4"}`;
+    const tmp = `${process.env.TEMP || "/tmp"}/agent-record-${Date.now()}.${options.format === "webm" ? "webm" : "mp4"}`;
     logger.info({ event: "agent_video_record_start", url, tmp });
-    // Start: agent-browser --session <id> open <url> + record start
-    // We already have a Puppeteer page, so we reuse its URL and let agent-browser
-    // open the same URL in its own isolated session for recording.
-    const session = `vid-${Date.now()}`;
-    const start = spawn("agent-browser", ["--session", session, "open", url], { stdio: "pipe" });
-    await new Promise<void>((res, rej) => {
-      start.on("close", (c) => (c === 0 ? res() : rej(new Error(`open ${c}`))));
-      setTimeout(() => res(), 4000);
-    });
-    const recStart = spawn("agent-browser", ["--session", session, "record", "start", tmp]);
-    await new Promise<void>((r) => setTimeout(r, (options.video_seconds ?? 5) * 1000));
-    const recStop = spawn("agent-browser", ["--session", session, "record", "stop"]);
-    await new Promise<void>((res) => recStop.on("close", () => res()));
+    // Reuse the URL and let agent-browser open the same URL in its own
+    // isolated session for recording (agent-browser record start/stop).
+    const session = `vid-${Date.now().toString(36)}`;
+    await runAgentBrowser(["open", url], { session, timeoutMs: 20_000 }).catch(() => {});
+    await runAgentBrowser(["record", "start", tmp], { session, timeoutMs: 15_000 }).catch(() => {});
+    await new Promise((r) => setTimeout(r, (options.video_seconds ?? 5) * 1000));
+    await runAgentBrowser(["record", "stop"], { session, timeoutMs: 15_000 }).catch(() => {});
     const { readFile } = await import("fs/promises");
     const buf = await readFile(tmp).catch(() => null);
+    await closeAgentBrowserSession(session).catch(() => {});
     if (buf) return { buffer: buf, format: options.format, width: options.viewport_width, height: options.viewport_height };
     return null;
   } catch (e) {

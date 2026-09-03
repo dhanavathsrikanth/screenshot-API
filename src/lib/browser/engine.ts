@@ -74,16 +74,29 @@ function isPrivateHostname(hostname: string): boolean {
 
 /**
  * Public render entry point. Wraps the pipeline in a hard total-time budget
- * and the browser in crash-recovery retry (exactly once).
+ * and the browser in crash-recovery retry (exactly once). When the Puppeteer
+ * pipeline fails with a fallback-eligible error (bot-block, navigation
+ * failure, browser crash) and agent-browser is available, it retries the
+ * whole render through agent-browser as a robust fallback engine.
  */
 export async function render(options: ScreenshotOptions): Promise<RenderResult> {
   const isVideo = options.format === "mp4" || options.format === "webm" ||
     (options.format === "gif" && options.video_seconds && options.video_seconds > 0);
   const budgetMs = isVideo ? 120_000 : RENDER_LIMITS.maxTotalTimeMs;
-  return withTotalBudget(
-    withBrowserRetry((b) => renderOnce(b, options)),
-    budgetMs
-  );
+  try {
+    return await withTotalBudget(
+      withBrowserRetry((b) => renderOnce(b, options)),
+      budgetMs
+    );
+  } catch (error) {
+    // Agent-browser fallback engine: retry through agent-browser's own browser.
+    const { shouldFallbackOnError, tryAgentBrowserFallbackRender } = await import("@/lib/agent-browser/gate");
+    if (shouldFallbackOnError(error, options)) {
+      const fallback = await tryAgentBrowserFallbackRender(options);
+      if (fallback) return fallback;
+    }
+    throw error;
+  }
 }
 
 /** Run one render in a fresh isolated browser context. */
@@ -139,15 +152,21 @@ async function preparePage(page: Page, options: ScreenshotOptions): Promise<void
       pageProxy = await buildGeoProxyUrl(options.country);
     } catch (err) {
       if (err instanceof GeoTargetingError) {
-        const code =
-          err.code === "INVALID_COUNTRY"
-            ? "INVALID_COUNTRY"
-            : err.code === "UNSUPPORTED_COUNTRY"
-              ? "UNSUPPORTED_COUNTRY"
+        // UNSUPPORTED_COUNTRY: the proxy provider doesn't cover this country,
+        // but CDP geolocation was already set by applyRobustDeviceGeo above.
+        // Fall through so the render uses CDP geo instead of failing entirely.
+        if (err.code === "UNSUPPORTED_COUNTRY") {
+          logger.warn({ event: "geo_proxy_unsupported_fallback_cdp", country: options.country, message: err.message });
+        } else {
+          const code =
+            err.code === "INVALID_COUNTRY"
+              ? "INVALID_COUNTRY"
               : "GEO_UNAVAILABLE";
-        throw new RenderError(code, err.message);
+          throw new RenderError(code, err.message);
+        }
+      } else {
+        throw err;
       }
-      throw err;
     }
   }
 

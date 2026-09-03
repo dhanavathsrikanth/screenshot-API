@@ -19,7 +19,13 @@ const COUNTRY_GEO: Record<string, { lat: number; lng: number }> = {
   FR: { lat: 48.8566, lng: 2.3522 }, IN: { lat: 28.6139, lng: 77.209 }, BR: { lat: -23.5505, lng: -46.6333 }, CA: { lat: 43.6532, lng: -79.3832 },
   AU: { lat: -33.8688, lng: 151.2093 }, ES: { lat: 40.4168, lng: -3.7038 }, IT: { lat: 41.9028, lng: 12.4964 }, NL: { lat: 52.3676, lng: 4.9041 },
   PL: { lat: 52.2297, lng: 21.0122 }, SE: { lat: 59.3293, lng: 18.0686 }, AE: { lat: 25.2048, lng: 55.2708 }, SG: { lat: 1.3521, lng: 103.8198 },
+  CH: { lat: 46.948, lng: 7.4474 }, MX: { lat: 19.4326, lng: -99.1332 }, KR: { lat: 37.5665, lng: 126.978 }, ID: { lat: -6.2088, lng: 106.8456 },
 };
+
+/** True when CDP geolocation override data exists for a country (any geo fallback). */
+export function hasCdpGeo(countryCode: string): boolean {
+  return Boolean(COUNTRY_GEO[countryCode.toUpperCase()]);
+}
 
 export async function applyRobustDeviceGeo(page: Page, opts: { is_mobile?: boolean; has_touch?: boolean; device?: string; viewport_width?: number; viewport_height?: number; device_scale_factor?: number; user_agent?: string; country?: string }): Promise<void> {
   try {

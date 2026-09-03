@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Screenshot Playground — ScreenshotAPI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;500&family=Google+Sans:wght@500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script>
+tailwind.config={
+  theme:{
+    extend:{
+      colors:{
+        ink:{DEFAULT:'#0f172a', light:'#1e293b'},
+        indigo:{50:'#eef2ff',100:'#e0e7ff',600:'#4f46e5',700:'#4338ca',800:'#3730a3'},
+        slate:{50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1',400:'#94a3b8',500:'#64748b',600:'#475569',900:'#0f172a'},
+        emerald:{50:'#ecfdf5',500:'#10b981',600:'#059669'}
+      },
+      fontFamily:{sans:['Inter','sans-serif'], mono:['JetBrains Mono','Geist','monospace'], display:['Inter','sans-serif']},
+      borderRadius:{'xl':'12px','2xl':'16px'},
+      boxShadow:{'soft':'0 4px 24px rgba(15,23,42,0.06)','lift':'0 12px 32px rgba(15,23,42,0.08)'}
+    }
+  }
+}
+</script>
+<style>
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; font-size:20px; line-height:1}
+.ms-fill{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+.dot-grid{background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 20px 20px; opacity:0.4}
+.switch{appearance:none; width:36px; height:20px; background:#e2e8f0; border-radius:999px; position:relative; cursor:pointer; transition:all .2s}
+.switch:checked{background:#4f46e5}
+.switch::after{content:''; position:absolute; width:16px; height:16px; background:white; border-radius:50%; top:2px; left:2px; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.switch:checked::after{transform:translateX(16px)}
+input[type=range]{accent-color:#4f46e5}
+</style>
+</head>
+<body class="bg-[#f8fafc] text-slate-600 antialiased font-sans min-h-screen flex flex-col">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200">
+  <div class="max-w-[1360px] mx-auto px-6 h-[64px] flex items-center justify-between gap-8">
+    <div class="flex items-center gap-8">
+      <div class="font-bold text-[18px] tracking-tight text-slate-900">ScreenshotAPI</div>
+      <div class="hidden lg:flex items-center gap-7 text-[14px] font-medium text-slate-600">
+        <a href="#" class="hover:text-indigo-600 transition">Product <span class="material-symbols-outlined align-middle text-[16px]">expand_more</span></a>
+        <a href="#" class="hover:text-indigo-600 transition">Pricing</a>
+        <a href="#" class="hover:text-indigo-600 transition">Documentation</a>
+        <a href="#" class="hover:text-indigo-600 transition">Showcase</a>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="#" class="hidden md:inline text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-2">Sign in</a>
+      <a href="#" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-[10px] shadow-sm transition">Get Started</a>
+      <button class="lg:hidden p-2"><span class="material-symbols-outlined">menu</span></button>
+    </div>
+  </div>
+</nav>
+
+<!-- HEADER -->
+<div class="max-w-[1360px] mx-auto px-6 pt-10 pb-6 w-full">
+  <div class="flex flex-wrap items-center gap-3 mb-5">
+    <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3.5 py-1.5 text-[11px] font-bold tracking-widest uppercase text-slate-600 shadow-sm">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> LIVE PLAYGROUND • No API key required
+    </span>
+    <span class="hidden md:inline-flex items-center gap-1.5 text-xs text-slate-500"><span class="material-symbols-outlined text-[16px] text-emerald-600">verified</span> 99.9% uptime</span>
+    <span class="hidden md:inline-flex items-center gap-1.5 text-xs text-slate-500"><span class="material-symbols-outlined text-[16px]">bolt</span> 12k+ developers</span>
+  </div>
+  <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+    <div>
+      <h1 class="text-[42px] md:text-[48px] font-bold tracking-[-0.03em] leading-none text-slate-900">Screenshot <span class="text-indigo-600">Playground</span></h1>
+      <p class="mt-3 text-[15px] md:text-[16px] leading-relaxed text-slate-600 max-w-[640px]">Configure every parameter live. Capture, preview, and copy production-ready code in seconds — the same engine that powers our API.</p>
+    </div>
+    <div class="flex items-center gap-2 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded-full px-4 py-2 self-start lg:self-auto">
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span> API Operational
+      <span class="w-px h-3 bg-slate-200 mx-1"></span> p50 412ms
+      <span class="w-px h-3 bg-slate-200 mx-1"></span> PNG • JPEG • WebP • PDF
+    </div>
+  </div>
+</div>
+
+<!-- MAIN PLAYGROUND -->
+<main class="max-w-[1360px] mx-auto px-6 pb-12 w-full flex-1">
+  <div class="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
+
+    <!-- LEFT CONTROLS -->
+    <div class="space-y-4 lg:sticky lg:top-[80px]">
+
+      <!-- URL CARD -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-soft">
+        <label class="flex items-center justify-between text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500 mb-2.5">
+          Website URL <span class="text-indigo-600">*</span>
+        </label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">language</span>
+          <input id="urlInput" value="https://unsplash.com" class="w-full pl-11 pr-10 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 outline-none transition" placeholder="https://example.com"/>
+          <button class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center rounded-lg hover:bg-slate-100 text-slate-400"><span class="material-symbols-outlined text-[18px]">close</span></button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 mt-3">
+          <span class="text-[11px] font-semibold tracking-wide uppercase text-slate-400">Try:</span>
+          <button onclick="setUrl('https://unsplash.com')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-full text-xs font-medium text-slate-700 transition">unsplash.com</button>
+          <button onclick="setUrl('https://stripe.com')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-full text-xs font-medium text-slate-700 transition">stripe.com</button>
+          <button onclick="setUrl('https://linear.app')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-full text-xs font-medium text-slate-700 transition">linear.app</button>
+          <button class="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"><span class="material-symbols-outlined text-[16px]">content_paste</span> Paste</button>
+        </div>
+        <button onclick="capture()" id="captureBtn" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold py-3.5 rounded-xl shadow-[0_4px_12px_rgba(79,70,229,0.25)] inline-flex items-center justify-center gap-2 transition">
+          <span class="material-symbols-outlined ms-fill text-[20px]">bolt</span> Capture Screenshot
+          <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+        </button>
+        <p class="text-center text-[11px] text-slate-400 mt-2.5">↵ Press Enter to capture • 10 free / day as guest</p>
+      </div>
+
+      <!-- VIEWPORT -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-soft">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500">Viewport</span>
+          <span class="text-xs font-mono text-slate-500" id="viewportLabel">1280 × 800 • 1x</span>
+        </div>
+        <div class="grid grid-cols-4 gap-2 mb-4">
+          <button class="viewport-btn group flex flex-col items-center gap-1.5 py-3 rounded-xl border bg-indigo-600 border-indigo-600 text-white" data-w="1920"><span class="material-symbols-outlined text-[20px]">computer</span><span class="text-[11px] font-semibold">Desktop</span><span class="text-[10px] opacity-80">1920</span></button>
+          <button class="viewport-btn group flex flex-col items-center gap-1.5 py-3 rounded-xl border bg-white border-slate-200 text-slate-600 hover:border-slate-300" data-w="1280"><span class="material-symbols-outlined text-[20px]">laptop</span><span class="text-[11px] font-semibold">Laptop</span><span class="text-[10px] opacity-60">1280</span></button>
+          <button class="viewport-btn group flex flex-col items-center gap-1.5 py-3 rounded-xl border bg-white border-slate-200 text-slate-600 hover:border-slate-300" data-w="768"><span class="material-symbols-outlined text-[20px]">tablet</span><span class="text-[11px] font-semibold">Tablet</span><span class="text-[10px] opacity-60">768</span></button>
+          <button class="viewport-btn group flex flex-col items-center gap-1.5 py-3 rounded-xl border bg-white border-slate-200 text-slate-600 hover:border-slate-300" data-w="390"><span class="material-symbols-outlined text-[20px]">smartphone</span><span class="text-[11px] font-semibold">Mobile</span><span class="text-[10px] opacity-60">390</span></button>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="col-span-1"><label class="text-[11px] font-medium text-slate-600">Width</label><input id="widthInput" type="number" value="1280" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none"/></div>
+          <div class="col-span-1"><label class="text-[11px] font-medium text-slate-600">Height</label><input type="number" placeholder="Auto" value="800" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none"/></div>
+          <div class="col-span-1"><label class="text-[11px] font-medium text-slate-600">Scale</label><select class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-600/20 outline-none"><option>1x</option><option>2x Retina</option></select></div>
+        </div>
+        <div class="mt-4">
+          <div class="flex justify-between text-[11px] text-slate-500 mb-1"><span>320</span><span>1920</span></div>
+          <input type="range" min="320" max="1920" value="1280" class="w-full"/>
+        </div>
+      </div>
+
+      <!-- FORMAT -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-soft">
+        <span class="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500">Output format</span>
+        <div class="mt-3 grid grid-cols-4 gap-2 p-1 bg-slate-100 rounded-xl">
+          <button class="format-btn bg-white shadow-sm border border-slate-200 rounded-lg py-2.5 text-xs font-bold text-slate-900 flex flex-col items-center gap-1" data-f="png"><span class="material-symbols-outlined text-[18px]">image</span>PNG</button>
+          <button class="format-btn rounded-lg py-2.5 text-xs font-semibold text-slate-600 hover:bg-white/60 flex flex-col items-center gap-1" data-f="jpeg"><span class="material-symbols-outlined text-[18px]">photo</span>JPEG</button>
+          <button class="format-btn rounded-lg py-2.5 text-xs font-semibold text-slate-600 hover:bg-white/60 flex flex-col items-center gap-1" data-f="webp"><span class="material-symbols-outlined text-[18px]">image</span>WebP</button>
+          <button class="format-btn rounded-lg py-2.5 text-xs font-semibold text-slate-600 hover:bg-white/60 flex flex-col items-center gap-1" data-f="pdf"><span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>PDF</button>
+        </div>
+      </div>
+
+      <!-- OPTIONS -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-soft">
+        <span class="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500">Capture options</span>
+        <div class="mt-4 space-y-4">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <span class="w-8 h-8 rounded-lg bg-indigo-50 grid place-items-center text-indigo-600 shrink-0"><span class="material-symbols-outlined text-[18px]">panorama_vertical</span></span>
+            <span class="flex-1"><span class="text-sm font-semibold text-slate-900">Full page</span><span class="block text-xs text-slate-500">Capture entire scrollable height</span></span>
+            <input type="checkbox" class="switch" checked/>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <span class="w-8 h-8 rounded-lg bg-emerald-50 grid place-items-center text-emerald-600 shrink-0"><span class="material-symbols-outlined text-[18px]">block</span></span>
+            <span class="flex-1"><span class="text-sm font-semibold text-slate-900">Block ads & banners</span><span class="block text-xs text-slate-500">Hide cookie notices & ads</span></span>
+            <input type="checkbox" class="switch" checked/>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <span class="w-8 h-8 rounded-lg bg-slate-100 grid place-items-center text-slate-600 shrink-0"><span class="material-symbols-outlined text-[18px]">dark_mode</span></span>
+            <span class="flex-1"><span class="text-sm font-semibold text-slate-900">Dark mode</span><span class="block text-xs text-slate-500">Emulate prefers-color-scheme</span></span>
+            <input type="checkbox" class="switch"/>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <span class="w-8 h-8 rounded-lg bg-slate-100 grid place-items-center text-slate-600 shrink-0"><span class="material-symbols-outlined text-[18px]">format_paint</span></span>
+            <span class="flex-1"><span class="text-sm font-semibold text-slate-900">Transparent background</span><span class="block text-xs text-slate-500">PNG only, hides default white</span></span>
+            <input type="checkbox" class="switch"/>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <span class="w-8 h-8 rounded-lg bg-amber-50 grid place-items-center text-amber-600 shrink-0"><span class="material-symbols-outlined text-[18px]">cached</span></span>
+            <span class="flex-1"><span class="text-sm font-semibold text-slate-900">Bypass cache (fresh)</span><span class="block text-xs text-slate-500">Force new render, ignore CDN</span></span>
+            <input type="checkbox" class="switch"/>
+          </label>
+        </div>
+      </div>
+
+      <!-- ADVANCED -->
+      <details class="bg-white border border-slate-200 rounded-xl shadow-soft group">
+        <summary class="list-none flex items-center justify-between p-5 cursor-pointer">
+          <span class="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-500">Advanced parameters</span>
+          <span class="w-7 h-7 rounded-full bg-slate-100 grid place-items-center text-slate-600 group-open:rotate-180 transition"><span class="material-symbols-outlined text-[18px]">expand_more</span></span>
+        </summary>
+        <div class="px-5 pb-5 space-y-4 border-t border-slate-100 pt-4">
+          <div><label class="text-xs font-medium text-slate-700">Delay (ms)</label><div class="flex gap-2 mt-1"><input type="number" value="0" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"/><span class="text-xs text-slate-500 self-center">0–5000</span></div><input type="range" min="0" max="5000" value="0" class="w-full mt-2"/></div>
+          <div><label class="text-xs font-medium text-slate-700">Selector — wait for element</label><input placeholder="#main, .hero" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono placeholder:text-slate-400"/></div>
+          <div><label class="text-xs font-medium text-slate-700">Wait until</label><select class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"><option>networkidle</option><option>load</option><option>domcontentloaded</option></select></div>
+          <div><label class="text-xs font-medium text-slate-700">Custom CSS</label><textarea rows="3" placeholder="body { filter: grayscale(1); }" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono placeholder:text-slate-400"></textarea></div>
+          <div><label class="text-xs font-medium text-slate-700">TTL cache (seconds)</label><input type="number" value="3600" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"/></div>
+        </div>
+      </details>
+
+      <!-- CODE -->
+      <div class="bg-[#0f172a] rounded-xl overflow-hidden border border-slate-800 shadow-soft">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-[11px] font-bold tracking-widest uppercase text-slate-300">Live API request</span>
+          </div>
+          <div class="flex bg-white/10 rounded-full p-1 gap-1">
+            <button class="code-tab bg-white text-slate-900 px-3 py-1 rounded-full text-xs font-bold">cURL</button>
+            <button class="code-tab text-slate-400 px-3 py-1 text-xs font-medium">Node.js</button>
+            <button class="code-tab text-slate-400 px-3 py-1 text-xs font-medium">Python</button>
+          </div>
+        </div>
+        <div class="p-4">
+          <pre class="text-[12px] leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all"><span class="text-slate-500">curl</span> <span class="text-slate-300">"https://api.screenshotapi.io/capture?url=</span><span class="text-indigo-400">https%3A%2F%2Funsplash.com</span><span class="text-slate-300">&width=1280&format=png&full_page=true&block_ads=true"</span> \
+  <span class="text-slate-500">-H</span> <span class="text-emerald-300">"apikey: YOUR_API_KEY"</span></pre>
+          <button class="mt-3 w-full bg-white hover:bg-slate-100 text-slate-900 font-semibold py-2.5 rounded-lg inline-flex items-center justify-center gap-2 text-sm transition"><span class="material-symbols-outlined text-[18px]">content_copy</span> Copy cURL</button>
+        </div>
+      </div>
+
+      <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex gap-3">
+        <span class="material-symbols-outlined text-amber-600 text-[20px]">info</span>
+        <p class="text-xs leading-relaxed text-amber-900"><b>Heads up:</b> Advanced params like <code class="bg-amber-100 px-1 rounded">transparent</code> & <code class="bg-amber-100 px-1 rounded">selector</code> require an API key. Playground previews them locally.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT PREVIEW -->
+    <div class="space-y-4">
+      <!-- Browser Card -->
+      <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-soft">
+        <div class="h-11 flex items-center gap-3 px-4 border-b border-slate-200 bg-slate-50/70">
+          <div class="flex gap-1.5"><span class="w-3 h-3 rounded-full bg-[#ff5f56] border border-black/10"></span><span class="w-3 h-3 rounded-full bg-[#ffbd2e] border border-black/10"></span><span class="w-3 h-3 rounded-full bg-[#27c93f] border border-black/10"></span></div>
+          <div class="flex-1 flex justify-center">
+            <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3 py-1.5 max-w-[360px] w-full shadow-sm">
+              <span class="material-symbols-outlined text-emerald-600 text-[14px] ms-fill">lock</span>
+              <span class="text-xs font-mono text-slate-600 truncate flex-1 text-center" id="chromeUrl">unsplash.com</span>
+              <span class="material-symbols-outlined text-slate-400 text-[16px]">refresh</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="w-8 h-8 grid place-items-center rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
+            <button class="w-8 h-8 grid place-items-center rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500"><span class="material-symbols-outlined text-[18px]">open_in_new</span></button>
+            <button class="w-8 h-8 grid place-items-center rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button>
+          </div>
+        </div>
+
+        <!-- Preview Area -->
+        <div id="previewArea" class="relative bg-[#f8fafc] min-h-[520px] flex flex-col">
+          <!-- Loading bar (hidden by default) -->
+          <div id="loadingBar" class="hidden absolute top-0 inset-x-0 h-[2px] bg-indigo-600 animate-pulse z-10"></div>
+
+          <!-- Empty State -->
+          <div id="emptyState" class="flex-1 grid place-items-center p-8 text-center">
+            <div class="max-w-[420px]">
+              <div class="w-[88px] h-[88px] mx-auto rounded-2xl bg-white border border-dashed border-slate-300 grid place-items-center shadow-sm mb-5">
+                <span class="material-symbols-outlined text-slate-300 text-[40px]">image</span>
+              </div>
+              <h3 class="text-[16px] font-semibold text-slate-900">Your screenshot will appear here</h3>
+              <p class="text-sm text-slate-500 mt-1 leading-relaxed">Enter a URL above and hit <b class="text-slate-700">Capture</b> — preview with pixel-perfect browser chrome, then download or copy the API URL.</p>
+              <div class="flex items-center justify-center gap-2 mt-4 text-xs">
+                <span class="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2.5 py-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Ready</span>
+                <span class="text-slate-400">•</span>
+                <span class="text-slate-500">Try one of the examples →</span>
+              </div>
+              <div class="grid grid-cols-3 gap-3 mt-6 text-left">
+                <button onclick="setUrl('https://unsplash.com');capture()" class="group bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-lift transition text-left">
+                  <div class="h-[72px] bg-gradient-to-br from-slate-900 to-slate-700 grid place-items-center"><span class="text-white font-bold text-[10px] tracking-widest">UNSPLASH</span></div>
+                  <div class="p-2.5"><div class="text-xs font-semibold text-slate-900 group-hover:text-indigo-600">Unsplash</div><div class="text-[11px] text-slate-500">Photo community</div></div>
+                </button>
+                <button onclick="setUrl('https://stripe.com');capture()" class="group bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-lift transition text-left">
+                  <div class="h-[72px] bg-gradient-to-br from-indigo-600 to-violet-600 grid place-items-center"><span class="text-white font-bold text-[10px] tracking-widest">STRIPE</span></div>
+                  <div class="p-2.5"><div class="text-xs font-semibold text-slate-900 group-hover:text-indigo-600">Stripe</div><div class="text-[11px] text-slate-500">Payments</div></div>
+                </button>
+                <button onclick="setUrl('https://linear.app');capture()" class="group bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-lift transition text-left">
+                  <div class="h-[72px] bg-gradient-to-br from-zinc-900 to-zinc-700 grid place-items-center"><span class="text-white font-bold text-[10px] tracking-widest">LINEAR</span></div>
+                  <div class="p-2.5"><div class="text-xs font-semibold text-slate-900 group-hover:text-indigo-600">Linear</div><div class="text-[11px] text-slate-500">Issue tracking</div></div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Captured State (hidden initially) -->
+          <div id="capturedState" class="hidden flex-1 flex flex-col">
+            <div class="relative flex-1 bg-white m-3 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+              <img id="captureImg" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1280&h=800&fit=crop" class="w-full h-full object-cover min-h-[420px]" alt="capture"/>
+              <div class="absolute top-3 left-3 flex gap-2">
+                <span class="bg-slate-900/90 backdrop-blur text-white text-[11px] font-mono font-medium px-2.5 py-1 rounded-full">1280×800 • PNG</span>
+                <span class="bg-emerald-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1"><span class="w-1.5 h-1.5 bg-white rounded-full"></span> 412ms</span>
+              </div>
+              <div class="absolute top-3 right-3 bg-white/90 backdrop-blur border border-slate-200 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-700">Cache: MISS • Fresh</div>
+            </div>
+          </div>
+
+          <div class="dot-grid absolute inset-0 pointer-events-none -z-0 hidden" id="dotGrid"></div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/50">
+          <div class="flex items-center gap-3 text-xs text-slate-500 font-mono">
+            <span class="hidden sm:inline">1280×800</span><span class="hidden sm:inline w-px h-3 bg-slate-300"></span><span>2.1 MB</span><span class="w-px h-3 bg-slate-300"></span><span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>PNG</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="hidden sm:inline-flex items-center gap-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium px-3 py-2 rounded-lg text-sm transition"><span class="material-symbols-outlined text-[18px]">content_copy</span> Copy URL</button>
+            <button class="hidden sm:inline-flex items-center gap-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium px-3 py-2 rounded-lg text-sm transition"><span class="material-symbols-outlined text-[18px]">fullscreen</span> Fullscreen</button>
+            <button class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg text-sm shadow-sm transition"><span class="material-symbols-outlined text-[18px]">download</span> Download PNG</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Meta Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-soft">
+          <div class="flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-slate-500 mb-3"><span class="material-symbols-outlined text-[16px]">receipt_long</span> Response headers</div>
+          <div class="space-y-1.5 font-mono text-xs">
+            <div class="flex justify-between"><span class="text-slate-500">content-type</span><span class="text-slate-900">image/png</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">x-cache</span><span class="text-emerald-600 font-bold">MISS</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">x-render-time</span><span class="text-slate-900">412ms</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">content-length</span><span class="text-slate-900">2,147,483</span></div>
+          </div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-soft">
+          <div class="flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-slate-500 mb-3"><span class="material-symbols-outlined text-[16px]">speed</span> Performance</div>
+          <div class="space-y-3">
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">DNS + TLS</span><span class="font-mono text-slate-900">48ms</span></div><div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full w-[12%] bg-slate-400 rounded-full"></div></div></div>
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">Render</span><span class="font-mono text-slate-900">298ms</span></div><div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full w-[68%] bg-indigo-600 rounded-full"></div></div></div>
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">Encode PNG</span><span class="font-mono text-slate-900">66ms</span></div><div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full w-[16%] bg-emerald-500 rounded-full"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guest Banner -->
+      <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 flex gap-3 items-start">
+        <span class="material-symbols-outlined text-indigo-600 ms-fill text-[20px] shrink-0">info</span>
+        <p class="text-sm leading-relaxed text-indigo-900/80">Guest users are limited to <b>10 screenshots per day</b>. Create a free account for 100/day, API keys, and higher concurrency. <a href="#" class="font-semibold text-indigo-600 hover:underline">Sign up for free →</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MORE TOOLS -->
+  <div class="mt-12 border-t border-slate-200 pt-10">
+    <h3 class="text-center text-[22px] font-bold tracking-tight text-slate-900">More free tools</h3>
+    <p class="text-center text-sm text-slate-500 mt-1">No signup needed — try them instantly</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+      <a href="#" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-lift transition block">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 grid place-items-center text-indigo-600 mb-3"><span class="material-symbols-outlined">image</span></div>
+        <div class="font-semibold text-slate-900 group-hover:text-indigo-600 flex items-center gap-1">Website Screenshot <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 translate-x-0 transition">arrow_forward</span></div>
+        <div class="text-sm text-slate-500 mt-1">Capture the visible viewport instantly. Perfect for previews.</div>
+      </a>
+      <a href="#" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-lift transition block">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 grid place-items-center text-indigo-600 mb-3"><span class="material-symbols-outlined">panorama_vertical</span></div>
+        <div class="font-semibold text-slate-900 group-hover:text-indigo-600 flex items-center gap-1">Full Page Screenshot <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition">arrow_forward</span></div>
+        <div class="text-sm text-slate-500 mt-1">Scroll and stitch the entire page length.</div>
+      </a>
+      <a href="#" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-lift transition block">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 grid place-items-center text-indigo-600 mb-3"><span class="material-symbols-outlined">picture_as_pdf</span></div>
+        <div class="font-semibold text-slate-900 group-hover:text-indigo-600 flex items-center gap-1">URL to PDF <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition">arrow_forward</span></div>
+        <div class="text-sm text-slate-500 mt-1">Convert any web page into a clean, printable PDF.</div>
+      </a>
+    </div>
+  </div>
+</main>
+
+<footer class="border-t border-slate-200 bg-white mt-auto">
+  <div class="max-w-[1360px] mx-auto px-6 py-8 flex flex-col md:flex-row gap-4 justify-between items-center text-sm text-slate-500">
+    <div><span class="font-semibold text-slate-900">ScreenshotAPI</span> © 2024. All rights reserved.</div>
+    <div class="flex gap-6"><a href="#" class="hover:text-slate-900">API Status</a><a href="#" class="hover:text-slate-900">Terms</a><a href="#" class="hover:text-slate-900">Privacy</a><a href="#" class="hover:text-slate-900">Twitter</a><a href="#" class="hover:text-slate-900">GitHub</a></div>
+  </div>
+</footer>
+
+<script>
+function setUrl(u){ document.getElementById('urlInput').value=u; document.getElementById('chromeUrl').textContent=u.replace('https://',''); }
+function capture(){
+  const btn=document.getElementById('captureBtn'); const bar=document.getElementById('loadingBar');
+  const empty=document.getElementById('emptyState'); const cap=document.getElementById('capturedState');
+  btn.innerHTML='<span class="material-symbols-outlined animate-spin text-[20px]">progress_activity</span> Rendering…'; btn.disabled=true; bar.classList.remove('hidden');
+  setTimeout(()=>{ bar.classList.add('hidden'); empty.classList.add('hidden'); cap.classList.remove('hidden'); btn.innerHTML='<span class="material-symbols-outlined ms-fill text-[20px]">bolt</span> Capture Screenshot <span class="material-symbols-outlined text-[18px]">arrow_forward</span>'; btn.disabled=false; }, 900);
+}
+document.querySelectorAll('.viewport-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.viewport-btn').forEach(x=>{x.className='viewport-btn group flex flex-col items-center gap-1.5 py-3 rounded-xl border bg-white border-slate-200 text-slate-600 hover:border-slate-300'});
+  b.className='viewport-btn group flex flex-col items-center gap-1.5 py-3 rounded-xl border bg-indigo-600 border-indigo-600 text-white';
+  document.getElementById('widthInput').value=b.dataset.w; document.getElementById('viewportLabel').textContent=b.dataset.w+' × 800 • 1x';
+}));
+document.querySelectorAll('.format-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.format-btn').forEach(x=>x.className='format-btn rounded-lg py-2.5 text-xs font-semibold text-slate-600 hover:bg-white/60 flex flex-col items-center gap-1');
+  b.className='format-btn bg-white shadow-sm border border-slate-200 rounded-lg py-2.5 text-xs font-bold text-slate-900 flex flex-col items-center gap-1';
+}));
+document.getElementById('urlInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); capture(); }});
+</script>
+</body>
+</html>

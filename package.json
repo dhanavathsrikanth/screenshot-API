@@ -12,7 +12,8 @@
     "keepalive:setup": "node ./scripts/setup-keepalive.mjs",
     "keepalive:list": "node ./scripts/setup-keepalive.mjs --list",
     "keepalive:remove": "node ./scripts/setup-keepalive.mjs --remove",
-    "launch:check": "node ./scripts/launch-check.mjs"
+    "launch:check": "node ./scripts/launch-check.mjs",
+    "agent-browser:setup": "node ./scripts/agent-browser-setup.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
@@ -48,6 +49,9 @@
     "sharp": "^0.35.3",
     "svix": "^1.98.0",
     "zod": "^4.5.4"
+  },
+  "optionalDependencies": {
+    "agent-browser": "^0.36.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

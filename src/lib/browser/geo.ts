@@ -229,28 +229,46 @@ export async function assertGeoRequestAllowed(rawCountry: string): Promise<strin
     );
   }
 
+  // Is the country covered by CDP geolocation override at all? If yes we can
+  // always serve it (real IP via client exit, geo via override). If not, we
+  // depend entirely on the proxy provider.
+  const { hasCdpGeo } = await import("@/lib/screenshot/agent-device-geo");
+  const cdpSupported = hasCdpGeo(cc);
+
   const allowed = getAllowedCountries();
-  if (allowed && !allowed.includes(cc)) {
+  if (allowed && !allowed.includes(cc) && !cdpSupported) {
     throw new GeoTargetingError(
       "UNSUPPORTED_COUNTRY",
       `Country "${cc}" is not enabled. Supported: ${allowed.join(", ")}.`
     );
   }
 
+  // Gateway mode: no list to check, just proceed. Proxy handles geo when in
+  // the allow-list; otherwise CDP geo applies during render.
   if (geoTemplate()) return cc;
 
   const token = webshareToken();
   if (!token) {
+    // No proxy provider at all — CDP geo is the only option. If the country
+    // has CDP data, proceed; otherwise it's genuinely unavailable.
+    if (cdpSupported) return cc;
     throw new GeoTargetingError(
       "GEO_NOT_CONFIGURED",
       "Geo-targeted rendering is temporarily unavailable."
     );
   }
 
-  // Availability check against the (cached) proxy list — throws
-  // UNSUPPORTED_COUNTRY when no exit exists for the country.
-  const proxies = await getWebshareList(token);
-  pickWebshareProxy(proxies, cc);
+  // Webshare direct mode: confirm an exit exists for the country; otherwise
+  // fall back to CDP geo rather than failing the whole request.
+  try {
+    const proxies = await getWebshareList(token);
+    pickWebshareProxy(proxies, cc);
+  } catch (err) {
+    if (err instanceof GeoTargetingError && err.code === "UNSUPPORTED_COUNTRY" && cdpSupported) {
+      return cc;
+    }
+    throw err;
+  }
   return cc;
 }
 
