@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const WaitUntilSchema = z.enum(["load", "domcontentloaded", "networkidle0", "networkidle2"]).optional();
-const SetContentWaitUntilSchema = z.enum(["load", "domcontentloaded"]).optional();
 
 /**
  * A single cookie to seed the browser context with before navigation.

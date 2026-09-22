@@ -29,6 +29,11 @@ function initials(name: string) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
+type RecentCapture = Awaited<ReturnType<typeof getScreenshotHistory>>[number] & {
+  status_code?: number | null;
+  screenshot_url?: string | null;
+};
+
 function Stat({ label, value, hint, tone }: { label: string; value: string; hint: string; tone?: string }) {
   return (
     <div className="card p-4">
@@ -59,7 +64,7 @@ export default async function WorkspaceDashboardPage({ params }: { params: Promi
     }),
     safe(() => getProjectDailyUsage(userId, projectId), [] as { date: string; count: number; ma7: number }[]),
     safe(() => getProjectLatencyStats(userId, projectId), [] as { date: string; avg: number; p50: number; p95: number; p99: number }[]),
-    safe(() => getScreenshotHistory(userId, { limit: 6, filters: { projectId } }), [] as any[]),
+    safe(() => getScreenshotHistory(userId, { limit: 6, filters: { projectId } }), [] as RecentCapture[]),
   ]);
 
   const workspaceNav = [
@@ -160,7 +165,7 @@ export default async function WorkspaceDashboardPage({ params }: { params: Promi
             </div>
           ) : (
             <div className="mt-3 divide-y divide-[var(--border)]">
-              {recent.map((r: any) => (
+              {recent.map((r: RecentCapture) => (
                 <div key={r.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{r.url ?? r.screenshot_url ?? "capture"}</p>

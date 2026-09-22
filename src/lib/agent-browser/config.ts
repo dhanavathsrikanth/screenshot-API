@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * agent-browser binary discovery + MCP launch configuration.
@@ -50,13 +51,10 @@ function resolveCandidates(): string[] {
   const candidates: string[] = [];
   if (raw) candidates.push(raw);
 
-  // Local project node_modules (added as a project dependency).
-  try {
-    const localBin = require.resolve("agent-browser/bin/agent-browser.js");
-    if (localBin) candidates.push(localBin);
-  } catch {
-    /* not a local dep — fall through to PATH */
-  }
+  // Local project node_modules (optional dependency). Build-time resolution is
+  // deliberately filesystem-based: Turbopack must be able to build when the
+  // optional fallback package is not installed.
+  candidates.push(join(process.cwd(), "node_modules", "agent-browser", "bin", "agent-browser.js"));
 
   // npm global + common install locations.
   candidates.push(

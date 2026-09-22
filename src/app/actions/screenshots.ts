@@ -73,7 +73,7 @@ export async function saveScreenshot(params: {
     metadata: params.metadata ?? {},
   };
 
-  let payload: Record<string, unknown> =
+  const payload: Record<string, unknown> =
     projectId != null ? { ...baseRow, project_id: projectId } : baseRow;
 
   let { data, error } = await supabase

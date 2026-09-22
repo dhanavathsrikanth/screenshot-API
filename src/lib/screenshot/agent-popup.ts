@@ -17,7 +17,7 @@ export async function dismissScrollPopups(page: Page): Promise<number> {
     }).catch(() => {});
     await new Promise(r => setTimeout(r, 400));
 
-    const toClick = await page.evaluate(() => {
+    await page.evaluate(() => {
       const candidates: string[] = [];
       // dialog roles
       document.querySelectorAll('[role="dialog"], [role="alertdialog"], [aria-modal="true"]').forEach(el => {

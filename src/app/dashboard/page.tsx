@@ -213,7 +213,7 @@ export default async function DashboardPage() {
       <UsageAlerts data={alerts} />
 
       {/* Live credits + ratelimit — polling /api/v1/usage + history + /api/v1/screenshots */}
-      <DashboardLive initialUsage={usageForLive as never} initialRateLimit={liveRate as never} userId={userId} />
+      <DashboardLive initialUsage={usageForLive as never} initialRateLimit={liveRate as never} />
 
       {/* Fallback static snapshot when JS disabled — also visible immediately */}
       <noscript>
@@ -381,9 +381,7 @@ export default async function DashboardPage() {
               >
                 <div className="h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--muted)] flex items-center justify-center text-[10px] text-[var(--dim)]">
                   {r.storage_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    // @ts-ignore
-                    <img src={r.storage_url} alt={r.url} className="h-full w-full object-cover" loading="lazy" />
+                    <img src={r.storage_url} alt={r.url ?? "Screenshot"} className="h-full w-full object-cover" loading="lazy" />
                   ) : (
                     <span>{r.format.toUpperCase()}</span>
                   )}

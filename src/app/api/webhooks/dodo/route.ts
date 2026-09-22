@@ -627,15 +627,15 @@ function getWebhookHandler() {
         await trackPaymentSucceededFunnel(payload);
       },
 
-      onPaymentProcessing: async (payload: AnyRecord) => {
+      onPaymentProcessing: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payment processing");
       },
 
-      onPaymentFailed: async (payload: AnyRecord) => {
+      onPaymentFailed: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payment failed");
       },
 
-      onPaymentCancelled: async (payload: AnyRecord) => {
+      onPaymentCancelled: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payment cancelled");
       },
 
@@ -646,16 +646,16 @@ function getWebhookHandler() {
         await syncCreditBalance(payload);
       },
 
-      onRefundFailed: async (payload: AnyRecord) => {
+      onRefundFailed: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Refund failed");
       },
 
       // ── Abandoned checkout ────────────────────────────────────
-      onAbandonedCheckoutDetected: async (payload: AnyRecord) => {
+      onAbandonedCheckoutDetected: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Abandoned checkout detected");
       },
 
-      onAbandonedCheckoutRecovered: async (payload: AnyRecord) => {
+      onAbandonedCheckoutRecovered: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Abandoned checkout recovered");
       },
 
@@ -735,24 +735,24 @@ function getWebhookHandler() {
         await upgradePlan(payload);
       },
 
-      onSubscriptionUpdatePaymentMethod: async (payload: AnyRecord) => {
+      onSubscriptionUpdatePaymentMethod: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Subscription update payment method");
       },
 
       // ── Payouts (merchant-side; informational only) ───────────
-      onPayoutSuccess: async (payload: AnyRecord) => {
+      onPayoutSuccess: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payout success");
       },
 
-      onPayoutFailed: async (payload: AnyRecord) => {
+      onPayoutFailed: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payout failed");
       },
 
-      onPayoutInProgress: async (payload: AnyRecord) => {
+      onPayoutInProgress: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payout in progress");
       },
 
-      onPayoutOnHold: async (payload: AnyRecord) => {
+      onPayoutOnHold: async (_payload: AnyRecord) => {
         console.log("[Dodo Webhook] Payout on hold");
       },
 

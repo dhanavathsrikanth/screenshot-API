@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { getRedis } from "@/lib/redis";
+import { createServiceClient } from "@/lib/supabase/server";
+import { HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
 import { getRequestId, jsonError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -15,11 +17,11 @@ async function browserDiagnostics() {
     agent_browser_bin: "unknown" as string,
   };
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const puppeteer = require("puppeteer");
+    const puppeteerModule = await import("puppeteer");
+    const puppeteer = puppeteerModule.default ?? puppeteerModule;
     let p: string | null = null;
     try {
-      p = puppeteer.executablePath?.() ?? null;
+      p = (await puppeteer.executablePath?.()) ?? null;
     } catch { /* older API */ }
     diag.puppeteer_chrome =
       p && p.length
@@ -40,15 +42,51 @@ async function browserDiagnostics() {
   return diag;
 }
 
+async function probeDependencies() {
+  const redis = getRedis();
+  const supabase = envPresent("NEXT_PUBLIC_SUPABASE_URL") && envPresent("SUPABASE_SERVICE_ROLE_KEY")
+    ? createServiceClient()
+    : null;
+
+  const redisCheck = redis
+    ? redis.get("__screenshotapi_health").then(() => true).catch(() => false)
+    : Promise.resolve(false);
+  const supabaseCheck = supabase
+    ? Promise.resolve(
+        supabase
+          .from("user_quotas")
+          .select("user_id", { head: true, count: "exact" })
+          .limit(1)
+      )
+        .then(({ error }) => !error)
+        .catch(() => false)
+    : Promise.resolve(false);
+
+  const storageConfigured = envPresent("R2_BUCKET_NAME") && envPresent("R2_ENDPOINT") &&
+    envPresent("R2_ACCESS_KEY_ID") && envPresent("R2_SECRET_ACCESS_KEY");
+  const storageCheck = storageConfigured
+    ? new S3Client({
+        region: "auto",
+        endpoint: process.env.R2_ENDPOINT,
+        forcePathStyle: true,
+        credentials: {
+          accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+        },
+      })
+        .send(new HeadBucketCommand({ Bucket: process.env.R2_BUCKET_NAME }))
+        .then(() => true)
+        .catch(() => false)
+    : Promise.resolve(false);
+
+  const [redisOk, supabaseOk, storageOk] = await Promise.all([redisCheck, supabaseCheck, storageCheck]);
+  return { redis: redisOk, supabase: supabaseOk, storage: storageOk };
+}
+
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
 
-  const checks = {
-    redis: getRedis() !== null,
-    supabase:
-      envPresent("NEXT_PUBLIC_SUPABASE_URL") && envPresent("SUPABASE_SERVICE_ROLE_KEY"),
-    storage: envPresent("R2_BUCKET_NAME") && envPresent("R2_ENDPOINT"),
-  };
+  const checks = await probeDependencies();
 
   const healthy = Object.values(checks).every(Boolean);
   const browser = await browserDiagnostics();

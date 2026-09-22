@@ -44,10 +44,8 @@ export async function ensureLazyContentLoaded(page: Page): Promise<void> {
         const startCount = document.querySelectorAll("img, section, article").length;
 
         // Scroll down step-by-step like `agent-browser scroll down`
-        let top = document.scrollingElement?.scrollTop ?? 0;
         while (true) {
           window.scrollBy(0, step);
-          top += step;
           const el = document.scrollingElement!;
           if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) break;
           await sleep(40);

@@ -44,10 +44,12 @@ type ApiKeyLogRow = {
   endpoint: string | null;
 };
 
-type ScreenshotRow = {
-  format: string;
-  created_at: string;
-  file_size_bytes: number | null;
+type AnalyticsQuery<T> = {
+  data: T[] | null;
+  in: (column: string, values: string[]) => AnalyticsQuery<T>;
+  gte: (column: string, value: string) => AnalyticsQuery<T>;
+  not: (column: string, operator: string, value: unknown) => AnalyticsQuery<T>;
+  order: (column: string, options: { ascending: boolean }) => AnalyticsQuery<T>;
 };
 
 /** Dynamic `.select(columns)` loses Supabase inference; callers treat rows as partial slices. */
@@ -61,7 +63,7 @@ function projectLogs(
     .from("api_key_logs")
     .select(columns)
     .eq("user_id", userId)
-    .eq("project_id", projectId) as any;
+    .eq("project_id", projectId) as unknown as AnalyticsQuery<ApiKeyLogRow>;
 }
 
 function projectScreenshots(
@@ -74,7 +76,11 @@ function projectScreenshots(
     .from("screenshots")
     .select(columns)
     .eq("user_id", userId)
-    .eq("project_id", projectId) as any;
+    .eq("project_id", projectId) as unknown as AnalyticsQuery<{
+      created_at: string;
+      format: string;
+      file_size_bytes: number | null;
+    }>;
 }
 
 export type ProjectSummaryStats = {
@@ -182,7 +188,7 @@ export async function getProjectLatencyStats(userId: string, projectId: string, 
 
   for (const row of data ?? []) {
     const day = row.created_at.slice(0, 10);
-    if (byDay[day]) byDay[day].push(row.response_time_ms);
+    if (byDay[day] && row.response_time_ms != null) byDay[day].push(row.response_time_ms);
   }
 
   const result = dates.map((date) => {
@@ -291,10 +297,11 @@ export async function getProjectStatusBreakdown(userId: string, projectId: strin
 
   const counts: Record<string, number> = {};
   for (const row of data ?? []) {
+    const statusCode = row.status_code ?? 0;
     const label =
-      row.status_code >= 200 && row.status_code < 300 ? "2xx" :
-      row.status_code >= 400 && row.status_code < 500 ? "4xx" :
-      row.status_code >= 500 ? "5xx" :
+      statusCode >= 200 && statusCode < 300 ? "2xx" :
+      statusCode >= 400 && statusCode < 500 ? "4xx" :
+      statusCode >= 500 ? "5xx" :
       String(row.status_code);
     counts[label] = (counts[label] ?? 0) + 1;
   }

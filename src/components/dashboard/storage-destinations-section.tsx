@@ -168,7 +168,6 @@ export function StorageDestinationsSection({
   const [testingId, setTestingId] = useState<string | null>(null);
 
   const editingDest = useMemo(() => destinations.find((d) => d.project_id === editingProjectId) ?? null, [destinations, editingProjectId]);
-  const isEditing = !!editingDest && destinations.some((d) => d.project_id === editingProjectId) && showForm && bucket === editingDest.bucket;
 
   const previewUrl = useMemo(() => {
     const pre = publicUrl?.replace(/\/$/, "") || (provider === "s3" ? `https://${bucket || "my-bucket"}.s3.amazonaws.com` : provider === "gcs" ? `https://storage.googleapis.com/${bucket || "my-bucket"}` : `https://pub-xxxxx.r2.dev`);
@@ -180,7 +179,7 @@ export function StorageDestinationsSection({
     if (provider === "r2") { setRegion("auto"); if (!endpoint) setEndpoint(""); }
     else if (provider === "gcs") { setRegion("auto"); setEndpoint("https://storage.googleapis.com"); }
     else { if (region === "auto") setRegion("us-east-1"); }
-  }, [provider]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [provider]);
 
   function resetForm() {
     setEditingProjectId(projects[0]?.id ?? "");

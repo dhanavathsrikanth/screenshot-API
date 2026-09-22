@@ -344,7 +344,7 @@ export function DashboardPlayground({ plan = "free", showUpsell: _showUpsell = f
         const urls = bulkUrls.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
         if (urls.length === 0) throw new Error("Please add at least one URL (one per line).");
         if (urls.length > 100) throw new Error("Maximum 100 URLs at once.");
-        const { url: _singleUrl, ...renderOptions } = buildTakeBody(urls[0]);
+        const renderOptions = buildTakeBody(urls[0]);
         const response = await fetch("/api/take/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ urls, ...renderOptions }) });
         if (!response.ok) { let message = "Capture failed — please try again"; let needsUpgrade = false; try { const err = await response.json(); message = typeof err.error === "string" ? err.error : err.error?.message ?? message; needsUpgrade = err.error?.code === "plan_feature" || response.status === 403; } catch { message = `Something went wrong (${response.status})`; } setUpgradeRequired(needsUpgrade); throw new Error(message); }
         const data = await response.json();

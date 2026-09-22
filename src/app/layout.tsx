@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConsentManager } from "@/components/consent-manager";
@@ -8,16 +7,6 @@ import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { PostHogPageView } from "@/components/providers/posthog-page-view";
 import { JsonLd } from "@/components/json-ld";
 import { siteConfig } from "@/lib/site";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -50,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className="h-full antialiased">
       <head>
         <JsonLd />
         <Script

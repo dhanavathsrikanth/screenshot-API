@@ -1,10 +1,9 @@
-// @ts-nocheck - temporary until captureVideo scoping refactor is landed (cleanAbort/scrollAbort)
-// eslint-disable-next-line
 import { type Page } from "puppeteer";
-import { spawn, type ChildProcess } from "child_process";
-import { mkdtemp, readFile, rm } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ScreenshotOptions } from "@/lib/schema";
 import type { RenderResult } from "@/lib/screenshot/types";
 import { RenderError } from "@/lib/screenshot/types";
@@ -18,10 +17,6 @@ import { overlaySelectorsFor } from "@/lib/screenshot/clean-presets";
  * Falls back to system `ffmpeg` in PATH.
  */
 function resolveFfmpegPath(): string | null {
-  const { existsSync } = require("node:fs") as typeof import("node:fs");
-  const path = require("node:path") as typeof import("node:path");
-  const os = require("node:os") as typeof import("node:os");
-
   const candidates: (string | null | undefined)[] = [];
 
   // 1. Env var override (ffmpeg-static convention)
@@ -35,27 +30,27 @@ function resolveFfmpegPath(): string | null {
   } catch {}
 
   // 3. CWD-based lookups (covers Vercel standalone where __dirname is .next/server)
-  const exe = os.platform() === "win32" ? "ffmpeg.exe" : "ffmpeg";
+  const exe = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
   const cwd = process.cwd();
-  candidates.push(path.join(cwd, "node_modules", "ffmpeg-static", exe));
-  candidates.push(path.join(cwd, "node_modules", "ffmpeg-static", "ffmpeg"));
+  candidates.push(join(cwd, "node_modules", "ffmpeg-static", exe));
+  candidates.push(join(cwd, "node_modules", "ffmpeg-static", "ffmpeg"));
   // Vercel may hoist under .next
-  candidates.push(path.join(cwd, ".next", "node_modules", "ffmpeg-static", exe));
+  candidates.push(join(cwd, ".next", "node_modules", "ffmpeg-static", exe));
   // One level up (when running from .next/server)
-  candidates.push(path.join(cwd, "..", "node_modules", "ffmpeg-static", exe));
-  candidates.push(path.join(__dirname, "..", "..", "..", "node_modules", "ffmpeg-static", exe));
-  candidates.push(path.join(__dirname, "ffmpeg"));
-  candidates.push(path.join(__dirname, "ffmpeg.exe"));
+  candidates.push(join(cwd, "..", "node_modules", "ffmpeg-static", exe));
+  candidates.push(join(__dirname, "..", "..", "..", "node_modules", "ffmpeg-static", exe));
+  candidates.push(join(__dirname, "ffmpeg"));
+  candidates.push(join(__dirname, "ffmpeg.exe"));
 
   for (const cand of candidates) {
     if (!cand) continue;
     // Handle \ROOT\... oddity seen in bundled env where drive letter is stripped —
     // try with and without drive prefix via existence check
-    const normalized = path.normalize(cand);
+    const normalized = cand;
     if (existsSync(normalized)) return normalized;
     // Also try resolving relative to cwd if absolute \ROOT form
-    if (normalized.startsWith(path.sep + "ROOT")) {
-      const alt = path.join(cwd, normalized.slice(5)); // strip \ROOT
+    if (normalized.startsWith(`${process.platform === "win32" ? "\\" : "/"}ROOT`)) {
+      const alt = join(cwd, normalized.slice(5)); // strip /ROOT
       if (existsSync(alt)) return alt;
     }
   }
@@ -65,9 +60,7 @@ function resolveFfmpegPath(): string | null {
   // We signal availability by returning 'ffmpeg' and letting the caller try.
   // Check quickly via which/where
   try {
-    const { execSync } = require("node:child_process") as typeof import("node:child_process");
-    const whichCmd = os.platform() === "win32" ? "where ffmpeg" : "which ffmpeg";
-    execSync(whichCmd, { stdio: "ignore" });
+    execFileSync(process.platform === "win32" ? "where" : "which", ["ffmpeg"], { stdio: "ignore" });
     return "ffmpeg";
   } catch {}
 
@@ -185,7 +178,6 @@ export async function captureVideo(
   let ffmpegProc: ChildProcess | null = null;
   let ffmpegFinished: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
   let ffmpegStderr = "";
-  let ffmpegStdoutForPipe = "";
   const stdoutChunks: Buffer[] = [];
   // Shared abort flags for concurrent tasks (visible in catch/finally)
   let cleanAbort = false;
@@ -204,8 +196,6 @@ export async function captureVideo(
     ffmpegProc.stderr?.on("data", (chunk: Buffer) => { ffmpegStderr += chunk.toString(); });
     ffmpegProc.stdout?.on("data", (chunk: Buffer) => {
       stdoutChunks.push(chunk);
-      // Keep a small text preview for debug when gif uses pipe fallback
-      ffmpegStdoutForPipe += chunk.toString("utf8").slice(0, 200);
     });
     ffmpegFinished = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
       ffmpegProc!.on("close", (code, signal) => resolve({ code, signal }));

@@ -340,7 +340,7 @@ export default function DocsPage() {
               </table>
             </div>
             <p className="mt-4 text-slate-600 dark:text-slate-400">
-              Keys are scoped to a <a href="/dashboard/projects" className="font-medium text-indigo-600 underline-offset-2 hover:underline dark:text-indigo-400">project</a>,
+              Keys are scoped to a <Link href="/dashboard/projects" className="font-medium text-indigo-600 underline-offset-2 hover:underline dark:text-indigo-400">project</Link>,
               so keep environments separate. Only the prefix is ever shown again — the full key is displayed once at creation and cannot be recovered.
             </p>
             <p className="mt-3 text-slate-600 dark:text-slate-400">

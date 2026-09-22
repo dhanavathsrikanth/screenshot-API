@@ -48,7 +48,6 @@ export async function runA11yAudit(page: Page): Promise<A11yResult | null> {
         for (const el of els) {
           const s = window.getComputedStyle(el as HTMLElement);
           const color = s.color;
-          const bg = s.backgroundColor;
           // Very naive: if color is light gray on white, likely low contrast
           if (color.includes("170") || color.includes("180") || color.includes("190")) {
             lowContrast.push((el as HTMLElement).outerHTML.slice(0, 80));

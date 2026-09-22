@@ -246,7 +246,6 @@ function CreateDialog({
       setCustomDays("");
       setErr(null);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [open]);
 
   if (!open) return null;
@@ -544,7 +543,6 @@ export function ApiKeysManager({ initialKeys, projects }: Props) {
       if (projectFilter !== "all" && (k.project_id ?? "") !== projectFilter) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/purity
   }, [keys, query, statusFilter, projectFilter, now]);
 
   const counts = useMemo(() => ({

@@ -25,7 +25,6 @@ import {
   CacheTrendChart,
   KeyHealthTable,
 } from "@/components/dashboard/charts";
-import { PageHeader } from "@/components/dashboard/page-header";
 
 function StatCard({ label, value, hint, tone }: { label: string; value: string; hint: string; tone?: string }) {
   return (

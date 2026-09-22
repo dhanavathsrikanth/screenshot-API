@@ -189,7 +189,6 @@ export function TryIt() {
             {result.kind === "pdf" ? (
               <iframe title="Rendered PDF" src={result.objectUrl} className="h-80 w-full bg-white" />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={result.objectUrl} alt="Screenshot preview" className="max-h-96 w-full bg-white object-contain" />
             )}
           </div>

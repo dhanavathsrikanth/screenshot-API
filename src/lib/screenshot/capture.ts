@@ -4,7 +4,6 @@ import { marked } from "marked";
 import type { ScreenshotOptions } from "@/lib/schema";
 import type { RenderResult } from "@/lib/screenshot/types";
 import { RENDER_LIMITS } from "@/lib/security/limits";
-import { captureVideo } from "@/lib/screenshot/video";
 
 /**
  * Capture + artifact conversion (blueprint §6–§7, §26).
@@ -17,7 +16,7 @@ import { captureVideo } from "@/lib/screenshot/video";
 
 const NEEDS_SHARP = new Set(["webp", "gif", "tiff", "avif", "svg"]);
 
-function escapeHtml(text: string): string {
+function _escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -83,7 +82,7 @@ async function convertWithSharp(
  * animations and lazy content render correctly, and it always reaches the very
  * bottom — including the footer — even when the page grows while scrolling.
  */
-async function captureFullPageStitched(
+async function _captureFullPageStitched(
   page: Page,
   type: "png" | "jpeg"
 ): Promise<Buffer> {

@@ -34,12 +34,10 @@ type RecentItem = {
 export function DashboardLive({
   initialUsage,
   initialRateLimit,
-  userId,
   onRefresh,
 }: {
   initialUsage: UsageData | null;
   initialRateLimit: RateLimitLive | null;
-  userId: string;
   onRefresh?: () => void;
 }) {
   const [usage, setUsage] = useState<UsageData | null>(initialUsage);
@@ -291,7 +289,6 @@ export function DashboardLive({
               >
                 <div className="aspect-[16/10] bg-[var(--muted)] flex items-center justify-center overflow-hidden text-[11px] text-[var(--dim)]">
                   {r.storage_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={r.storage_url} alt={r.url} className="h-full w-full object-cover group-hover:scale-[1.02] transition" loading="lazy" />
                   ) : (
                     <span className="px-2 text-center truncate">{r.format.toUpperCase()} · {r.id.slice(0,8)}</span>
