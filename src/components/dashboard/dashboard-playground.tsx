@@ -367,11 +367,17 @@ export function DashboardPlayground({ plan = "free", showUpsell: _showUpsell = f
       }
       const response = await fetch("/api/take", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(buildTakeBody(url)) });
       if (!response.ok) { let message = "Capture failed — please try again"; let needsUpgrade = false; try { const err = await response.json(); message = typeof err.error === "string" ? err.error : err.error?.message ?? message; needsUpgrade = err.error?.code === "plan_feature" || response.status === 403; } catch { message = `Something went wrong (${response.status})`; } setUpgradeRequired(needsUpgrade); throw new Error(message); }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Capture returned an unexpected response. Please try again.");
+      }
       const data = await response.json();
       const headerCost = response.headers.get("X-Credits-Used");
       setCreditsUsed(headerCost != null ? Number(headerCost) : getCreditCost(f, isVideoMode ? videoSeconds : undefined));
-      if (data.url) { setStorageUrl(data.url); setResult(data.url); setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : f === "pdf" ? "pdf" : "image"); }
-      else { const blob = await response.blob(); const objectUrl = URL.createObjectURL(blob); setResult(objectUrl); setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : f === "pdf" ? "pdf" : "image"); }
+      if (!data.url) {
+        throw new Error("Capture completed, but no downloadable result was returned. Check storage configuration and try again.");
+      }
+      setStorageUrl(data.url); setResult(data.url); setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : f === "pdf" ? "pdf" : "image");
       setResponseTab("preview");
     } catch (err) { setError(err instanceof Error ? err.message : "Something went wrong"); setJobStatus(null); } finally { setLoading(false); }
   }, [url, bulkUrls, mode, format, allowedFormats, fullPage, plan, darkMode, width, videoSeconds, videoSpeed, isVideoMode, isRealVideo, isAnimatedGif, quality, viewportHeight, deviceScaleFactor, omitBackground, reducedMotion, selector, waitUntil, waitForSelector, waitForText, waitForUrl, delay, blockAds, blockCookieBanners, blockChats, blockTrackers, blockPopups, blockImages, userAgent, isMobile, hasTouch, country, geoAllowed, pdfFormat, pdfPrintBackground, authUsername, authPassword, loginUrl, usernameSelector, passwordSelector, submitSelector, chatInput, debugAnnotate, a11yCheck]);

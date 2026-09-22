@@ -46,7 +46,17 @@ export async function checkDashboardDataAccess(userId: string): Promise<Dashboar
 
     const supabase = await createClient();
 
-    const quota = await supabase.from("user_quotas").select("user_id").eq("user_id", userId).maybeSingle();
+    // These checks are independent. Running them together keeps the dashboard
+    // shell from taking the sum of four network round-trips on every route
+    // transition.
+    const service = createServiceClient();
+    const [quota, userRow, serviceLogs, screenshots] = await Promise.all([
+      supabase.from("user_quotas").select("user_id").eq("user_id", userId).maybeSingle(),
+      supabase.from("users").select("id").eq("id", userId).maybeSingle(),
+      service.from("api_key_logs").select("id", { count: "exact", head: true }).eq("user_id", userId),
+      supabase.from("screenshots").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    ]);
+
     if (quota.error) {
       if (isAuthError(quota.error)) {
         return {
@@ -58,7 +68,6 @@ export async function checkDashboardDataAccess(userId: string): Promise<Dashboar
       return { ok: false, issue: "database_error", message: quota.error.message };
     }
 
-    const userRow = await supabase.from("users").select("id").eq("id", userId).maybeSingle();
     if (userRow.error) {
       if (isAuthError(userRow.error)) {
         return {
@@ -69,17 +78,6 @@ export async function checkDashboardDataAccess(userId: string): Promise<Dashboar
       }
       return { ok: false, issue: "database_error", message: userRow.error.message };
     }
-
-    const service = createServiceClient();
-    const { count: serviceLogCount } = await service
-      .from("api_key_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    const screenshots = await supabase
-      .from("screenshots")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
 
     if (screenshots.error) {
       if (isAuthError(screenshots.error)) {
@@ -92,7 +90,7 @@ export async function checkDashboardDataAccess(userId: string): Promise<Dashboar
       return { ok: false, issue: "database_error", message: screenshots.error.message };
     }
 
-    const hasActivity = (serviceLogCount ?? 0) > 0;
+    const hasActivity = (serviceLogs.count ?? 0) > 0;
     const rlsSeesScreenshots = (screenshots.count ?? 0) > 0;
 
     if (hasActivity && !rlsSeesScreenshots && !quota.data) {
