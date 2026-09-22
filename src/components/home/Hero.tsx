@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { siteConfig } from "@/lib/site";
 import { CodeBlock } from "@/components/code-block";
 import { captureClientFunnel, FUNNEL_EVENTS } from "@/lib/funnel";
 
 const CLIENT_ID_KEY = "screenshotapi_tools_client";
+const GUEST_DAILY_LIMIT = 10;
 
 function generateClientId(): string {
   return `c_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
@@ -22,7 +23,7 @@ function getOrCreateClientId(): string {
   return id;
 }
 
-const quickUrls = ["https://example.com", "https://vercel.com", "https://stripe.com", "https://tailwindcss.com"];
+const quickUrls = ["https://example.com", "https://unsplash.com", "https://stripe.com", "https://tailwindcss.com"];
 
 function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -32,6 +33,12 @@ function normalizeUrl(raw: string): string {
 
 type DemoFormat = "png" | "jpeg" | "webp";
 
+type CaptureSettings = {
+  format: DemoFormat;
+  fullPage: boolean;
+  darkMode: boolean;
+};
+
 export function Hero() {
   const [clientId] = useState(getOrCreateClientId);
   const [url, setUrl] = useState("");
@@ -39,28 +46,42 @@ export function Hero() {
   const [fullPage, setFullPage] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [capturedUrl, setCapturedUrl] = useState("");
+  const [capturedSettings, setCapturedSettings] = useState<CaptureSettings>({
+    format: "png",
+    fullPage: false,
+    darkMode: false,
+  });
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const requestId = useRef(0);
+  const abortController = useRef<AbortController | null>(null);
 
-  const ext = format === "jpeg" ? "jpg" : format;
-
-  function buildCurl(targetUrl: string): string {
-    const params = new URLSearchParams({ url: targetUrl, format });
-    if (fullPage) params.set("full_page", "true");
-    if (darkMode) params.set("dark_mode", "true");
+  function buildCurl(targetUrl: string, settings: CaptureSettings): string {
+    const params = new URLSearchParams({ url: targetUrl, format: settings.format });
+    if (settings.fullPage) params.set("full_page", "true");
+    if (settings.darkMode) params.set("dark_mode", "true");
+    const outputExt = settings.format === "jpeg" ? "jpg" : settings.format;
     return [
       `curl "${siteConfig.apiUrl}/api/take?${params.toString()}" \\`,
       `  -H "Authorization: Bearer YOUR_API_KEY" \\`,
-      `  -o screenshot.${ext}`,
+      `  -o screenshot.${outputExt}`,
     ].join("\n");
   }
 
   const captureScreenshot = async (rawUrl: string) => {
     const targetUrl = normalizeUrl(rawUrl);
     if (!targetUrl) return;
+    const currentRequestId = ++requestId.current;
+    abortController.current?.abort();
+    const controller = new AbortController();
+    abortController.current = controller;
+    const settings = { format, fullPage, darkMode };
     setLoading(true);
     setError(null);
+    setRateLimited(false);
     try {
       const response = await fetch("/api/tools/capture", {
         method: "POST",
@@ -73,21 +94,32 @@ export function Hero() {
           dark_mode: darkMode,
           viewport_width: 1280,
         }),
+        signal: controller.signal,
       });
+      const remainingHeader = response.headers.get("X-RateLimit-Remaining");
+      if (remainingHeader !== null) {
+        const parsedRemaining = Number(remainingHeader);
+        if (!Number.isNaN(parsedRemaining)) setRemaining(parsedRemaining);
+      }
       if (!response.ok) {
         let message = "Failed to render screenshot";
+        let rateLimitedHit = false;
         try {
           const err = await response.json();
+          rateLimitedHit = err?.error?.code === "rate_limited" || err?.code === "rate_limited";
           message = typeof err.error === "string" ? err.error : err.error?.message ?? message;
         } catch {
           message = `Server error (${response.status})`;
         }
+        setRateLimited(rateLimitedHit);
         throw new Error(message);
       }
       const blob = await response.blob();
+      if (currentRequestId !== requestId.current) return;
       if (screenshot) URL.revokeObjectURL(screenshot);
       setScreenshot(URL.createObjectURL(blob));
       setCapturedUrl(targetUrl);
+      setCapturedSettings(settings);
       let host = "";
       try {
         host = new URL(targetUrl).host;
@@ -101,12 +133,16 @@ export function Hero() {
         host,
       });
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        return;
+      }
+      if (currentRequestId !== requestId.current) return;
       setError(e instanceof Error ? e.message : "Something went wrong");
       captureClientFunnel(FUNNEL_EVENTS.demoFailed, {
         message: e instanceof Error ? e.message.slice(0, 140) : "unknown",
       });
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestId.current) setLoading(false);
     }
   };
 
@@ -245,6 +281,30 @@ export function Hero() {
                   .
                 </p>
               )}
+              {remaining !== null && (
+                <p className="mt-2 text-[11px] text-[var(--dim)]">
+                  {remaining > 0 ? (
+                    <>
+                      <span className="font-medium text-[var(--ink)]">{remaining}</span> of {GUEST_DAILY_LIMIT}{" "}
+                      free captures left today ·{" "}
+                      <Link href="/sign-up" className="font-medium underline underline-offset-2 hover:text-[var(--accent)]">
+                        sign up
+                      </Link>{" "}
+                      for more
+                    </>
+                  ) : (
+                    <>
+                      All {GUEST_DAILY_LIMIT} free captures used for today ·{" "}
+                      <Link
+                        href="/sign-up"
+                        className="font-medium text-[var(--accent)] underline underline-offset-2 hover:text-[var(--ink)]"
+                      >
+                        get a free API key
+                      </Link>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 
@@ -277,7 +337,7 @@ export function Hero() {
               {screenshot && !loading && (
                 <a
                   href={screenshot}
-                  download={`screenshot.${ext}`}
+                  download={`screenshot.${capturedSettings.format === "jpeg" ? "jpg" : capturedSettings.format}`}
                   className="ml-auto text-[11px] text-[var(--dim)] hover:text-[var(--ink)]"
                 >
                   download
@@ -311,9 +371,29 @@ export function Hero() {
               ) : (
                 <div className="py-16 text-center">
                   <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>
-                  <p className="mt-2 text-xs text-[var(--dim)]">
-                    Guest captures are limited per day — sign up free for more.
-                  </p>
+                  {rateLimited ? (
+                    <>
+                      <p className="mt-2 text-xs text-[var(--dim)]">
+                        You&apos;ve used all {GUEST_DAILY_LIMIT} free captures for today.
+                      </p>
+                      <Link
+                        href="/sign-up"
+                        onClick={() =>
+                          captureClientFunnel(FUNNEL_EVENTS.ctaClicked, {
+                            location: "demo_limit",
+                            target: "/sign-up",
+                          })
+                        }
+                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[var(--ink)] px-4 py-2 text-xs font-medium text-[var(--background)] transition-colors active:scale-[0.96]"
+                      >
+                        Sign up free for more
+                      </Link>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-xs text-[var(--dim)]">
+                      Guest captures are limited per day — sign up free for more.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -339,7 +419,7 @@ export function Hero() {
               )}
             </p>
             <div className="mt-4">
-              <CodeBlock code={buildCurl(capturedUrl)} label="Equivalent API call" />
+              <CodeBlock code={buildCurl(capturedUrl, capturedSettings)} label="Equivalent API call" />
             </div>
             <div className="mt-4 flex items-center gap-3">
               <Link

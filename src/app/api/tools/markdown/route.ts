@@ -8,6 +8,7 @@ import { ensureCredits } from "@/lib/credits";
 import { checkRateLimit, getUserPlan } from "@/lib/plans";
 import { checkGuestToolLimit } from "@/lib/tools";
 import { TOOL_GUEST_DAILY_LIMIT } from "@/lib/tool-limits";
+import { evaluateGuestIp } from "@/lib/security/ip-intel";
 import { logScreenshotUsage } from "@/app/actions/usage";
 import { logRequest } from "@/lib/redis";
 import { validateTargetUrl, SsrfError } from "@/lib/security/ssrf";
@@ -71,6 +72,10 @@ export async function POST(request: NextRequest) {
     if (isGuest) {
       const ip = getClientIp(request);
       const burstId = input.client_id ?? `ip:${ip}`;
+      const ipVerdict = await evaluateGuestIp(ip);
+      if (!ipVerdict.allowed) {
+        return jsonError(403, ipVerdict.code, ipVerdict.message, requestId, ipVerdict.detail);
+      }
       const limit = await checkGuestToolLimit(burstId, ip);
 
       rateLimitHeadersObj = rateLimitHeaders({
@@ -84,7 +89,7 @@ export async function POST(request: NextRequest) {
           limit.retryAfterMs,
           { limit: limit.limit, remaining: Math.max(0, limit.remaining), reset: limit.reset },
           requestId,
-          `Guest limit reached. Free tools are limited to ${TOOL_GUEST_DAILY_LIMIT} conversions per day. Sign in for higher limits.`
+          `You've used your ${TOOL_GUEST_DAILY_LIMIT} free conversions for today. Sign in for higher limits.`
         );
       }
     } else {

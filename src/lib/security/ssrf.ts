@@ -75,7 +75,15 @@ export function isPrivateIp(ip: string): boolean {
 
 async function resolveHostname(hostname: string): Promise<string[]> {
   const cacheKey = `cache:ssrf:dns:${hostname}`;
-  const cached = await cacheGet<string[]>(cacheKey);
+  // DNS validation must remain available when the optional Redis cache is
+  // temporarily unreachable. The resolver itself is the source of truth;
+  // Redis only accelerates repeated checks.
+  let cached: string[] | null = null;
+  try {
+    cached = await cacheGet<string[]>(cacheKey);
+  } catch {
+    cached = null;
+  }
   if (cached && cached.length > 0) return cached;
 
   // Transient DNS failures are common in serverless / hostnames with flaky
@@ -87,7 +95,7 @@ async function resolveHostname(hostname: string): Promise<string[]> {
     try {
       const addresses = await lookup(hostname, { all: true });
       const ips = addresses.map((a) => a.address);
-      await cacheSet(cacheKey, ips, DNS_CACHE_TTL_SECONDS);
+      await cacheSet(cacheKey, ips, DNS_CACHE_TTL_SECONDS).catch(() => {});
       return ips;
     } catch {
       if (attempts >= 2) {

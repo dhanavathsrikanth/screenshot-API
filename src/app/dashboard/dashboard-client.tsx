@@ -37,8 +37,8 @@ export function DashboardLayoutClient({
         />
 
         {/* Mobile top bar — minimal, not fixed */}
-        <div className="flex flex-1 flex-col lg:pl-64 min-w-0">
-          <header className="flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-4 lg:hidden">
+        <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
+          <header className="flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--sidebar)] px-4 lg:hidden">
             <button
               onClick={() => setMobileOpen(true)}
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--ink)]"
@@ -53,7 +53,7 @@ export function DashboardLayoutClient({
           </header>
 
           <main className="flex-1">
-            <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1360px] px-4 py-7 sm:px-7 lg:px-10 lg:py-9">
               <DataAccessBanner status={dataAccess} />
               <div className="dashboard-page">{children}</div>
             </div>

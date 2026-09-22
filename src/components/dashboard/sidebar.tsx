@@ -169,10 +169,10 @@ function SidebarContent({
   const adminActive = isAdmin && isActive(adminLink.href);
 
   const linkBase =
-    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all";
-  const linkActive = "bg-orange-500/10 text-orange-600";
+    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors";
+  const linkActive = "bg-[var(--ink)] text-white shadow-sm dark:bg-white dark:text-black";
   const linkInactive = "text-[var(--dim)] hover:bg-[var(--muted)] hover:text-[var(--ink)]";
-  const iconActive = "text-orange-500";
+  const iconActive = "text-current";
   const iconInactive = "text-[var(--dim)]";
 
   const workspaceNav = workspaceId
@@ -198,11 +198,11 @@ function SidebarContent({
         <ProjectSwitcher />
       </div>
       {isWorkspace && workspaceId && (
-        <div className="mx-3 mb-2 rounded-xl border border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/20 p-2.5">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-orange-700 dark:text-orange-300">Workspace</p>
-          <p className="mt-0.5 text-xs text-orange-800/80 dark:text-orange-300/80 leading-tight">All items below are scoped to this workspace. Data is isolated by project.</p>
-          <Link href="/dashboard/projects" onClick={onLinkClick} className="mt-2 inline-flex w-full items-center justify-center rounded-lg border border-orange-200 bg-white px-2.5 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
-            ← All workspaces
+        <div className="mx-3 mb-2 rounded-lg border border-[var(--border)] bg-[var(--muted)]/60 p-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--dim)]">Project context</p>
+          <p className="mt-1 text-[11px] leading-snug text-[var(--dim)]">Navigation is scoped to this workspace.</p>
+          <Link href="/dashboard/projects" onClick={onLinkClick} className="mt-2 inline-flex text-xs font-semibold text-[var(--ink)] hover:text-[var(--accent)]">
+            All workspaces →
           </Link>
         </div>
       )}
@@ -236,7 +236,7 @@ function SidebarContent({
               <div className="my-4 border-t border-[var(--border)]" />
             )}
             <nav className="space-y-1">
-              <p className="section-title px-3 mb-2">{section.label}{isWorkspace && section.label !== "Account" ? <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-[var(--dim)]">· global</span> : null}</p>
+              <p className="section-title px-3 mb-2">{section.label}{isWorkspace && section.label !== "Account" ? <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-[var(--dim)]">global</span> : null}</p>
               {section.links.map((link) => (
                 <Link
                   key={link.href}
@@ -277,8 +277,8 @@ function SidebarContent({
       </div>
 
       {/* Bottom section: Plan + User */}
-      <div className="border-t border-[var(--border)] bg-[var(--muted)]/40 p-3 space-y-3">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+      <div className="border-t border-[var(--border)] bg-[var(--sidebar)] p-3 space-y-2.5">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--muted)]/45 p-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--dim)]">Plan</span>
             <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${getPlanBadgeClass(plan)}`}>
@@ -306,7 +306,7 @@ function SidebarContent({
           )}
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5">
+        <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
           <UserButton
             appearance={{
               elements: { avatarBox: "h-8 w-8" },
@@ -328,7 +328,7 @@ function SidebarContent({
           <Link
             href="/dashboard/settings"
             onClick={onLinkClick}
-            className="rounded-lg p-1.5 text-[var(--dim)] hover:bg-[var(--muted)] hover:text-[var(--ink)]"
+            className="rounded-md p-1.5 text-[var(--dim)] hover:bg-[var(--muted)] hover:text-[var(--ink)]"
             aria-label="Settings"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -344,10 +344,10 @@ function SidebarContent({
 
 export function DashboardSidebar({ plan, isAdmin }: { plan?: string; isAdmin?: boolean }) {
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 border-r border-[var(--border)] bg-[var(--card)] lg:fixed lg:inset-y-0 lg:left-0 z-30 overflow-hidden">
-      <div className="flex h-[64px] items-center border-b border-[var(--border)] px-5 flex-shrink-0">
-        <Link href="/" className="flex items-center gap-2.5 text-[15px] font-bold tracking-tight">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--ink)] text-white dark:bg-white dark:text-black">
+    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 border-r border-[var(--border)] bg-[var(--sidebar)] lg:fixed lg:inset-y-0 lg:left-0 z-30 overflow-hidden">
+      <div className="flex h-[68px] items-center border-b border-[var(--border)] px-5 flex-shrink-0">
+        <Link href="/" className="flex items-center gap-2.5 text-[15px] font-bold tracking-[-0.03em]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--ink)] text-white dark:bg-white dark:text-black">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
@@ -355,8 +355,8 @@ export function DashboardSidebar({ plan, isAdmin }: { plan?: string; isAdmin?: b
           </span>
           ScreenshotAPI
         </Link>
-        <span className="ml-auto hidden xl:inline-flex items-center rounded-full bg-[var(--muted)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--dim)]">
-          Dashboard
+        <span className="ml-auto hidden xl:inline-flex items-center rounded-md bg-[var(--muted)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--dim)]">
+          Console
         </span>
       </div>
       <SidebarContent plan={plan} isAdmin={isAdmin} />
@@ -393,7 +393,7 @@ export function MobileSidebar({
     <>
       {open && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          className="lg:hidden fixed inset-0 z-40 bg-black/35 backdrop-blur-sm"
           onClick={onClose}
         />
       )}
@@ -403,7 +403,7 @@ export function MobileSidebar({
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-4 h-14 flex-shrink-0 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between px-4 h-16 flex-shrink-0 border-b border-[var(--border)] bg-[var(--sidebar)]">
           <span className="text-base font-bold tracking-tight text-[var(--ink)]">ScreenshotAPI</span>
           <button
             onClick={onClose}

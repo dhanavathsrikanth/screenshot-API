@@ -8,17 +8,33 @@ import { ensureCredits } from "@/lib/credits";
 import { checkRateLimit, getUserPlan } from "@/lib/plans";
 import { checkGuestToolLimit } from "@/lib/tools";
 import { TOOL_GUEST_DAILY_LIMIT } from "@/lib/tool-limits";
+import { evaluateGuestIp } from "@/lib/security/ip-intel";
 import { logScreenshotUsage } from "@/app/actions/usage";
 import { trackQuotaReached } from "@/lib/analytics-events";
 import { logRequest } from "@/lib/redis";
 import { validateTargetUrl, SsrfError } from "@/lib/security/ssrf";
 import { RenderError } from "@/lib/screenshot/types";
+import { logger } from "@/lib/logger";
 import {
   getClientIp, getRequestId, internalError, invalidUrl, jsonError,
   normalizeUrl, rateLimited, rateLimitHeaders, zodErrorResponse,
 } from "@/lib/api";
 
 export const maxDuration = 60;
+
+/**
+ * The homepage tool is public. A guest request must never wait for Clerk's
+ * session refresh/handshake, especially when Clerk is unavailable locally or
+ * a stale browser cookie is present. Signed-in users still get their session
+ * when Clerk answers promptly; otherwise the request safely follows the
+ * guest path.
+ */
+async function resolveOptionalAuth(request: NextRequest) {
+  return Promise.race([
+    resolveAuth(request).catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+  ]);
+}
 
 const ToolRequestSchema = z.object({
   url: z.string().url(),
@@ -73,16 +89,20 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
-    const authCtx = await resolveAuth(request);
+    const authCtx = await resolveOptionalAuth(request);
     const isGuest = !authCtx;
 
     let creditsUsed = 0;
     let rateLimitHeadersObj: Record<string, string> = {};
 
     if (isGuest) {
-      // Anonymous users: burst per browser + daily cap per IP
+      // Anonymous users: flat daily cap, per browser and per IP
       const ip = getClientIp(request);
       const burstId = input.client_id ?? `ip:${ip}`;
+      const ipVerdict = await evaluateGuestIp(ip);
+      if (!ipVerdict.allowed) {
+        return jsonError(403, ipVerdict.code, ipVerdict.message, requestId, ipVerdict.detail);
+      }
       const limit = await checkGuestToolLimit(burstId, ip);
 
       rateLimitHeadersObj = rateLimitHeaders({
@@ -96,7 +116,7 @@ export async function POST(request: NextRequest) {
           limit.retryAfterMs,
           { limit: limit.limit, remaining: Math.max(0, limit.remaining), reset: limit.reset },
           requestId,
-          `Guest limit reached. Free tools are limited to ${TOOL_GUEST_DAILY_LIMIT} captures per day. Sign in for higher limits.`
+          `You've used your ${TOOL_GUEST_DAILY_LIMIT} free captures for today. Sign in for higher limits.`
         );
       }
     } else {
@@ -195,6 +215,11 @@ export async function POST(request: NextRequest) {
       }
       return jsonError(502, error.code.toLowerCase(), error.message, requestId);
     }
+    logger.error({
+      event: "public_tool_capture_failed",
+      requestId: requestId ?? undefined,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return internalError(error, requestId);
   }
 }
