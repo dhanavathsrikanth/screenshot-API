@@ -85,7 +85,7 @@ export const ScreenshotOptionsSchema = z.object({
   script_url: z.string().url().optional(),
   script_path: z.string().optional(),
   click: z.string().optional(),
-  delay: z.coerce.number().int().min(0).max(1000).default(0),
+  delay: z.coerce.number().int().min(0).max(30000).default(0),
   timeout: z.coerce.number().int().min(1000).default(10000),
   proxy: z.string().optional(),
   proxy_per_request: z.string().optional(),

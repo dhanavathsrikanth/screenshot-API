@@ -174,7 +174,7 @@ export default async function ComparisonPage({
               <li>Want a permanent free plan — not just a trial — with no credit card.</li>
               <li>Need clean captures out of the box (ads &amp; cookie banners blocked by default).</li>
               <li>Prefer one simple GET request over SDK setup.</li>
-              <li>Want modern formats like WebP and AVIF alongside PNG, JPEG, and PDF.</li>
+              <li>Need capture options aligned with your plan, including full-page and PDF on Free.</li>
             </ul>
           </div>
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">

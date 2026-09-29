@@ -4,21 +4,21 @@ const steps = [
     title: "Create your account",
     command: "signup()",
     description:
-      "Sign up in seconds and grab your API key from the dashboard. Your free plan includes 100 renders every month — no credit card needed.",
+      "Sign up in seconds and grab your API key from the dashboard. Your Free plan includes 100 credits every month — no credit card needed.",
   },
   {
     number: "02",
     title: "Call the API",
     command: "GET /api/take",
     description:
-      "Send a single GET request with your URL. Free covers viewport PNG, JPEG, and WebP. Starter ($9) adds full-page, PDF, and higher volume.",
+      "Send a single request with your URL and capture options. Free includes full-page capture and PDF within its monthly credits.",
   },
   {
     number: "03",
     title: "Get clean screenshots",
     command: "response: blob",
     description:
-      "Receive a viewport image in seconds. Ads, cookie banners, and chat widgets are stripped automatically. Upgrade to Starter when you need the full scrollable page or PDF.",
+      "Get an image or PDF ready for your product. Ads, cookie banners, and chat widgets are handled automatically; paid plans add more volume and longer history.",
   },
 ];
 

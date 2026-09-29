@@ -55,7 +55,7 @@ export default function Image() {
             Website screenshots in one API call
           </div>
           <div style={{ fontSize: 32, color: "#a5b4fc" }}>
-            Full-page · Ad blocking · Dark mode · 9 output formats
+            Full-page · PDF · Ad blocking · PNG/JPEG/WebP · Pro video
           </div>
         </div>
 

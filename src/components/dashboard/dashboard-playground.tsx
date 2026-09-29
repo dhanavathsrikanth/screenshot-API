@@ -7,7 +7,7 @@ import { UpgradeButton } from "@/components/upgrade-button";
 const VIDEO_FORMATS = new Set(["mp4", "webm", "gif"]);
 
 const FORMATS_BY_PLAN: Record<PlanId, string[]> = {
-  free: ["png", "jpeg", "webp"],
+  free: ["png", "jpeg", "webp", "pdf"],
   starter: ["png", "jpeg", "webp", "pdf"],
   pro: ["png", "jpeg", "webp", "pdf", "gif", "mp4", "webm"],
   scale: ["png", "jpeg", "webp", "pdf", "gif", "mp4", "webm"],
@@ -269,8 +269,7 @@ export function DashboardPlayground({ plan = "free", showUpsell: _showUpsell = f
     setJobStatus(null);
     setBulkResults(null);
     const f = ALL_KNOWN_FORMATS.includes(format) ? format : "png";
-    if (plan === "free" && fullPage) { setError("Full-page captures need a paid plan. Try a normal screenshot for free."); setUpgradeRequired(true); setLoading(false); return; }
-    if (plan === "free" && f === "pdf") { setError("PDF needs a paid plan. Try PNG for free."); setUpgradeRequired(true); setLoading(false); return; }
+    if (!allowedFormats.includes(f)) { setError(`${FORMAT_LABELS[f] ?? f.toUpperCase()} is not available on your plan.`); setUpgradeRequired(true); setLoading(false); return; }
     if (VIDEO_FORMATS.has(f) && !allowedFormats.includes(f)) {
       if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
         setError("Video & GIF need the Pro plan. You can preview options here, but capture requires an upgrade."); setUpgradeRequired(true); setLoading(false); return;
@@ -360,7 +359,7 @@ export function DashboardPlayground({ plan = "free", showUpsell: _showUpsell = f
         const createPayload = await createResponse.json();
         if (!createResponse.ok || !createPayload.success) { const needsUpgrade = createPayload.error?.code === "plan_feature" || createResponse.status === 403; setUpgradeRequired(needsUpgrade); throw new Error(createPayload.error?.message ?? "Could not start capture"); }
         const job = createPayload.data;
-        if (job.status === "completed" && job.screenshot?.url) { setStorageUrl(job.screenshot.url); setResult(job.screenshot.url); setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : f === "pdf" ? "pdf" : "image"); setCreditsUsed(job.cached ? 0 : getCreditCost(f, isVideoMode ? videoSeconds : undefined)); setResponseTab("preview"); return; }
+        if (job.status === "completed" && job.screenshot?.url) { setStorageUrl(job.screenshot.url); setResult(job.screenshot.url); setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : f === "pdf" ? "pdf" : "image"); setCreditsUsed(getCreditCost(f, isVideoMode ? videoSeconds : undefined)); setResponseTab("preview"); return; }
         setJobStatus(`Working... job ${job.id}`);
         const completed = await pollV1Job(job.id);
         setStorageUrl(completed.url); setResult(completed.url); setResultType(isRealVideo ? "video" : isAnimatedGif ? "image" : f === "pdf" ? "pdf" : "image"); setCreditsUsed(getCreditCost(f, isVideoMode ? videoSeconds : undefined)); setJobStatus(null); setResponseTab("preview"); return;
@@ -668,8 +667,8 @@ export function DashboardPlayground({ plan = "free", showUpsell: _showUpsell = f
                   <input type="text" value={waitForUrl} onChange={(e) => setWaitForUrl(e.target.value)} placeholder="**/dashboard" className="h-8 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-[11px] font-mono placeholder:text-[var(--dim)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30" />
                 </label>
                 <label className="space-y-1">
-                  <span className="text-[11px] font-medium text-[var(--ink)]">Extra delay (ms)</span>
-                  <input type="number" value={delay} onChange={(e) => setDelay(Number(e.target.value))} min={0} max={1000} step={100} className="h-8 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30" />
+                  <span className="text-[11px] font-medium text-[var(--ink)]">Extra delay (ms, max {plan === "free" ? "1,000" : "30,000"})</span>
+                  <input type="number" value={delay} onChange={(e) => setDelay(Number(e.target.value))} min={0} max={plan === "free" ? 1000 : 30000} step={100} className="h-8 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30" />
                 </label>
               </div>
               <label className="space-y-1">

@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
     const gateFailure = checkRenderFeatureGates(plan, {
       format: renderOptions.format,
       full_page: renderOptions.full_page,
+      delay: renderOptions.delay,
       selector: renderOptions.selector,
       country: renderOptions.country,
     });

@@ -35,12 +35,12 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     monthlyScreenshots: 100,
     apiKeys: 1,
     rateLimitPerMinute: 10,
-    formats: ["png", "jpeg", "webp"],
+    formats: ["png", "jpeg", "webp", "pdf"],
     adBlocking: true,
     cookieBlocking: true,
     trackerBlocking: true,
-    pdfExport: false,
-    fullPage: false,
+    pdfExport: true,
+    fullPage: true,
     elementCapture: true,
     geoTargeting: false,
     videoCapture: false,
@@ -315,7 +315,7 @@ export function getPlanEntitlements(plan: PlanId) {
 
 // ─── Shared render-feature gate ───────────────────────────────────────
 
-export type PlanGateFeature = "format" | "pdf" | "full_page" | "geo" | "video";
+export type PlanGateFeature = "format" | "pdf" | "full_page" | "geo" | "video" | "delay";
 
 export type PlanGateFailure = {
   message: string;
@@ -341,7 +341,7 @@ export function planGateDetails(failure: PlanGateFailure) {
  */
 export function checkRenderFeatureGates(
   plan: PlanId,
-  options: { format: string; full_page?: boolean; selector?: string; country?: string; video_seconds?: number }
+  options: { format: string; full_page?: boolean; selector?: string; country?: string; video_seconds?: number; delay?: number }
 ): PlanGateFailure | null {
   if (!isFormatAllowed(options.format, plan)) {
     const required: PaidPlanId =
@@ -354,16 +354,23 @@ export function checkRenderFeatureGates(
   }
   if (options.format === "pdf" && !isPdfExportAllowed(plan)) {
     return {
-      message: "PDF export requires the Starter plan or above.",
+      message: "PDF export is not available on your plan.",
       required_plan: "starter",
       feature: "pdf",
     };
   }
   if (options.full_page && !isFullPageAllowed(plan)) {
     return {
-      message: "Full-page captures require the Starter plan or above.",
+      message: "Full-page capture is not available on your plan.",
       required_plan: "starter",
       feature: "full_page",
+    };
+  }
+  if ((options.delay ?? 0) > 1000 && plan === "free") {
+    return {
+      message: "Delays longer than 1000 ms require the Starter plan or above.",
+      required_plan: "starter",
+      feature: "delay",
     };
   }
   if (options.country && !isGeoTargetingAllowed(plan)) {

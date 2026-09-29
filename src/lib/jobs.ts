@@ -380,7 +380,7 @@ export async function processJob(id: string): Promise<void> {
     const cacheKey = getCacheKey(job.options as unknown as Record<string, unknown>);
     const cached = await getFromCache(cacheKey);
     if (cached) {
-      await completeJob(id, cached.customerUrl || cached.storageUrl, cached.format, cached.width, cached.height, cached.sizeBytes, cached, common, startedAt, jobSourceUrl(job.options));
+      await completeJob(id, cached.customerUrl || cached.storageUrl, cached.format, cached.width, cached.height, cached.sizeBytes, cached, job.credits_charged ?? 0, common, startedAt, jobSourceUrl(job.options));
       return;
     }
 
@@ -423,7 +423,7 @@ export async function processJob(id: string): Promise<void> {
       logger.error({ event: "render_upload_failed", jobId: id, requestId: job.request_id ?? undefined, error: e instanceof Error ? e.message : e });
     }
 
-    await completeJob(id, customerUrl ?? publicUrl, result.format, result.width, result.height, result.buffer.length, null, common, startedAt, jobSourceUrl(job.options));
+    await completeJob(id, customerUrl ?? publicUrl, result.format, result.width, result.height, result.buffer.length, null, job.credits_charged ?? 0, common, startedAt, jobSourceUrl(job.options));
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown render error";
     const code =
@@ -482,6 +482,7 @@ async function completeJob(
   height: number,
   sizeBytes: number,
   cachedEntry: { storageUrl: string; width: number; height: number; format: string; sizeBytes: number } | null,
+  creditsCharged: number,
   common: { userId: string; projectId: string | null; apiKeyId?: string; requestId?: string | null },
   startedAt: number,
   sourceUrl?: string
@@ -506,7 +507,7 @@ async function completeJob(
         endpoint: "/api/v1/screenshots",
         method: "POST",
         request_id: common.requestId,
-        credits_used: cachedEntry !== null ? 0 : undefined,
+        ...(cachedEntry !== null ? { credits_used: creditsCharged, cached: true } : {}),
         response_time_ms: Date.now() - startedAt,
       },
     });
@@ -567,7 +568,7 @@ async function completeJob(
     screenshotUrl: storageUrl ?? cachedEntry?.storageUrl ?? null,
     cached: cachedEntry !== null,
     responseTimeMs: Date.now() - startedAt,
-    creditsUsed: 0,
+    creditsUsed: creditsCharged,
     source: "api",
   }).catch(() => {});
 }
@@ -614,6 +615,7 @@ export async function recordCacheHitJob(params: {
         method: "POST",
         request_id: params.requestId,
         cached: true,
+        credits_used: params.creditsCharged,
         response_time_ms: params.responseTimeMs ?? 0,
       },
     });

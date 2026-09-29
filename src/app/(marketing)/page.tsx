@@ -14,9 +14,9 @@ import { CTASection } from "@/components/home/CTASection";
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: {
-    title: "ScreenshotAPI - Clean website screenshots via API",
+    title: "ScreenshotAPI - Website capture infrastructure for SaaS products",
     description:
-      "Screenshot API for products that ship captures. Cookie banners and ads blocked by default. 100 free renders, then $9 for full-page, PDF, and production volume.",
+      "Turn public webpages into clean screenshots or PDFs with one API call. Full-page captures and PDF are included on Free; no browser infrastructure to run.",
     url: "/",
     type: "website",
   },

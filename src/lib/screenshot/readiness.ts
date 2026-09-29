@@ -233,7 +233,7 @@ export async function applyReadiness(page: Page, options: ScreenshotOptions): Pr
 
   if (options.delay > 0) {
     const { sleep } = await import("@/lib/utils");
-    await sleep(Math.min(options.delay, 1000));
+    await sleep(Math.min(options.delay, 30000));
   }
   // If any wait_* was requested but readiness wasn't custom, ensure it still ran
   // (fallback for direct /api/take callers that don't set readiness=custom)

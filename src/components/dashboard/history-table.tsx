@@ -471,13 +471,11 @@ export function HistoryTable({
                     {/* Credits */}
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ${
-                        s.cached
-                          ? "bg-green-50 text-green-700 ring-green-600/20 dark:bg-green-950/50 dark:text-green-400"
-                          : getCreditCost(s.format, meta) >= 5
-                            ? "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-400"
-                            : "bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/50 dark:text-blue-400"
+                        getCreditCost(s.format, meta) >= 5
+                          ? "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-400"
+                          : "bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/50 dark:text-blue-400"
                       }`}>
-                        {s.cached ? "0" : getCreditCost(s.format, meta)}
+                        {typeof meta.credits_used === "number" ? meta.credits_used : getCreditCost(s.format, meta)}
                       </span>
                     </td>
 

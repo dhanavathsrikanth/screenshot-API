@@ -3,7 +3,7 @@ import { PricingSection } from "@/components/pricing-section";
 
 export const metadata: Metadata = {
   title: "Pricing - ScreenshotAPI",
-  description: "Simple pricing for screenshot APIs. 100 free viewport captures, then $9/mo for full-page, PDF, and production volume.",
+  description: "Straightforward pricing for website capture infrastructure. Start with 100 free credits; full-page captures and PDF are included on every plan.",
   alternates: { canonical: "/pricing" },
 };
 

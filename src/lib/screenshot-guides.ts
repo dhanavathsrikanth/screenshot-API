@@ -38,7 +38,7 @@ export const screenshotGuides: ScreenshotGuide[] = [
   -o screenshot.png`,
     highlights: [
       { title: "One request", desc: "A single GET call returns the finished image — no polling, no webhooks required." },
-      { title: "9 output formats", desc: "PNG, JPEG, WebP, PDF, GIF, TIFF, AVIF, SVG, and HTML." },
+      { title: "Image, PDF & video formats", desc: "PNG, JPEG, WebP, and PDF on all plans; GIF, MP4, and WebM on Pro and Scale." },
       { title: "Clean captures", desc: "Ads, cookie banners, and trackers are stripped before rendering by default." },
       { title: "Full-page support", desc: "Add full_page=true to capture everything below the fold in one image." },
     ],
@@ -105,7 +105,7 @@ with open("screenshot.png", "wb") as f:
       },
       {
         q: "How much does it cost?",
-        a: "There is a free plan with monthly credits and no credit card required. The Starter plan at $9/month adds full-page captures and higher limits; Pro at $49/month unlocks bulk endpoints and priority rendering.",
+        a: "There is a free plan with 100 monthly credits and no credit card required. Full-page captures and PDF are included; Starter at $9/month adds higher limits and longer history.",
       },
     ],
   },
@@ -115,7 +115,7 @@ with open("screenshot.png", "wb") as f:
     title: "Screenshot API for Node.js",
     metaTitle: "Node.js Screenshot API - Replace Puppeteer with One HTTP Call",
     metaDescription:
-      "Take website screenshots in Node.js with the built-in fetch API. Full-page captures, ad blocking, and 9 output formats — no Puppeteer, no headless Chrome, no Lambda layers.",
+      "Take website screenshots in Node.js with the built-in fetch API. Full-page captures and PDF are available within Free credits; Pro and Scale add video formats.",
     intro: [
       "Node 18+ ships with fetch built in, which means taking a website screenshot is now a three-line operation — no puppeteer, no chromium binaries bloating your Docker image, and no debugging flaky browser processes on your server or Lambda function.",
       "The API streams the finished image straight back in the response body, so you can pipe it to disk, upload it to S3 with the AWS SDK, return it from an Express route, or store it in Supabase Storage with minimal glue code.",
@@ -384,7 +384,7 @@ await File.WriteAllBytesAsync("screenshot.png", bytes);`,
       { title: "Native HttpClient", desc: "No Playwright, WebDriver, or headless-Chromium deployment for .NET." },
       { title: "Async first", desc: "Fully asynchronous — safe to call from ASP.NET Core controllers without thread starvation." },
       { title: "Azure-friendly", desc: "Stream results directly into Azure Blob Storage or return from minimal APIs." },
-      { title: "All output formats", desc: "PNG, JPEG, WebP, AVIF, PDF and more via a single query parameter." },
+      { title: "Formats for each plan", desc: "PNG, JPEG, WebP, and PDF on Free/Starter; GIF, MP4, and WebM on Pro/Scale." },
     ],
     faqs: [
       {

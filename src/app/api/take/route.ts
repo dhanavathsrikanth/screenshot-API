@@ -328,6 +328,7 @@ export async function GET(request: NextRequest) {
     const gateFailure = checkRenderFeatureGates(plan, {
       format: options.format,
       full_page: options.full_page,
+      delay: options.delay,
       selector: options.selector,
       country: options.country,
     });
@@ -645,6 +646,7 @@ export async function POST(request: NextRequest) {
     const gateFailure = checkRenderFeatureGates(plan, {
       format: options.format,
       full_page: options.full_page,
+      delay: options.delay,
       selector: options.selector,
       country: options.country,
     });

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: "ScreenshotAPI - Clean website screenshots via API",
   description:
-    "Screenshot API for products that ship captures. Cookie banners and ads blocked by default. 100 free renders, then $9 for full-page, PDF, and production volume.",
+    "Website capture infrastructure for products that ship screenshots. Turn public webpages into clean screenshots or PDFs with one API call. Full-page capture and PDF are included on Free.",
   openGraph: {
     type: "website",
     siteName: siteConfig.name,

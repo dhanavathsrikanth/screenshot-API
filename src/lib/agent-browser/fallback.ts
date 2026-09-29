@@ -234,7 +234,7 @@ async function applyReadinessAgent(
     await runAgentBrowser(["wait", "--fn", options.wait_for_condition], { session, timeoutMs }).catch(() => {});
   }
   if (options.delay > 0) {
-    await sleep(Math.min(options.delay, 1000));
+    await sleep(Math.min(options.delay, 30000));
   }
   // Wait network idle for complete readiness.
   const mode = options.readiness;

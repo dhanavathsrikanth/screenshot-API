@@ -9,13 +9,13 @@ const paidPlans = [
     name: "Starter",
     monthlyPrice: 9,
     annualPrice: 90,
-    description: "Full-page, PDF, and 2,500 captures",
-    screenshots: "2,500",
+    description: "2,500 credits and 30-day history",
+    screenshots: "2,500 credits",
     overage: "$0.005 / extra",
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ID || "",
     annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_STARTER_ANNUAL_ID || "",
     color: "blue",
-    features: ["2,500 screenshots/mo", "Full-page captures", "PDF export", "30-day history", "5 API keys · 40 req/min", "Email support"],
+    features: ["2,500 credits/mo", "Full-page captures", "PDF export", "30-day history", "5 API keys · 40 req/min", "Email support"],
   },
   {
     id: "pro",
@@ -23,13 +23,13 @@ const paidPlans = [
     monthlyPrice: 49,
     annualPrice: 490,
     description: "For teams shipping production features",
-    screenshots: "15,000",
+    screenshots: "15,000 credits",
     overage: "$0.003 / extra",
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ID || "",
     annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_PRO_ANNUAL_ID || "",
     popular: false,
     color: "orange",
-    features: ["15,000 screenshots/mo", "Everything in Starter", "Geo-targeted rendering", "Cloud storage (R2)", "25 API keys · 120 req/min", "Priority queue"],
+    features: ["15,000 credits/mo", "Everything in Starter", "GIF/MP4/WebM capture", "Geo-targeted rendering", "Cloud storage (R2)", "25 API keys · 120 req/min", "Priority queue"],
   },
   {
     id: "scale",
@@ -37,12 +37,12 @@ const paidPlans = [
     monthlyPrice: 79,
     annualPrice: 790,
     description: "Premium capture capabilities at volume",
-    screenshots: "50,000",
+    screenshots: "50,000 credits",
     overage: "$0.002 / extra",
     productId: process.env.NEXT_PUBLIC_DODO_PRODUCT_SCALE_ID || "",
     annualProductId: process.env.NEXT_PUBLIC_DODO_PRODUCT_SCALE_ANNUAL_ID || "",
     color: "purple",
-    features: ["50,000 screenshots/mo", "Everything in Pro", "Video / GIF capture (MP4, GIF, WebM)", "Highest queue priority", "50 API keys · 240 req/min"],
+    features: ["50,000 credits/mo", "Everything in Pro", "Video / GIF capture (MP4, GIF, WebM)", "Highest queue priority", "50 API keys · 240 req/min"],
   },
 ];
 
@@ -138,7 +138,7 @@ export function UpgradeDialog({
           <h2 className="text-2xl font-bold">Ship production screenshots</h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-md mx-auto">
             {currentPlan === "free" || !currentPlan
-              ? "Most teams upgrade when screenshots ship to users. Starter ($9) unlocks full-page, PDF, 2,500 captures/month, and 30-day history."
+              ? "Upgrade when capture volume grows: Starter ($9) includes 2,500 monthly captures, priority rendering, and 30-day history. Full-page captures and PDF are already included on Free."
               : "Higher plans add volume, geo targeting, and video. Cancel anytime."}
           </p>
           {(currentPlan === "free" || !currentPlan) && (

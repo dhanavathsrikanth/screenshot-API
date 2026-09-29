@@ -9,8 +9,8 @@ export function WhyStarter() {
           why teams pay $9
         </h2>
         <p className="mb-6 max-w-2xl text-[13px] leading-[1.55] text-[var(--dim)]">
-          Free is for evaluating the API. Most products upgrade when screenshots become a shipped feature —
-          full-page, PDF, volume, and history that outlasts a day.
+          Build and validate the capture feature on Free. Move to Starter when usage grows and your team needs
+          more monthly volume, priority rendering, and history that outlasts a day.
         </p>
 
         <div className="overflow-x-auto rounded-lg border border-[var(--line)]">

@@ -8,8 +8,8 @@ export function UseCases() {
           who pays for this
         </h2>
         <p className="mb-6 max-w-2xl text-[13px] leading-[1.55] text-[var(--dim)]">
-          The free plan is for trying the API. Teams pay when screenshots become a product feature —
-          volume, full-page, PDF, and history that lasts longer than a day.
+          Give users link previews, page archives, and visual reports without operating Chromium yourself.
+          Start with 100 monthly credits, then upgrade as captures become part of your product traffic.
         </p>
         <div className="grid grid-cols-1 gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">
           {useCases.map((item) => (

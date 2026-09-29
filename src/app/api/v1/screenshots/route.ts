@@ -186,6 +186,7 @@ export async function POST(request: NextRequest) {
     const gateFailure = checkRenderFeatureGates(plan, {
       format: input.format,
       full_page: input.full_page,
+      delay: input.delay,
       selector: input.selector,
       country: input.country,
       video_seconds: input.video_seconds,
@@ -230,6 +231,19 @@ export async function POST(request: NextRequest) {
     const cacheKey = getCacheKey(renderOptions as unknown as Record<string, unknown>);
     const cached = await getFromCache(cacheKey);
     if (cached) {
+      const ensure = await ensureCredits(userId, {
+        cached: true,
+        format: renderOptions.format,
+        pdfPages: renderOptions.pdfPages,
+        geoTargeted: Boolean(renderOptions.country),
+        meterMetadata: { endpoint: "/api/v1/screenshots", method: "POST", cache: "hit" },
+      });
+      if (!ensure.allowed) {
+        trackQuotaReached(userId, "insufficient_credits").catch(() => {});
+        return v1Err(402, "insufficient_credits", "No credits remaining. Upgrade or buy credits.", requestId, {
+          upgrade_url: "/dashboard/plan",
+        });
+      }
       // Record the hit as a real completed job + screenshot row so the ID is
       // fetchable via /v1/screenshots/[id], appears in listings, and lands in
       // dashboard history (previously a bare cache hash with no DB records).
@@ -241,7 +255,7 @@ export async function POST(request: NextRequest) {
         source,
         options: renderOptions,
         requestHash: cacheKey,
-        creditsCharged: 0,
+        creditsCharged: ensure.units,
         priority: getQueuePriority(plan),
         entry: cached,
       });
@@ -257,7 +271,7 @@ export async function POST(request: NextRequest) {
         screenshotUrl: cached.storageUrl,
         cached: true,
         responseTimeMs: 0,
-        creditsUsed: 0,
+        creditsUsed: ensure.units,
         source: "api",
         ipHash: ipHash(callerIp(request) ?? "unknown"),
         userAgent: request.headers.get("user-agent") ?? undefined,

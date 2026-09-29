@@ -8,7 +8,7 @@ export function CTASection() {
           Ready to render your first screenshot?
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-[13px] leading-[1.6] text-[var(--dim)]">
-          Join with 100 free renders each month. Starter is $9 when you need full-page, PDF, and 2,500 captures — no credit card to start.
+          Start with 100 free credits each month, including full-page capture and PDF. Starter is $9 when you need 2,500 monthly credits and 30-day history.
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link

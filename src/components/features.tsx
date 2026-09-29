@@ -6,8 +6,8 @@ const features = [
   },
   {
     title: "Full-Page Capture",
-    command: "full_page: true · Starter+",
-    description: "Capture the entire scrollable page. Lazy-loaded images are triggered automatically. Included on Starter ($9) and above.",
+    command: "full_page: true · Free",
+    description: "Capture the entire scrollable page. Lazy-loaded images are triggered automatically, within your monthly credits.",
   },
   {
     title: "High-Resolution",
@@ -21,23 +21,18 @@ const features = [
   },
   {
     title: "Custom CSS & JS",
-    command: "inject()",
-    description: "Inject custom styles and scripts before rendering. Modify any page to your needs.",
-  },
-  {
-    title: "Extract HTML",
-    command: "format: html",
-    description: "Get fully rendered page source after JavaScript execution. Perfect for scraping or LLM ingestion.",
+    command: "styles · scripts · click",
+    description: "Apply custom styles or scripts and click a CSS selector before capturing through the v1 API.",
   },
   {
     title: "PDF Generation",
-    command: "format: pdf · Starter+",
-    description: "Convert any URL to PDF with control over page size, margins, and backgrounds. Starter plan and above.",
+    command: "format: pdf · Free",
+    description: "Convert URLs to PDF with page size, margins, and background controls, within your monthly credits.",
   },
   {
     title: "Multiple Formats",
     command: "format: webp",
-    description: "Export as PNG, JPEG, WebP, GIF, TIFF, AVIF, SVG, or PDF. Control quality and compression.",
+    description: "Export as PNG, JPEG, WebP, or PDF on Free and Starter. Pro and Scale also include GIF, MP4, and WebM.",
   },
   {
     title: "Element Capture",
@@ -57,7 +52,7 @@ const features = [
   {
     title: "Pay for successful renders",
     command: "status: 200",
-    description: "Cached hits are free. Failed renders are not billed. Paid plans jump the queue so production traffic is not stuck behind demos.",
+    description: "Successful cache hits count toward your credits. Failed renders are refunded. Paid plans jump the queue.",
   },
 ];
 

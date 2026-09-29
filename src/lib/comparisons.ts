@@ -39,7 +39,7 @@ export const comparisons: Comparison[] = [
       { factor: "Starting price", us: "$0 free plan", them: "Paid plans (see urlbox.com)" },
       { factor: "Permanent free tier", us: "Yes — monthly credits, no credit card", them: "Trial-based; check current terms" },
       { factor: "Ads & cookie banners blocked by default", us: "Yes", them: "Check vendor documentation" },
-      { factor: "Output formats", us: "PNG, JPEG, WebP, PDF, GIF, TIFF, AVIF, SVG, HTML", them: "Screenshots, PDF, video" },
+      { factor: "Output formats", us: "Free/Starter: PNG, JPEG, WebP, PDF; Pro/Scale add GIF, MP4, WebM", them: "Screenshots, PDF, video" },
       { factor: "Full-page capture", us: "Yes", them: "Yes" },
       { factor: "Dark mode emulation", us: "Yes", them: "Yes" },
       { factor: "Bulk rendering endpoint", us: "Yes — POST /api/take/bulk (all plans, credits apply)", them: "Check vendor documentation" },
@@ -71,7 +71,7 @@ export const comparisons: Comparison[] = [
       "ScreenshotOne alternative: compare free plans, default ad blocking, output formats, bulk endpoints, and pricing between ScreenshotAPI and ScreenshotOne.",
     intro: [
       "ScreenshotOne proved there is strong demand for simple, developer-friendly screenshot APIs — it is well documented, has official SDKs, and is widely used by indie makers. It also ships an official MCP server for AI agents.",
-      "ScreenshotAPI competes on the same simplicity but pushes three things harder: aggressive capture cleanup by default (ads, cookie banners, and chat widgets are blocked before the shutter fires), nine output formats including AVIF and TIFF, and a free plan designed to stay useful beyond a trial window. Our MCP server exposes 5 tools (vs ScreenshotOne's 1) including element capture and Markdown extraction.",
+      "ScreenshotAPI competes on the same simplicity with capture cleanup by default, full-page screenshots and PDF within the Free plan's 100 credits, and paid plans for higher volume, geo-targeting, and video. Our MCP server exposes 5 tools, including element capture and Markdown extraction.",
     ],
     bestForThem: [
       "Developers already invested in its SDKs and examples.",
@@ -81,7 +81,7 @@ export const comparisons: Comparison[] = [
       { factor: "Starting price", us: "$0 free plan", them: "Free trial credits, then paid" },
       { factor: "Permanent free tier", us: "Yes — monthly credits, no credit card", them: "Limited trial; check current terms" },
       { factor: "Ads & cookie banners blocked by default", us: "Yes, on by default", them: "Optional flag" },
-      { factor: "Output formats", us: "9 incl. PNG, WebP, AVIF, PDF", them: "Common image formats + PDF" },
+      { factor: "Output formats", us: "Free/Starter: PNG, JPEG, WebP, PDF; Pro/Scale add GIF, MP4, WebM", them: "Common image formats + PDF" },
       { factor: "Full-page capture", us: "Yes", them: "Yes" },
       { factor: "Dark mode emulation", us: "Yes", them: "Yes" },
       { factor: "Bulk rendering endpoint", us: "Yes — POST /api/take/bulk", them: "Available on higher tiers" },
@@ -92,7 +92,7 @@ export const comparisons: Comparison[] = [
     faqs: [
       {
         q: "Why choose ScreenshotAPI over ScreenshotOne?",
-        a: "Both are solid choices. ScreenshotAPI differentiates on always-on ad/cookie-banner blocking (fewer surprises in production captures), broader format support including modern formats like AVIF, and a permanent free plan rather than trial-only credits.",
+        a: "Both are solid choices. ScreenshotAPI differentiates on ad/cookie-banner blocking, full-page and PDF captures within 100 monthly Free credits, and paid plans for higher volume and advanced features.",
       },
       {
         q: "Does ScreenshotAPI have official SDKs like ScreenshotOne?",
@@ -115,7 +115,7 @@ export const comparisons: Comparison[] = [
       "Compare ApiFlash with ScreenshotAPI: free tier limits, ad and cookie-banner blocking, dark mode, output formats, and pricing. Find the better fit for your app.",
     intro: [
       "ApiFlash keeps things minimal: a handful of query parameters over HTTPS, backed by serverless infrastructure, with a modest free allocation each month.",
-      "ScreenshotAPI matches that simplicity — one GET request, no SDK required — while adding deeper capture quality controls that matter once screenshots become user-facing: automatic removal of ads and cookie banners, dark-mode emulation, custom viewports up to 4K, device scale factors, and nine output formats.",
+      "ScreenshotAPI matches that simplicity — one GET request, no SDK required — while adding capture controls such as automatic removal of ads and cookie banners, dark-mode emulation, custom viewports, device scale factors, and PNG, JPEG, WebP, and PDF output (with video formats on Pro and Scale).",
     ],
     bestForThem: [
       "Very simple use cases where a tiny parameter surface is enough.",
@@ -123,9 +123,9 @@ export const comparisons: Comparison[] = [
     ],
     rows: [
       { factor: "Starting price", us: "$0 free plan", them: "Free tier available" },
-      { factor: "Monthly free renders", us: "Recurring monthly credits on Free plan", them: "Fixed small allocation (~100/mo)" },
+      { factor: "Monthly free allowance", us: "100 monthly credits; PDF costs 5 credits per page", them: "Fixed small allocation (~100/mo)" },
       { factor: "Ads & cookie banners blocked by default", us: "Yes", them: "Not advertised as default" },
-      { factor: "Output formats", us: "9 incl. PNG, JPEG, WebP, AVIF, PDF", them: "JPEG/PNG (+PDF on higher tiers)" },
+      { factor: "Output formats", us: "PNG, JPEG, WebP, PDF; video on Pro/Scale", them: "JPEG/PNG (+PDF on higher tiers)" },
       { factor: "Dark mode emulation", us: "Yes", them: "Check vendor documentation" },
       { factor: "Viewport flexibility", us: "320–3840px wide, custom scale factor", them: "Basic width/height controls" },
       { factor: "Bulk rendering endpoint", us: "Yes — POST /api/take/bulk", them: "Not advertised" },
@@ -142,7 +142,7 @@ export const comparisons: Comparison[] = [
       },
       {
         q: "Can I render PDFs with either service?",
-        a: "Yes. Both can produce PDFs. ScreenshotAPI includes PDF output across plans with A4/A3/Letter/Legal page sizes and print-background control.",
+        a: "Yes. ScreenshotAPI includes PDF output on every plan, with A4/A3/Letter/Legal page sizes and print-background control.",
       },
     ],
   },
@@ -171,7 +171,7 @@ export const comparisons: Comparison[] = [
       { factor: "PDF export of live pages", us: "Yes", them: "N/A" },
       { factor: "Template-based OG images", us: "Possible via your hosted page", them: "Core feature" },
       { factor: "Starting price", us: "$0 free plan", them: "Free tier available" },
-      { factor: "Output formats", us: "9 incl. PNG, JPEG, WebP, PDF", them: "PNG/JPEG" },
+      { factor: "Output formats", us: "PNG, JPEG, WebP, PDF; video on Pro/Scale", them: "PNG/JPEG" },
     ],
     faqs: [
       {

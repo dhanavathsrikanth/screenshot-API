@@ -1,8 +1,8 @@
 const claims = [
   "No SDK required",
   "Ads & banners blocked by default",
-  "100 free captures / month",
-  "Starter $9: full-page + PDF",
+  "100 free credits / month",
+  "Full-page + PDF on Free",
 ];
 
 export function StackStrip() {

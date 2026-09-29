@@ -164,19 +164,19 @@ export function Hero() {
             <span className="absolute inline-flex h-1.5 w-1.5 animate-ping rounded-full bg-[var(--accent)] opacity-75" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
           </span>
-          100 free / month · Starter $9 unlocks full-page + PDF
+          100 free credits / month · full-page + PDF included
         </a>
 
         <h1 className="text-balance mt-6 mb-4 text-[26px] leading-tight tracking-[-0.02em] sm:text-[34px] font-medium">
-          Clean screenshots for your product,
+          Ship website captures,
           <br className="hidden sm:block" />
-          <span className="text-[var(--accent)]">one API call</span>
+          <span className="text-[var(--accent)]">without running browsers</span>
         </h1>
 
         <p className="text-pretty mx-auto leading-[1.6] text-[var(--dim)] max-w-2xl">
-          Built for indie SaaS, link previews, docs, and AI agents. Ads, cookie banners, and chat
-          widgets are stripped by default — so the image you ship is the page, not the clutter.
-          No Chromium farm to run.
+          Turn any public webpage into a clean screenshot or PDF with one API call. Ads, cookie
+          banners, and chat widgets are handled automatically, so your team can ship captures
+          without running browsers. Start with 100 free credits each month.
         </p>
 
         <div className="mt-8 flex items-center justify-center gap-3">
@@ -187,7 +187,7 @@ export function Hero() {
             }
             className="inline-flex items-center gap-2 rounded-lg bg-[var(--ink)] px-5 py-2.5 text-sm font-medium text-[var(--background)] transition-colors active:scale-[0.96]"
           >
-            Get 100 free captures
+            Get 100 free credits
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
@@ -411,12 +411,7 @@ export function Hero() {
               Automate this with one line of code
             </h2>
             <p className="mt-2 text-sm text-[var(--dim)]">
-              Free keys cover viewport PNG, JPEG, and WebP.
-              {fullPage ? (
-                <> You just previewed full-page — included on <Link href="/pricing" className="font-medium text-[var(--accent)] underline underline-offset-2">Starter at $9/mo</Link>.</>
-              ) : (
-                <> Full-page and PDF unlock on Starter at $9/month.</>
-              )}
+              Free includes PNG, JPEG, WebP, full-page capture, and PDF. Images use 1 credit per capture; PDF uses 5 credits per page.
             </p>
             <div className="mt-4">
               <CodeBlock code={buildCurl(capturedUrl, capturedSettings)} label="Equivalent API call" />

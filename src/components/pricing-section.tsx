@@ -13,20 +13,20 @@ const plans = [
     href: "/sign-up",
     popular: false,
     overage: null,
-    highlights: ["100 viewport captures", "PNG, JPEG, WebP", "Ads & banners blocked", "24-hour history"],
+    highlights: ["100 credits / month", "PNG, JPEG, WebP, PDF", "Full-page capture", "Ads & banners blocked"],
     features: {
-      screenshots: "100 / month",
-      formats: "PNG, JPEG, WebP",
+      screenshots: "100 credits / month",
+      formats: "PNG, JPEG, WebP, PDF",
       rendering: "Standard",
       caching: "CDN caching",
       storage: "24h temporary",
       adBlocking: true,
       cookieBlocking: true,
       trackerBlocking: true,
-      fullPage: false,
+      fullPage: true,
       customViewport: true,
       waitForSelector: true,
-      pdfExport: false,
+      pdfExport: true,
       cloudStorage: false,
       elementCapture: true,
       apiKeys: "1",
@@ -46,9 +46,9 @@ const plans = [
     href: "/sign-up",
     popular: true,
     overage: "$0.005 / extra",
-    highlights: ["2,500 captures / month", "Full-page screenshots", "PDF export", "30-day history"],
+    highlights: ["2,500 credits / month", "Full-page screenshots", "PDF export", "30-day history"],
     features: {
-      screenshots: "2,500 / month",
+      screenshots: "2,500 credits / month",
       formats: "PNG, JPEG, WebP, PDF",
       rendering: "Priority",
       caching: "CDN caching",
@@ -79,10 +79,10 @@ const plans = [
     href: "/sign-up",
     popular: false,
     overage: "$0.003 / extra",
-    highlights: ["15,000 captures / month", "Geo-targeted rendering", "Your S3 / R2 / GCS", "90-day history"],
+    highlights: ["15,000 credits / month", "Geo-targeted rendering", "Your S3 / R2 / GCS", "90-day history"],
     features: {
-      screenshots: "15,000 / month",
-      formats: "PNG, JPEG, WebP, PDF",
+      screenshots: "15,000 credits / month",
+      formats: "PNG, JPEG, WebP, PDF, GIF, MP4, WebM",
       rendering: "High priority",
       caching: "CDN caching",
       storage: "90 days",
@@ -96,7 +96,7 @@ const plans = [
       cloudStorage: true,
       elementCapture: true,
       geoTargeting: true,
-      videoCapture: false,
+      videoCapture: true,
       apiKeys: "25",
       rateLimit: "120 req/min",
       support: "Priority email",
@@ -112,10 +112,10 @@ const plans = [
     href: "/sign-up",
     popular: false,
     overage: "$0.002 / extra",
-    highlights: ["50,000 captures / month", "Video / GIF capture", "Highest queue priority", "90-day history"],
+    highlights: ["50,000 credits / month", "Video / GIF capture", "Highest queue priority", "90-day history"],
     features: {
-      screenshots: "50,000 / month",
-      formats: "PNG, JPEG, WebP, PDF, MP4, GIF",
+      screenshots: "50,000 credits / month",
+      formats: "PNG, JPEG, WebP, PDF, GIF, MP4, WebM",
       rendering: "Highest priority",
       caching: "CDN caching",
       storage: "90 days",
@@ -142,7 +142,7 @@ const featureGroups = [
   {
     name: "Rendering",
     features: [
-      { key: "screenshots", label: "Monthly screenshots" },
+              { key: "screenshots", label: "Monthly credits" },
       { key: "formats", label: "Output formats" },
       { key: "rendering", label: "Rendering priority" },
       { key: "fullPage", label: "Full-page screenshots", check: true },
@@ -210,8 +210,8 @@ export function PricingSection() {
           pricing
         </h2>
         <p className="mb-8 text-[13px] leading-[1.55] text-[var(--dim)]">
-          Try on Free. Pay $9 when screenshots become a product feature — full-page, PDF, and 2,500 captures.
-          Cached hits and failed renders do not consume quota.
+          Start with 100 credits per month. Full-page screenshots and PDF are included; PDF uses 5 credits per page.
+          Successful cache hits count toward usage, and failed renders are refunded.
         </p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -327,11 +327,11 @@ export function PricingSection() {
             {[
               {
                 q: "What do I actually pay for?",
-                a: "Starter ($9) is the first paid step: full-page captures, PDF, 2,500 screenshots/month, and 30-day history. Free is for trying viewport PNG/JPEG/WebP. Pro and Scale are for volume, geo targeting, and video.",
+                a: "Free includes 100 monthly credits with full-page captures and PDF. Starter ($9) adds 2,500 credits/month and 30-day history. Pro and Scale add volume, geo targeting, and video.",
               },
               {
                 q: "Do cached screenshots count toward my limit?",
-                a: "No. Screenshots served from cache do not count toward your monthly quota. Only fresh successful renders are billed.",
+                a: "Yes. Successful cache hits count as served renders and deduct the same credits as a fresh render. Failed renders are refunded.",
               },
               {
                 q: "What happens when I exceed my plan limit?",

@@ -130,7 +130,7 @@ const params: Param[] = [
   ["url", "string", "—", "Website URL to screenshot. Scheme-less URLs are auto-prefixed with https://. One of url, html, or markdown is required."],
   ["html", "string", "—", "Raw HTML to render instead of a URL."],
   ["markdown", "string", "—", "Markdown to render instead of a URL or HTML."],
-  ["format", "enum", "png", "png | jpeg | webp | pdf | gif | tiff | avif | svg | html. html returns the post-JavaScript page source."],
+  ["format", "enum", "png", "PNG, JPEG, WebP, PDF on every plan; GIF, MP4, WebM on Pro/Scale."],
   ["quality", "integer 1–100", "80", "Output quality for lossy formats."],
   ["viewport_width", "integer", "1280", "Viewport width in pixels."],
   ["viewport_height", "integer", "720", "Viewport height in pixels."],
@@ -160,7 +160,7 @@ const params: Param[] = [
   ["styles", "string", "—", "Custom CSS to inject before capture."],
   ["scripts", "string", "—", "Custom JavaScript to execute before capture."],
   ["click", "string", "—", "CSS selector to click before capturing."],
-  ["delay", "integer ms", "0", "Delay between load and capture."],
+  ["delay", "integer ms", "0", "Wait before capture. Free: up to 1000 ms; paid plans: up to 30000 ms (server cap)."],
   ["timeout", "integer ms", "10000", "Navigation timeout."],
   ["wait_until", "enum", "—", "load | domcontentloaded | networkidle0 | networkidle2."],
   ["readiness", "enum", "—", "fast | balanced | complete | custom. Controls when the page is considered ready."],
@@ -283,8 +283,8 @@ export default function DocsPage() {
           <section id="quickstart" className="mt-16 scroll-mt-24">
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Quick start</h2>
             <p className="mt-3 text-slate-600 dark:text-slate-400">
-              Render a screenshot of any website in one request. URL parameters are optional
-              — scheme-less URLs like <code className="rounded bg-[var(--muted)] px-1.5 py-0.5 font-mono text-sm text-slate-700 dark:text-slate-300">example.com</code> work too.
+              For a synchronous image or PDF response, send one request to <code className="font-mono text-xs">/api/take</code>. Scheme-less URLs like{" "}
+              <code className="rounded bg-[var(--muted)] px-1.5 py-0.5 font-mono text-sm text-slate-700 dark:text-slate-300">example.com</code> work too. For production workloads, use the recommended async v1 API below.
             </p>
             <div className="mt-4">
               <CodeBlock
@@ -445,7 +445,7 @@ export default function DocsPage() {
               <p className="mb-2 font-semibold text-slate-900 dark:text-white">Create a job (async)</p>
               <CodeBlock
                 label="bash"
-                code={`curl -X POST "${siteConfig.apiUrl}/api/v1/screenshots" \\\n  -H "Authorization: Bearer sk_live_xxxx" \\\n  -H "Content-Type: application/json" \\\n  -d '{"url": "https://example.com", "format": "png", "full_page": true}'`}
+                code={`curl -X POST "${siteConfig.apiUrl}/api/v1/screenshots" \\\n  -H "Authorization: Bearer sk_live_xxxx" \\\n  -H "Content-Type: application/json" \\\n  -d '{"url": "https://example.com", "format": "png", "full_page": true, "styles": "body { background: white }", "scripts": "document.body.dataset.capture = 1", "click": "button.accept", "hide_selectors": ".cookie-banner", "delay": 1500}'`}
               />
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
                 Returns <span className="font-mono text-xs">202</span> with the job id and a status URL:
@@ -532,13 +532,17 @@ export default function DocsPage() {
                       ["url", "string", "https:// URL to capture. One of url, html, or markdown."],
                       ["html", "string", "Raw HTML to render."],
                       ["markdown", "string", "Markdown to render."],
-                      ["format", "enum", "png (default) | jpeg | webp | pdf. PDF requires a paid plan."],
+                      ["format", "enum", "png (default) | jpeg | webp | pdf on all plans; gif, mp4, webm on Pro/Scale."],
                       ["width / height", "integer", "Viewport size (max 5000)."],
                       ["device", "enum", "mobile | tablet | desktop. Sets viewport, scale, touch, and user agent."],
                       ["viewport", "enum", "mobile_sm | mobile | mobile_lg | tablet | tablet_lg | desktop | desktop_hd. Viewport only (no device emulation)."],
                       ["device_scale_factor", "integer 1–3", "Override scale factor. Default comes from device or viewport preset."],
                       ["full_page", "boolean", "Capture the full scrollable page."],
-                      ["delay", "integer", "Milliseconds to wait after load before capturing."],
+                      ["delay", "integer", "Wait after load (0–1000 ms Free; up to 30000 ms on paid plans)."],
+                      ["styles", "string", "CSS to apply before capture."],
+                      ["scripts", "string", "JavaScript to execute before capture."],
+                      ["click", "string", "CSS selector to click before capture."],
+                      ["hide_selectors", "string", "Comma-separated CSS selectors to hide."],
                       ["wait_for", "enum", "load | domcontentloaded | networkidle0 | networkidle2."],
                       ["wait_for_selector", "string", "Wait until this CSS selector matches before capture."],
                       ["selector", "string", "Capture a single element instead of the viewport."],
@@ -632,8 +636,8 @@ export default function DocsPage() {
               </div>
             </div>
             <p className="mt-4 text-slate-600 dark:text-slate-400">
-              Monthly limits reset at <span className="font-mono text-xs">period.reset_at</span>. Cached hits
-              are free and never deduct credits. When you run out, requests return{" "}
+              Monthly credit balances reset at <span className="font-mono text-xs">period.reset_at</span>. Every successful render,
+              including a cache hit, deducts credits. Failed renders are refunded. When you run out, requests return{" "}
               <span className="font-mono text-xs">402 insufficient_credits</span> — upgrade or buy a top-up
               from the dashboard.
             </p>
@@ -648,7 +652,7 @@ export default function DocsPage() {
               <div className="mt-3">
                 <CodeBlock
                   label="json"
-                  code={'{\n  "plan": "starter",\n  "entitlements": {\n    "formats": ["png", "jpeg", "webp", "pdf", "svg", "html"],\n    "full_page": true,\n    "element_capture": true,\n    "pdf_export": true,\n    "cloud_storage": true,\n    "ad_blocking": true,\n    "cookie_blocking": true,\n    "tracker_blocking": true,\n    "api_keys": 3,\n    "rate_limit_per_minute": 20,\n    "monthly_screenshots": 2500\n  }\n}'}
+                  code={'{\n  "plan": "starter",\n  "entitlements": {\n    "formats": ["png", "jpeg", "webp", "pdf"],\n    "full_page": true,\n    "element_capture": true,\n    "pdf_export": true,\n    "cloud_storage": false,\n    "ad_blocking": true,\n    "cookie_blocking": true,\n    "tracker_blocking": true,\n    "api_keys": 5,\n    "rate_limit_per_minute": 40,\n    "monthly_screenshots": 2500\n  }\n}'}
                 />
               </div>
             </div>
@@ -777,9 +781,10 @@ export default function DocsPage() {
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
                   {[
-                    ["Free", "100", "10", "No"],
-                    ["Starter", "2,500", "40", "Yes"],
-                    ["Pro", "15,000", "120", "Yes"],
+                    ["Free", "100 credits", "10", "Yes"],
+                    ["Starter", "2,500 credits", "40", "Yes"],
+                    ["Pro", "15,000 credits", "120", "Yes"],
+                    ["Scale", "50,000 credits", "240", "Yes"],
                   ].map(([plan, screens, rate, pdf]) => (
                     <tr key={plan}>
                       <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{plan}</td>
@@ -801,7 +806,7 @@ export default function DocsPage() {
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Caching</h2>
             <p className="mt-3 text-slate-600 dark:text-slate-400">
               Screenshots are cached by URL and render options. A cache hit returns instantly,
-              costs <strong className="text-slate-900 dark:text-white">zero credits</strong>, and is flagged by the{" "}
+              counts as a served render, and is flagged by the{" "}
               <code className="font-mono text-xs">X-Cache: HIT</code> response header.
             </p>
             <ul className="mt-4 list-inside list-disc space-y-2 text-slate-600 dark:text-slate-400">
@@ -820,7 +825,7 @@ export default function DocsPage() {
                 <code className="rounded bg-[var(--muted)] px-1.5 py-0.5 font-mono text-sm text-slate-700 dark:text-slate-300">cache_bust</code> or a timestamped query param.
               </li>
               <li>
-                Cached responses are served before any credit deduction, so repeated captures of the same page are effectively free.
+                Cached responses are served before rendering, but successful cache hits still deduct credits at the normal rate.
               </li>
             </ul>
           </section>

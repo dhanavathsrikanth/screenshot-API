@@ -1,23 +1,22 @@
 /** Shared positioning and upgrade copy — keep marketing and dashboard aligned. */
 
 export const positioning = {
-  headline: "Clean screenshots for your product, one API call",
+  headline: "Ship website captures without running browsers",
   subhead:
-    "Built for indie SaaS, link previews, docs, and AI agents. Ads, cookie banners, and chat widgets are stripped by default — no Chromium farm to run.",
-  freeOffer: "100 free viewport captures / month — no credit card",
-  starterOffer: "Starter $9: full-page, PDF, 2,500 captures, 30-day history",
+    "One API turns public pages into clean screenshots and PDFs. Cookie banners, ads, and chat overlays are handled automatically. Full-page capture and PDF are included in the 100 free monthly credits.",
+  freeOffer: "100 free credits each month — full-page and PDF included",
+  starterOffer: "Starter $9: 2,500 monthly captures and 30-day history",
 } as const;
 
 export const upgradeReasons = {
   starter: [
-    "Full-page screenshots (entire scrollable page)",
-    "PDF export for reports and archives",
-    "2,500 captures/month vs 100 on Free",
+    "2,500 credits/month vs 100 on Free",
+    "Longer capture delays (up to 30 seconds)",
     "30-day history instead of 24 hours",
     "Priority queue ahead of free traffic",
   ],
   pro: [
-    "15,000 captures/month for production volume",
+    "15,000 credits/month for production volume",
     "Geo-targeted rendering by country",
     "Cloud storage (R2) for direct asset URLs",
     "90-day screenshot retention",
@@ -43,8 +42,8 @@ export const useCases = [
     title: "Docs, changelogs, and reports",
     audience: "Product and support teams",
     description:
-      "Full-page captures and PDFs on Starter ($9) so you can archive a page as it looked — not a cropped viewport.",
-    paysFor: "Starter for PDF + full-page",
+      "Use your Free credits for full-page captures and PDFs, then move to Starter for more monthly volume and longer history.",
+    paysFor: "Starter for volume and history",
   },
   {
     title: "AI agents & MCP",
